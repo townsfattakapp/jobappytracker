@@ -476,7 +476,9 @@ body {
 /* TipTap Editor Styles */
 .tiptap {
   outline: none;
-  min-height: 100%;
+  min-height: 12rem;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .tiptap p.is-editor-empty:first-child::before {
   color: hsl(var(--muted-foreground));
@@ -490,6 +492,7 @@ body {
   font-weight: 600;
   margin-top: 1em;
   margin-bottom: 0.5em;
+  line-height: 1.25;
 }
 .tiptap ul {
   list-style-type: disc;
@@ -501,8 +504,16 @@ body {
   padding-left: 1.5rem;
   margin-bottom: 1em;
 }
+.tiptap li {
+  margin-bottom: 0.35em;
+}
 .tiptap p {
   margin-bottom: 0.75em;
+}
+.tiptap hr {
+  border: 0;
+  border-top: 1px solid hsl(var(--border));
+  margin: 1.25rem 0;
 }
 .tiptap code {
   background-color: hsl(var(--muted));
@@ -517,6 +528,7 @@ body {
   border-radius: 8px;
   overflow-x: auto;
   margin-bottom: 1em;
+  max-width: 100%;
 }
 .tiptap pre code {
   background-color: transparent;
@@ -529,5 +541,186 @@ body {
   margin-left: 0;
   margin-bottom: 1em;
   color: hsl(var(--muted-foreground));
+}
+
+/* Prep Kit layout */
+.prep-kit {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.prep-kit-mobile-bar {
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+  background: hsl(var(--card));
+  padding: 0.75rem;
+  box-shadow: var(--shadow-soft);
+}
+
+.prep-kit-mobile-list {
+  margin-top: 0.65rem;
+  max-height: 14rem;
+  overflow-y: auto;
+  border-top: 1px solid hsl(var(--border));
+  padding-top: 0.35rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.prep-kit-shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 28rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+  background: hsl(var(--card));
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+
+.prep-kit-sidebar {
+  display: none;
+}
+
+.prep-kit-editor-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+}
+
+.prep-kit-note-item {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 0.15rem;
+  border: 0;
+  border-bottom: 1px solid hsl(var(--border));
+  background: transparent;
+  padding: 0.85rem 1rem;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.prep-kit-note-item:hover {
+  background: hsl(var(--muted));
+}
+
+.prep-kit-note-item-active {
+  background: hsl(var(--primary) / 0.1);
+}
+
+.prep-kit-editor {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.prep-kit-editor-top {
+  flex-shrink: 0;
+  border-bottom: 1px solid hsl(var(--border));
+  padding: 1rem 1rem 0.9rem;
+}
+
+.prep-kit-ai-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.prep-kit-editor-scroll {
+  flex: 1;
+  min-height: 18rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 1rem 1rem 1.5rem;
+}
+
+.prep-kit-editor-body {
+  min-height: 14rem;
+  max-width: 100%;
+}
+
+.prep-kit-attachments {
+  margin-top: 1.75rem;
+  border-top: 1px solid hsl(var(--border));
+  padding-top: 1.25rem;
+}
+
+.prep-kit-attachment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.85rem;
+  background: hsl(var(--muted) / 0.35);
+  padding: 0.75rem 0.85rem;
+}
+
+@media (min-width: 1024px) {
+  .prep-kit-shell {
+    flex-direction: row;
+    height: clamp(32rem, calc(100dvh - 14rem), 48rem);
+    max-height: calc(100dvh - 12rem);
+  }
+
+  .prep-kit-sidebar {
+    display: flex;
+    width: min(20rem, 34%);
+    flex-direction: column;
+    min-height: 0;
+    border-right: 1px solid hsl(var(--border));
+    background: hsl(var(--card));
+  }
+
+  .prep-kit-sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-shrink: 0;
+    border-bottom: 1px solid hsl(var(--border));
+    padding: 1rem;
+  }
+
+  .prep-kit-sidebar-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .prep-kit-editor-top {
+    padding: 1.15rem 1.35rem 1rem;
+  }
+
+  .prep-kit-editor-scroll {
+    padding: 1.15rem 1.35rem 1.75rem;
+  }
+}
+
+@media (max-width: 1023px) {
+  .prep-kit-shell {
+    min-height: 0;
+  }
+
+  .prep-kit-editor-scroll {
+    min-height: 22rem;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .prep-kit-editor {
+    overflow: visible;
+  }
 }
 

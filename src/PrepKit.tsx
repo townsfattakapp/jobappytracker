@@ -26,8 +26,18 @@ export default function PrepKit({
   const [activeNoteId, setActiveNoteId] = useState<string | null>(
     prepNotes.length > 0 ? prepNotes[0].id : null,
   )
+  const [mobileListOpen, setMobileListOpen] = useState(false)
 
-  const activeNote = prepNotes.find((n) => n.id === activeNoteId)
+  useEffect(() => {
+    if (activeNoteId && !prepNotes.some((n) => n.id === activeNoteId)) {
+      setActiveNoteId(prepNotes[0]?.id ?? null)
+    }
+    if (!activeNoteId && prepNotes.length > 0) {
+      setActiveNoteId(prepNotes[0].id)
+    }
+  }, [prepNotes, activeNoteId])
+
+  const activeNote = prepNotes.find((n) => n.id === activeNoteId) ?? null
 
   const createNote = () => {
     const newNote: PrepNote = {
@@ -40,65 +50,118 @@ export default function PrepKit({
     }
     onSaveNote(newNote)
     setActiveNoteId(newNote.id)
+    setMobileListOpen(false)
   }
 
   return (
-    <div className="flex h-[75vh] w-full flex-col overflow-hidden rounded-2xl surface animate-rise sm:flex-row">
-      <div className="flex w-full flex-col border-b border-border bg-[hsl(var(--card))] sm:w-1/3 sm:border-b-0 sm:border-r">
-        <div className="flex items-center justify-between border-b border-border p-4">
-          <h2 className="font-display text-lg font-semibold text-foreground">Prep Notes</h2>
-          <button type="button" onClick={createNote} className="btn btn-ghost btn-sm">
+    <div className="prep-kit animate-rise">
+      {/* Mobile note switcher */}
+      <div className="prep-kit-mobile-bar lg:hidden">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm flex-1 justify-start truncate"
+            onClick={() => setMobileListOpen((v) => !v)}
+            aria-expanded={mobileListOpen}
+          >
+            {activeNote?.title || 'Select a note'} · {prepNotes.length} notes
+          </button>
+          <button type="button" className="btn btn-primary btn-sm shrink-0" onClick={createNote}>
             + New
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {prepNotes.length === 0 ? (
-            <p className="p-4 text-center text-sm text-muted-foreground">
-              Create a note, then generate interview prep with Groq AI.
-            </p>
-          ) : (
-            prepNotes.map((note) => (
-              <button
-                key={note.id}
-                type="button"
-                onClick={() => setActiveNoteId(note.id)}
-                className={`w-full border-b border-border px-4 py-3 text-left transition-colors ${
-                  activeNoteId === note.id ? 'bg-[hsl(var(--primary)/0.1)]' : 'hover:bg-muted'
-                }`}
-              >
-                <p className="truncate font-semibold text-foreground">
-                  {note.title || 'Untitled Note'}
-                </p>
-                <p className="mt-1 truncate text-xs text-muted-foreground">
-                  {new Date(note.updatedAt).toLocaleDateString()} · {note.attachments.length}{' '}
-                  attachment(s)
-                </p>
-              </button>
-            ))
-          )}
-        </div>
+        {mobileListOpen ? (
+          <div className="prep-kit-mobile-list">
+            {prepNotes.length === 0 ? (
+              <p className="px-3 py-4 text-sm text-muted-foreground">No notes yet.</p>
+            ) : (
+              prepNotes.map((note) => (
+                <button
+                  key={note.id}
+                  type="button"
+                  className={`prep-kit-note-item ${
+                    activeNoteId === note.id ? 'prep-kit-note-item-active' : ''
+                  }`}
+                  onClick={() => {
+                    setActiveNoteId(note.id)
+                    setMobileListOpen(false)
+                  }}
+                >
+                  <span className="truncate font-semibold">{note.title || 'Untitled Note'}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(note.updatedAt).toLocaleDateString()}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        ) : null}
       </div>
 
-      <div className="relative flex flex-1 flex-col bg-[hsl(var(--card))]">
-        {activeNote ? (
-          <NoteEditor
-            key={activeNote.id}
-            note={activeNote}
-            applications={applications}
-            onUpdate={(updated) => onSaveNote(updated)}
-            onDelete={() => {
-              if (confirm('Delete this note?')) {
-                onDeleteNote(activeNote.id)
-                setActiveNoteId(null)
-              }
-            }}
-            onToast={onToast}
-          />
-        ) : (
-          <div className="flex flex-1 items-center justify-center text-muted-foreground">
-            Select or create a note
+      <div className="prep-kit-shell">
+        {/* Desktop sidebar */}
+        <aside className="prep-kit-sidebar">
+          <div className="prep-kit-sidebar-head">
+            <h2 className="font-display text-lg font-semibold text-foreground">Prep Notes</h2>
+            <button type="button" onClick={createNote} className="btn btn-ghost btn-sm">
+              + New
+            </button>
           </div>
-        )}
+          <div className="prep-kit-sidebar-scroll">
+            {prepNotes.length === 0 ? (
+              <p className="p-4 text-center text-sm text-muted-foreground">
+                Create a note, then generate interview prep with Groq AI.
+              </p>
+            ) : (
+              prepNotes.map((note) => (
+                <button
+                  key={note.id}
+                  type="button"
+                  onClick={() => setActiveNoteId(note.id)}
+                  className={`prep-kit-note-item ${
+                    activeNoteId === note.id ? 'prep-kit-note-item-active' : ''
+                  }`}
+                >
+                  <p className="truncate font-semibold text-foreground">
+                    {note.title || 'Untitled Note'}
+                  </p>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
+                    {new Date(note.updatedAt).toLocaleDateString()} · {note.attachments.length}{' '}
+                    file(s)
+                  </p>
+                </button>
+              ))
+            )}
+          </div>
+        </aside>
+
+        <section className="prep-kit-editor-pane">
+          {activeNote ? (
+            <NoteEditor
+              key={activeNote.id}
+              note={activeNote}
+              applications={applications}
+              onUpdate={onSaveNote}
+              onDelete={() => {
+                if (confirm('Delete this note?')) {
+                  onDeleteNote(activeNote.id)
+                  setActiveNoteId(null)
+                }
+              }}
+              onToast={onToast}
+            />
+          ) : (
+            <div className="flex flex-1 items-center justify-center p-8 text-center text-muted-foreground">
+              <div>
+                <p className="font-semibold text-foreground">No note selected</p>
+                <p className="mt-1 text-sm">Create a note to start prepping.</p>
+                <button type="button" className="btn btn-primary mt-4" onClick={createNote}>
+                  Create note
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   )
@@ -122,6 +185,7 @@ function NoteEditor({
   const [aiBusy, setAiBusy] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const noteRef = useRef(note)
   noteRef.current = note
 
@@ -145,6 +209,11 @@ function NoteEditor({
       }),
     ],
     content: note.content,
+    editorProps: {
+      attributes: {
+        class: 'tiptap prep-kit-tiptap focus:outline-none',
+      },
+    },
     onUpdate: ({ editor }) => {
       const current = noteRef.current
       onUpdate({ ...current, content: editor.getHTML(), updatedAt: new Date().toISOString() })
@@ -186,23 +255,21 @@ function NoteEditor({
         editor.commands.setContent(`${editor.getHTML()}<hr/>${result.html}`)
       }
 
-      if (!title.trim() || title === 'Untitled Note') {
-        setTitle(result.titleSuggestion)
-        onUpdate({
-          ...noteRef.current,
-          title: result.titleSuggestion,
-          content: editor.getHTML(),
-          updatedAt: new Date().toISOString(),
-        })
-      } else {
-        onUpdate({
-          ...noteRef.current,
-          content: editor.getHTML(),
-          updatedAt: new Date().toISOString(),
-        })
-      }
+      const nextTitle =
+        !title.trim() || title === 'Untitled Note' ? result.titleSuggestion : title
+      if (nextTitle !== title) setTitle(nextTitle)
+
+      onUpdate({
+        ...noteRef.current,
+        title: nextTitle,
+        content: editor.getHTML(),
+        updatedAt: new Date().toISOString(),
+      })
 
       onToast?.('Prep generated with Groq AI')
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+      })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'AI generation failed'
       setAiError(message)
@@ -258,44 +325,42 @@ function NoteEditor({
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex shrink-0 items-center justify-between px-6 pb-2 pt-5">
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="font-display mr-4 w-full border-none bg-transparent text-2xl font-semibold text-foreground outline-none placeholder:text-muted-foreground"
-          placeholder="Note Title"
-        />
-        <button
-          type="button"
-          onClick={onDelete}
-          className="btn btn-ghost shrink-0 text-destructive hover:bg-destructive/10"
-        >
-          Delete
-        </button>
-      </div>
-
-      <div className="shrink-0 space-y-3 border-b border-border px-6 pb-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <label className="min-w-0 flex-1">
-            <span className="label-quiet">Prep for application</span>
-            <select
-              className="input-field"
-              value={appId}
-              onChange={(e) => setAppId(e.target.value)}
-            >
-              <option value="">General prep (no specific role)</option>
-              {rankedApps.map((app) => (
-                <option key={app.id} value={app.id}>
-                  {app.company} — {app.role} ({app.status})
-                </option>
-              ))}
-            </select>
-          </label>
+    <div className="prep-kit-editor">
+      <div className="prep-kit-editor-top">
+        <div className="flex items-start gap-3">
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="font-display min-w-0 flex-1 border-none bg-transparent text-xl font-semibold text-foreground outline-none placeholder:text-muted-foreground sm:text-2xl"
+            placeholder="Note title"
+          />
+          <button
+            type="button"
+            onClick={onDelete}
+            className="btn btn-ghost btn-sm shrink-0 text-destructive hover:bg-destructive/10"
+          >
+            Delete
+          </button>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <label className="mt-3 block">
+          <span className="label-quiet">Prep for application</span>
+          <select
+            className="input-field"
+            value={appId}
+            onChange={(e) => setAppId(e.target.value)}
+          >
+            <option value="">General prep (no specific role)</option>
+            {rankedApps.map((app) => (
+              <option key={app.id} value={app.id}>
+                {app.company} — {app.role} ({app.status})
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="prep-kit-ai-actions">
           {PREP_AI_ACTIONS.map((action) => (
             <button
               key={action.id}
@@ -310,19 +375,19 @@ function NoteEditor({
           ))}
         </div>
         {aiBusy ? (
-          <p className="text-sm text-muted-foreground">Groq is writing your prep…</p>
+          <p className="mt-2 text-sm text-muted-foreground">Groq is writing your prep…</p>
         ) : null}
-        {aiError ? <p className="text-sm font-medium text-destructive">{aiError}</p> : null}
+        {aiError ? <p className="mt-2 text-sm font-medium text-destructive">{aiError}</p> : null}
       </div>
 
-      <div className="custom-scrollbar flex-1 overflow-y-auto px-6 pb-6 pt-4">
-        <div className="prose prose-sm max-w-none dark:prose-invert sm:prose-base min-h-[200px]">
+      <div ref={scrollRef} className="prep-kit-editor-scroll">
+        <div className="prep-kit-editor-body">
           <EditorContent editor={editor} />
         </div>
 
-        <div className="mt-8 border-t border-border pt-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="prep-kit-attachments">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Attachments ({note.attachments.length})
             </h3>
             <button
@@ -330,34 +395,26 @@ function NoteEditor({
               onClick={() => fileInputRef.current?.click()}
               className="btn btn-ghost btn-sm text-primary"
             >
-              + Add File
+              + Add file
             </button>
             <input
               type="file"
               ref={fileInputRef}
               className="hidden"
-              onChange={handleFileUpload}
+              onChange={(e) => void handleFileUpload(e)}
             />
           </div>
 
           <div className="flex flex-col gap-2">
             {note.attachments.map((att) => (
-              <div
-                key={att.id}
-                className="flex items-center justify-between rounded-xl border border-border bg-muted/30 p-3"
-              >
-                <div className="flex min-w-0 items-center gap-3 overflow-hidden">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    📄
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-foreground">{att.filename}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(att.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
+              <div key={att.id} className="prep-kit-attachment-row">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">{att.filename}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {(att.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
                 </div>
-                <div className="ml-4 flex shrink-0 items-center gap-1">
+                <div className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
                     onClick={() => void handleDownload(att)}
@@ -369,17 +426,18 @@ function NoteEditor({
                     type="button"
                     onClick={() => void handleRemoveAttachment(att.id)}
                     className="rounded px-2 py-1 text-muted-foreground hover:text-destructive"
+                    aria-label={`Remove ${att.filename}`}
                   >
                     &times;
                   </button>
                 </div>
               </div>
             ))}
-            {note.attachments.length === 0 && (
-              <p className="text-sm italic text-muted-foreground">
-                No files attached. Safe to upload PDFs up to any size.
+            {note.attachments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Attach resumes, JDs, or offer letters — stored on this device.
               </p>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

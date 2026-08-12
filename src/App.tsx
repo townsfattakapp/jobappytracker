@@ -501,23 +501,25 @@ export default function App() {
           </div>
         </div>
 
-        <div className="mb-7 w-full">
-          <SearchFilter
-            query={searchQuery}
-            setQuery={setSearchQuery}
-            status={filterStatus}
-            setStatus={setFilterStatus}
-            sortBy={sortBy}
-            setSortBy={setSortBy}
-            sortDir={sortDir}
-            setSortDir={setSortDir}
-            resultCount={sortedApplications.length}
-            onClear={() => {
-              setSearchQuery('')
-              setFilterStatus('')
-            }}
-          />
-        </div>
+        {view !== 'prepKit' ? (
+          <div className="mb-7 w-full">
+            <SearchFilter
+              query={searchQuery}
+              setQuery={setSearchQuery}
+              status={filterStatus}
+              setStatus={setFilterStatus}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              sortDir={sortDir}
+              setSortDir={setSortDir}
+              resultCount={sortedApplications.length}
+              onClear={() => {
+                setSearchQuery('')
+                setFilterStatus('')
+              }}
+            />
+          </div>
+        ) : null}
 
         <div className="w-full">
           {view === 'prepKit' ? (
