@@ -225,7 +225,7 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
                   className="input-field"
                   value={form.salary || ''}
                   onChange={(e) => setForm({ ...form, salary: e.target.value })}
-                  placeholder="$150k"
+                  placeholder="₹15 LPA"
                 />
               </Field>
               <Field label="Applied Date">
