@@ -7,6 +7,12 @@ import {
   parsedEmailToDraft,
   type EmailParseResult,
 } from './emailParser.ts'
+import {
+  getGroqApiKey,
+  hasGroqApiKey,
+  parseJobEmailWithGroq,
+  setGroqApiKey,
+} from './lib/groqEmail.ts'
 import { type JobApplication, type NewJobApplication, type Status, STATUS_ORDER } from './types'
 
 interface EmailImportProps {
@@ -50,6 +56,10 @@ export default function EmailImport({
   const [parsed, setParsed] = useState<EmailParseResult | null>(null)
   const [draft, setDraft] = useState<DraftFields | null>(null)
   const [mode, setMode] = useState<'create' | 'update'>('create')
+  const [aiBusy, setAiBusy] = useState(false)
+  const [groqKey, setGroqKey] = useState('')
+  const [showKey, setShowKey] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -57,6 +67,11 @@ export default function EmailImport({
     setParsed(null)
     setDraft(null)
     setMode('create')
+    setError(null)
+    setAiBusy(false)
+    const existing = getGroqApiKey()
+    setGroqKey(existing)
+    setShowKey(!existing)
   }, [open])
 
   useEffect(() => {
@@ -81,9 +96,46 @@ export default function EmailImport({
   if (!open) return null
 
   const runParse = (text = raw) => {
+    setError(null)
     const result = parseJobEmail(text)
     setParsed(result)
     setDraft(toDraft(result))
+  }
+
+  const runAiParse = async (text = raw) => {
+    setError(null)
+    if (!hasGroqApiKey() && !groqKey.trim()) {
+      setShowKey(true)
+      setError('Add your free Groq API key to use AI analysis')
+      return
+    }
+    if (groqKey.trim()) setGroqApiKey(groqKey.trim())
+
+    setAiBusy(true)
+    try {
+      const result = await parseJobEmailWithGroq(text)
+      setParsed(result)
+      setDraft(toDraft(result))
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'AI analysis failed'
+      setError(message)
+      // Still show rule-based fallback so the user isn't stuck
+      const fallback = parseJobEmail(text)
+      setParsed({
+        ...fallback,
+        signals: [...fallback.signals, 'ai-fallback'],
+        confidence: 'low',
+      })
+      setDraft(toDraft(fallback))
+    } finally {
+      setAiBusy(false)
+    }
+  }
+
+  const saveKey = () => {
+    setGroqApiKey(groqKey)
+    setShowKey(false)
+    setError(null)
   }
 
   const apply = () => {
@@ -97,7 +149,7 @@ export default function EmailImport({
       location: draft.location.trim(),
       appliedDate: draft.appliedDate || null,
       notes: draft.notes.trim(),
-      source: 'Email paste',
+      source: parsed?.source || 'Email paste',
       signals: parsed?.signals || [],
       confidence: parsed?.confidence || 'medium',
     })
@@ -107,7 +159,6 @@ export default function EmailImport({
       onUpdate(match.id, {
         ...payload,
         notes: mergedNotes,
-        // keep existing salary/pin unless status suggests pin
         pinned:
           match.pinned ||
           payload.status === 'Interview' ||
@@ -121,25 +172,22 @@ export default function EmailImport({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center animate-fade">
+    <div className="fixed inset-0 z-[80] flex items-end justify-center p-4 sm:items-center animate-fade">
       <button
         type="button"
         className="absolute inset-0 bg-[hsl(var(--ink)/0.45)] backdrop-blur-[2px]"
         aria-label="Close dialog"
         onClick={onClose}
       />
-      <div className="relative z-10 flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl surface animate-slide-up">
+      <div className="relative z-10 flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-[hsl(var(--card))] shadow-lg animate-slide-up">
         <div className="flex items-start justify-between gap-4 border-b border-border/80 p-5 sm:p-6">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">
-              Email import
-            </p>
+            <p className="text-sm font-medium text-muted-foreground">Email import</p>
             <h2 className="font-display mt-1 text-2xl font-semibold tracking-tight">
               Paste a recruiting email
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Detects applied, shortlisted, interview, assessment, offer, or rejection — then creates or
-              updates a role.
+              Use quick extract or Groq AI for better company, role, and status detection.
             </p>
           </div>
           <button type="button" className="btn btn-ghost" onClick={onClose}>
@@ -174,17 +222,15 @@ export default function EmailImport({
               className="btn btn-ghost text-xs"
               onClick={() => {
                 setRaw(SAMPLE_EMAILS.evolw)
-                runParse(SAMPLE_EMAILS.evolw)
+                void runAiParse(SAMPLE_EMAILS.evolw)
               }}
             >
-              Try: Evolw
+              Try: Evolw (AI)
             </button>
           </div>
 
           <label className="block">
-            <span className="label-quiet">
-              Email text
-            </span>
+            <span className="label-quiet">Email text</span>
             <textarea
               className="input-field min-h-[180px] resize-y font-mono text-sm"
               placeholder="Paste the full email including Subject / From if you have them…"
@@ -193,19 +239,62 @@ export default function EmailImport({
             />
           </label>
 
+          <div className="rounded-xl border border-border bg-muted/40 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Groq AI</p>
+                <p className="text-xs text-muted-foreground">
+                  Free key from console.groq.com — stored only in this browser
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowKey((v) => !v)}
+              >
+                {showKey ? 'Hide key' : hasGroqApiKey() || groqKey ? 'Edit key' : 'Add key'}
+              </button>
+            </div>
+            {showKey ? (
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <input
+                  className="input-field font-mono text-sm"
+                  type="password"
+                  value={groqKey}
+                  onChange={(e) => setGroqKey(e.target.value)}
+                  placeholder="gsk_..."
+                  autoComplete="off"
+                />
+                <button type="button" className="btn btn-ghost" onClick={saveKey}>
+                  Save key
+                </button>
+              </div>
+            ) : null}
+          </div>
+
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="btn btn-primary"
-              disabled={raw.trim().length < 20}
+              className="btn btn-ghost"
+              disabled={raw.trim().length < 20 || aiBusy}
               onClick={() => runParse()}
             >
-              Extract details
+              Quick extract
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={raw.trim().length < 20 || aiBusy}
+              onClick={() => void runAiParse()}
+            >
+              {aiBusy ? 'Analyzing…' : 'Analyze with Groq AI'}
             </button>
           </div>
 
+          {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
+
           {draft && parsed && (
-            <div className="space-y-4 rounded-2xl border border-border bg-white/70 p-4">
+            <div className="space-y-4 rounded-2xl border border-border bg-muted/30 p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge status={draft.status} />
                 <span className="text-sm font-medium text-muted-foreground">
