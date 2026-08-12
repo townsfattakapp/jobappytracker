@@ -8,6 +8,7 @@ import SearchFilter from './SearchFilter.tsx'
 import EmailImport from './EmailImport.tsx'
 import BookmarkletModal from './BookmarkletModal.tsx'
 import PrepKit from './PrepKit.tsx'
+import AuthPanel from './AuthPanel.tsx'
 import {
   type JobApplication,
   type NewJobApplication,
@@ -17,6 +18,13 @@ import {
   loadStorage,
   saveStorage,
 } from './types'
+import {
+  getCurrentUser,
+  loadCloudState,
+  saveCloudState,
+  signOut,
+  type AppUser,
+} from './lib/cloudSync'
 
 type ViewMode = 'board' | 'list' | 'dashboard' | 'prepKit'
 
@@ -54,6 +62,11 @@ export default function App() {
   const stored = loadStorage()
   const [applications, setApplications] = useState<JobApplication[]>(() => stored.applications)
   const [prepNotes, setPrepNotes] = useState(() => stored.prepNotes || [])
+  const [user, setUser] = useState<AppUser | null>(null)
+  const [authReady, setAuthReady] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [cloudHydrated, setCloudHydrated] = useState(false)
+  const skipNextCloudSave = useRef(false)
   const [view, setView] = useState<ViewMode>('board')
   const [sortBy, setSortBy] = useState<'date' | 'company' | 'status'>('date')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
@@ -92,10 +105,95 @@ export default function App() {
   }, [applications, prepNotes])
 
   useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const current = await getCurrentUser()
+      if (cancelled) return
+      setUser(current)
+      setAuthReady(true)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!authReady || !user) {
+      setCloudHydrated(false)
+      return
+    }
+
+    let cancelled = false
+    ;(async () => {
+      setSyncing(true)
+      try {
+        const cloud = await loadCloudState(user.$id)
+        if (cancelled) return
+
+        if (cloud) {
+          skipNextCloudSave.current = true
+          setApplications(cloud.applications)
+          setPrepNotes(cloud.prepNotes)
+          showToast('Loaded from Appwrite')
+        } else if (applications.length > 0 || prepNotes.length > 0) {
+          await saveCloudState(user.$id, { applications, prepNotes, version: 1 })
+          if (!cancelled) showToast('Uploaded local data to Appwrite')
+        } else {
+          await saveCloudState(user.$id, { applications: [], prepNotes: [], version: 1 })
+        }
+        if (!cancelled) setCloudHydrated(true)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Cloud sync failed'
+        if (!cancelled) showToast(message)
+      } finally {
+        if (!cancelled) setSyncing(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+    // Only hydrate when the signed-in user changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authReady, user?.$id])
+
+  useEffect(() => {
+    if (!user || !cloudHydrated) return
+    if (skipNextCloudSave.current) {
+      skipNextCloudSave.current = false
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setSyncing(true)
+      saveCloudState(user.$id, { applications, prepNotes, version: 1 })
+        .catch((err) => {
+          const message = err instanceof Error ? err.message : 'Cloud save failed'
+          showToast(message)
+        })
+        .finally(() => setSyncing(false))
+    }, 600)
+
+    return () => window.clearTimeout(timer)
+  }, [applications, prepNotes, user, cloudHydrated])
+
+  useEffect(() => {
     return () => {
       if (toastTimer.current) window.clearTimeout(toastTimer.current)
     }
   }, [])
+
+  const handleSignedIn = (next: AppUser) => {
+    setCloudHydrated(false)
+    setUser(next)
+  }
+
+  const handleSignOut = async () => {
+    await signOut()
+    setUser(null)
+    setCloudHydrated(false)
+    showToast('Signed out — data stays on this device')
+  }
 
   // Check for URL parameters from Bookmarklet import
   useEffect(() => {
@@ -323,7 +421,14 @@ export default function App() {
             </div>
           </div>
 
-          <div className="mt-5 flex w-full flex-wrap justify-center gap-2 sm:justify-start">
+          <div className="mt-5 flex w-full flex-wrap items-center justify-center gap-2 sm:justify-start">
+            <AuthPanel
+              user={user}
+              syncing={syncing}
+              onSignedIn={handleSignedIn}
+              onSignOut={handleSignOut}
+              onToast={showToast}
+            />
             <button type="button" className="btn btn-ghost btn-sm" onClick={exportData}>
               Export
             </button>
