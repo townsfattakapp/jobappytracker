@@ -1,31 +1,8 @@
-import { STATUS_ORDER, type Status } from '../types'
+import { extractJsonObject, groqChat } from './groq'
 import { parseJobEmail, type EmailParseResult } from '../emailParser'
-
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
-const GROQ_MODEL = 'llama-3.1-8b-instant'
-const STORAGE_KEY = 'job-app-groq-key'
+import { STATUS_ORDER, type Status } from '../types'
 
 const STATUS_LIST = STATUS_ORDER.join(', ')
-
-export function getGroqApiKey(): string {
-  const fromEnv = (import.meta.env.VITE_GROQ_API_KEY as string | undefined)?.trim()
-  if (fromEnv) return fromEnv
-  try {
-    return localStorage.getItem(STORAGE_KEY)?.trim() || ''
-  } catch {
-    return ''
-  }
-}
-
-export function setGroqApiKey(key: string): void {
-  const trimmed = key.trim()
-  if (!trimmed) localStorage.removeItem(STORAGE_KEY)
-  else localStorage.setItem(STORAGE_KEY, trimmed)
-}
-
-export function hasGroqApiKey(): boolean {
-  return Boolean(getGroqApiKey())
-}
 
 type AiPayload = {
   company?: string
@@ -58,19 +35,13 @@ function normalizeStatus(value: string | undefined, fallback: Status): Status {
   return fallback
 }
 
-function extractJson(text: string): AiPayload {
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i)
-  const raw = fenced?.[1]?.trim() || text.trim()
-  const start = raw.indexOf('{')
-  const end = raw.lastIndexOf('}')
-  if (start === -1 || end === -1) throw new Error('Groq did not return JSON')
-  return JSON.parse(raw.slice(start, end + 1)) as AiPayload
-}
+export {
+  getGroqApiKey,
+  setGroqApiKey,
+  hasGroqApiKey,
+} from './groq'
 
 export async function parseJobEmailWithGroq(rawEmail: string): Promise<EmailParseResult> {
-  const apiKey = getGroqApiKey()
-  if (!apiKey) throw new Error('Add your free Groq API key first')
-
   const baseline = parseJobEmail(rawEmail)
   const clipped = rawEmail.trim().slice(0, 12000)
 
@@ -101,37 +72,16 @@ Email:
 ${clipped}
 """`
 
-  const response = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      temperature: 0.1,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-    }),
+  const content = await groqChat({
+    temperature: 0.1,
+    json: true,
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ],
   })
 
-  if (!response.ok) {
-    const detail = await response.text().catch(() => '')
-    if (response.status === 401) throw new Error('Groq API key is invalid')
-    if (response.status === 429) throw new Error('Groq rate limit hit — try again in a minute')
-    throw new Error(detail || `Groq request failed (${response.status})`)
-  }
-
-  const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>
-  }
-  const content = data.choices?.[0]?.message?.content
-  if (!content) throw new Error('Empty response from Groq')
-
-  const parsed = extractJson(content)
+  const parsed = extractJsonObject<AiPayload>(content)
   const company = (parsed.company || baseline.company || '').trim()
   const role = (parsed.role || baseline.role || 'Role TBD').trim()
   const status = normalizeStatus(parsed.status, baseline.status)

@@ -523,6 +523,8 @@ export default function App() {
           {view === 'prepKit' ? (
             <PrepKit
               prepNotes={prepNotes}
+              applications={applications}
+              onToast={showToast}
               onSaveNote={(note) => {
                 setPrepNotes((prev) => {
                   const exists = prev.some((n) => n.id === note.id)
