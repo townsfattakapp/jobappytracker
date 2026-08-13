@@ -402,10 +402,51 @@ export default function App() {
 
   return (
     <div className="app-page text-foreground">
+      <button
+        type="button"
+        className="theme-toggle-fab"
+        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+      >
+        {theme === 'dark' ? (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+          </svg>
+        ) : (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z" />
+          </svg>
+        )}
+      </button>
+
       <div className="app-shell">
         <header className="animate-rise mb-6 w-full min-w-0 sm:mb-8">
           <div className="flex w-full min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="mx-auto max-w-2xl text-center sm:mx-0 sm:max-w-xl sm:text-left lg:max-w-2xl">
+            <div className="mx-auto max-w-2xl pr-10 text-center sm:mx-0 sm:max-w-xl sm:pr-0 sm:text-left lg:max-w-2xl">
               <p className="mb-1 text-sm font-bold tracking-wide text-primary">JOBAPPY</p>
               <h1 className="font-display text-[1.75rem] leading-tight text-foreground sm:text-4xl">
                 Your job search, organized
@@ -427,46 +468,6 @@ export default function App() {
               </button>
               <button type="button" className="btn btn-ghost" onClick={() => setBookmarkletOpen(true)}>
                 Bookmarklet
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost aspect-square shrink-0 px-3"
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-              >
-                {theme === 'dark' ? (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <circle cx="12" cy="12" r="4" />
-                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-                  </svg>
-                ) : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z" />
-                  </svg>
-                )}
               </button>
             </div>
           </div>
