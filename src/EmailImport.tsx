@@ -172,15 +172,15 @@ export default function EmailImport({
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center p-4 sm:items-center animate-fade">
+    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-end sm:justify-center animate-fade">
       <button
         type="button"
-        className="absolute inset-0 bg-[hsl(var(--ink)/0.45)] backdrop-blur-[2px]"
+        className="absolute inset-0 bg-[hsl(var(--ink)/0.5)] backdrop-blur-sm"
         aria-label="Close dialog"
         onClick={onClose}
       />
-      <div className="relative z-10 flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-[hsl(var(--card))] shadow-lg animate-slide-up">
-        <div className="flex items-start justify-between gap-4 border-b border-border/80 p-5 sm:p-6">
+      <div className="relative z-10 flex flex-col w-full h-[95dvh] rounded-t-3xl sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-2xl surface animate-slide-up bg-[hsl(var(--card))] overflow-hidden shadow-lg border border-border">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border/80 px-5 pt-5 sm:px-6 sm:pt-6 pb-4">
           <div>
             <p className="text-sm font-medium text-muted-foreground">Email import</p>
             <h2 className="font-display mt-1 text-2xl font-semibold tracking-tight">
@@ -195,7 +195,7 @@ export default function EmailImport({
           </button>
         </div>
 
-        <div className="space-y-5 overflow-y-auto p-5 sm:p-6">
+        <div className="flex-1 space-y-5 overflow-y-auto px-5 sm:px-6 py-5 custom-scrollbar pb-24">
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -398,23 +398,25 @@ export default function EmailImport({
                   No existing match — this will create a new application.
                 </p>
               )}
-
-              <div className="flex justify-end gap-2">
-                <button type="button" className="btn btn-ghost" onClick={onClose}>
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={!draft.company.trim()}
-                  onClick={apply}
-                >
-                  {mode === 'update' && match ? 'Update from email' : 'Add from email'}
-                </button>
-              </div>
             </div>
           )}
         </div>
+
+        {draft && (
+          <div className="px-5 pb-5 sm:px-6 sm:pb-6 pt-4 border-t border-border flex shrink-0 justify-end gap-3 bg-[hsl(var(--card))]">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary min-w-[140px]"
+              disabled={!draft.company.trim()}
+              onClick={apply}
+            >
+              {mode === 'update' && match ? 'Update from email' : 'Add from email'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
