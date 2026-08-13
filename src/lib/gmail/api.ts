@@ -39,17 +39,58 @@ export async function getGmailProfile(accessToken: string): Promise<{ emailAddre
   return gmailFetch('users/me/profile', accessToken)
 }
 
-/** Always scan newest mail first within a recent window. Deduping is by messageId. */
+/** Strict Gmail search — phrase/ATS focused; excludes common consumer noise. */
 function buildJobEmailQuery(days = 45): string {
-  const clauses = [
-    '(subject:(application OR interview OR offer OR assessment OR shortlist OR shortlisted OR recruiting OR "thank you for applying" OR "under review" OR "we received your application" OR "moved forward" OR rejection OR "coding challenge" OR hackerrank OR "next steps") OR from:(careers OR recruiting OR talent OR noreply OR jobs OR hiring))',
+  const positive = [
+    'subject:("thank you for applying"',
+    'OR "thanks for applying"',
+    'OR "application received"',
+    'OR "we received your application"',
+    'OR "your application to"',
+    'OR "your application for"',
+    'OR "application for the"',
+    'OR "interview invitation"',
+    'OR "interview with"',
+    'OR "interview scheduled"',
+    'OR "schedule an interview"',
+    'OR "phone screen"',
+    'OR "coding challenge"',
+    'OR "online assessment"',
+    'OR hackerrank',
+    'OR coderpad',
+    'OR shortlisted',
+    'OR "moved forward"',
+    'OR "next steps in your application"',
+    'OR "job offer"',
+    'OR "offer letter"',
+    'OR "offer of employment"',
+    'OR "not moving forward"',
+    'OR "unfortunately we"',
+    'OR "decided to pursue other"',
+    'OR "recruiting team"',
+    'OR "talent team"',
+    'OR "talent acquisition"',
+    'OR greenhouse',
+    'OR "lever.co"',
+    'OR ashby',
+    'OR workday)',
+    'OR from:(careers@ OR recruiting@ OR talent@ OR hiring@ OR jobs@',
+    'OR greenhouse-mail OR mail.ashbyhq OR myworkdayjobs OR lever.co',
+    'OR workablemail OR smartrecruiters OR icims)',
+  ].join(' ')
+
+  const negative = [
     '-category:promotions',
+    '-category:social',
+    '-category:forums',
     '-in:spam',
     '-in:trash',
+    '-subject:(invoice OR receipt OR order OR shipped OR shipping OR delivery OR newsletter OR password OR otp OR "verification code" OR payment OR subscription OR refund OR "sign-in" OR "sign in" OR "security alert" OR package OR tracking OR bill OR statement)',
+    '-from:(noreply@github.com OR notifications@github.com OR no-reply@accounts.google.com)',
     `newer_than:${days}d`,
-  ]
+  ].join(' ')
 
-  return clauses.join(' ')
+  return `(${positive}) ${negative}`
 }
 
 export async function listJobEmailMessageIds(

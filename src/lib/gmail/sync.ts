@@ -56,12 +56,53 @@ function extractInterviewDate(text: string): string | null {
   return null
 }
 
-function looksJobRelated(parsed: EmailParseResult, subject: string, from: string): boolean {
-  const hay = `${subject} ${from} ${parsed.notes}`.toLowerCase()
-  const keywords =
-    /job|career|recruit|talent|hiring|interview|application|offer|assessment|shortlist|candidate|role|position|hackerrank|coderpad|lever|greenhouse|ashby|workday/
-  if (!keywords.test(hay) && !parsed.company) return false
-  if (parsed.confidence === 'low' && !parsed.company && parsed.role === 'Role TBD') return false
+const NON_JOB_NOISE =
+  /\b(invoice|receipt|order confirmation|your order|shipped|shipping|tracking number|newsletter|unsubscribe|password reset|otp|one[- ]time (?:code|password)|verification code|security alert|payment (?:received|failed)|subscription|delivery|package|refund|bank statement|credit card|promo code|flash sale|limited time offer|wishlist|shopping (?:cart|bag)|flight (?:booking|itinerary)|hotel reservation)\b/i
+
+const STRONG_JOB_SIGNAL =
+  /\b(thank you for applying|thanks for applying|application (?:received|submitted|to|for)|your application|interview|phone screen|coding challenge|online assessment|hackerrank|coderpad|shortlist(?:ed)?|recruiting|talent acquisition|talent team|hiring team|job offer|offer letter|offer of employment|position of|role of|candidate|not moving forward|unfortunately.{0,80}(?:application|position|role|candidacy)|moved forward with your|next steps in your application|careers@|recruiting@|hiring@|greenhouse|lever\.co|ashbyhq|myworkday|workday)\b/i
+
+const ATS_OR_RECRUITER_FROM =
+  /(careers@|recruiting@|talent@|hiring@|jobs@|greenhouse|lever\.co|ashbyhq|myworkday|workable|smartrecruiters|icims|jobvite|successfactors|recruiting\.|talent\.)/i
+
+/** Cheap pre-check before parsing/AI — drops consumer/noise mail early. */
+function isLikelyRecruitingEmail(subject: string, from: string, snippet: string): boolean {
+  const hay = `${subject}\n${from}\n${snippet}`
+  if (NON_JOB_NOISE.test(hay)) return false
+  if (ATS_OR_RECRUITER_FROM.test(from)) return true
+  if (STRONG_JOB_SIGNAL.test(hay)) return true
+  return false
+}
+
+function looksJobRelated(
+  parsed: EmailParseResult,
+  subject: string,
+  from: string,
+  snippet: string,
+): boolean {
+  const hay = `${subject}\n${from}\n${snippet}\n${parsed.notes}`.toLowerCase()
+
+  if (NON_JOB_NOISE.test(hay)) return false
+  if (!isLikelyRecruitingEmail(subject, from, snippet) && !STRONG_JOB_SIGNAL.test(hay)) {
+    return false
+  }
+
+  const weakParse =
+    parsed.confidence === 'low' ||
+    !parsed.company ||
+    parsed.role === 'Role TBD' ||
+    parsed.signals.includes('defaulted to Applied')
+
+  // Need a real company; reject vague defaults unless signals are strong.
+  if (!parsed.company) return false
+  if (weakParse && !STRONG_JOB_SIGNAL.test(`${subject}\n${from}\n${snippet}`)) return false
+  if (parsed.role === 'Role TBD' && parsed.signals.includes('defaulted to Applied')) {
+    // Only keep if subject clearly mentions applying/interview/offer for a role/company
+    if (!/application|interview|offer|assessment|shortlist|hackerrank|coding challenge/i.test(subject)) {
+      return false
+    }
+  }
+
   return true
 }
 
@@ -76,9 +117,16 @@ async function analyzeEmail(raw: string): Promise<{
     rules.role === 'Role TBD' ||
     rules.signals.includes('defaulted to Applied')
 
-  if (ambiguous && hasGroqApiKey()) {
+  // Only spend AI on emails that already look like recruiting mail.
+  const subject = raw.match(/^Subject:\s*(.+)$/im)?.[1] || ''
+  const from = raw.match(/^From:\s*(.+)$/im)?.[1] || ''
+  if (ambiguous && hasGroqApiKey() && isLikelyRecruitingEmail(subject, from, rules.notes.slice(0, 200))) {
     try {
       const ai = await parseJobEmailWithGroq(raw)
+      // AI can invent job apps from noise — keep only if still job-like.
+      if (!STRONG_JOB_SIGNAL.test(`${subject}\n${from}\n${ai.notes}`) && !ATS_OR_RECRUITER_FROM.test(from)) {
+        return { parsed: { ...rules, source: 'Gmail sync' }, method: 'rules' }
+      }
       return { parsed: { ...ai, source: 'Gmail sync (AI)' }, method: 'ai' }
     } catch {
       return { parsed: { ...rules, source: 'Gmail sync' }, method: 'rules' }
@@ -289,21 +337,47 @@ export async function runGmailSync(options: {
 
     try {
       const message = await getGmailMessage(accessToken, item.id)
-      const raw = messageToRawEmail(message)
       const subject = headerValue(message, 'Subject')
       const from = headerValue(message, 'From')
-      const { parsed, method } = await analyzeEmail(raw)
-      const recruiter = extractRecruiter(from)
-      const interviewDate = extractInterviewDate(raw)
+      const snippet = message.snippet || ''
 
-      if (!looksJobRelated(parsed, subject, from)) {
+      if (!isLikelyRecruitingEmail(subject, from, snippet)) {
         skipped += 1
         const record: GmailSyncedEmail = {
           messageId: message.id,
           threadId: message.threadId,
           subject,
           from,
-          snippet: message.snippet || '',
+          snippet,
+          internalDate: message.internalDate,
+          processedAt: new Date().toISOString(),
+          applicationId: null,
+          company: '',
+          role: '',
+          status: null,
+          confidence: 'low',
+          method: 'skipped',
+          skipped: true,
+          skipReason: 'Not a recruiting / job-application email',
+        }
+        gmailSync.syncedEmails = [record, ...gmailSync.syncedEmails].slice(0, 200)
+        processed.add(message.id)
+        continue
+      }
+
+      const raw = messageToRawEmail(message)
+      const { parsed, method } = await analyzeEmail(raw)
+      const recruiter = extractRecruiter(from)
+      const interviewDate = extractInterviewDate(raw)
+
+      if (!looksJobRelated(parsed, subject, from, snippet)) {
+        skipped += 1
+        const record: GmailSyncedEmail = {
+          messageId: message.id,
+          threadId: message.threadId,
+          subject,
+          from,
+          snippet,
           internalDate: message.internalDate,
           processedAt: new Date().toISOString(),
           applicationId: null,

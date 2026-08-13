@@ -239,19 +239,20 @@ function extractCompany(text: string, subject: string, from: string): string {
     }
   }
 
-  if (fromName) {
+  // Prefer company names only from recruiting-style senders — avoid shopping/noreply From names.
+  if (fromName && /(careers@|recruiting@|talent@|hiring@|jobs@|greenhouse|lever|ashby|workday|recruiting\.|talent\.)/i.test(from)) {
     const cleaned = cleanCompany(fromName)
     if (
       cleaned &&
       cleaned.length > 1 &&
       !NOISE_COMPANIES.has(cleaned.toLowerCase()) &&
-      !/recruit|career|talent|hiring|job/i.test(cleaned)
+      !/recruit|career|talent|hiring|job|noreply|no-reply/i.test(cleaned)
     ) {
       return titleCase(cleaned)
     }
   }
 
-  if (fromEmail) {
+  if (fromEmail && /careers|recruiting|talent|hiring|jobs|greenhouse|lever|ashby|workday/i.test(fromEmail)) {
     const fromDomain = domainToCompany(fromEmail)
     if (fromDomain) return fromDomain
   }
