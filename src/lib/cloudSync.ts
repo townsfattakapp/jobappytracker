@@ -7,21 +7,31 @@ import {
   databases,
   isAppwriteConfigured,
 } from './appwrite'
-import type { JobApplication, PrepNote, Storage } from '../types'
+import {
+  emptyGmailSyncState,
+  type GmailSyncState,
+  type JobApplication,
+  type PrepNote,
+  type Storage,
+} from '../types'
 
 export type AppUser = Models.User<Models.Preferences>
 
-type CloudPayload = {
+export type CloudPayload = {
   applications: JobApplication[]
   prepNotes: PrepNote[]
   version: number
+  gmailSync?: GmailSyncState
 }
 
-function toPayload(storage: Pick<Storage, 'applications' | 'prepNotes' | 'version'>): CloudPayload {
+function toPayload(
+  storage: Pick<Storage, 'applications' | 'prepNotes' | 'version' | 'gmailSync'>,
+): CloudPayload {
   return {
     applications: storage.applications,
     prepNotes: storage.prepNotes || [],
     version: storage.version ?? 1,
+    gmailSync: storage.gmailSync || emptyGmailSyncState(),
   }
 }
 
@@ -73,6 +83,7 @@ export async function loadCloudState(userId: string): Promise<CloudPayload | nul
       applications: parsed.applications,
       prepNotes: Array.isArray(parsed.prepNotes) ? parsed.prepNotes : [],
       version: parsed.version ?? 1,
+      gmailSync: parsed.gmailSync || emptyGmailSyncState(),
     }
   } catch {
     return null
@@ -81,7 +92,7 @@ export async function loadCloudState(userId: string): Promise<CloudPayload | nul
 
 export async function saveCloudState(
   userId: string,
-  storage: Pick<Storage, 'applications' | 'prepNotes' | 'version'>,
+  storage: Pick<Storage, 'applications' | 'prepNotes' | 'version' | 'gmailSync'>,
 ): Promise<void> {
   const data = JSON.stringify(toPayload(storage))
   const permissions = [

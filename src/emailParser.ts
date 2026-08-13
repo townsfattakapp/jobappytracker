@@ -363,6 +363,11 @@ export function parsedEmailToDraft(parsed: EmailParseResult): NewJobApplication 
     pinned: parsed.status === 'Interview' || parsed.status === 'Offer' || parsed.status === 'HR Round',
     interviewRounds: [],
     contacts: [],
+    gmailMessageIds: [],
+    gmailThreadId: null,
+    recruiterName: null,
+    recruiterEmail: null,
+    interviewDate: null,
   }
 }
 

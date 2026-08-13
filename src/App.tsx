@@ -9,7 +9,10 @@ import EmailImport from './EmailImport.tsx'
 import BookmarkletModal from './BookmarkletModal.tsx'
 import PrepKit from './PrepKit.tsx'
 import AuthPanel from './AuthPanel.tsx'
+import GmailSyncPanel from './GmailSyncPanel.tsx'
 import {
+  emptyGmailSyncState,
+  type GmailSyncState,
   type JobApplication,
   type NewJobApplication,
   type Status,
@@ -62,6 +65,9 @@ export default function App() {
   const stored = loadStorage()
   const [applications, setApplications] = useState<JobApplication[]>(() => stored.applications)
   const [prepNotes, setPrepNotes] = useState(() => stored.prepNotes || [])
+  const [gmailSync, setGmailSync] = useState<GmailSyncState>(
+    () => stored.gmailSync || emptyGmailSyncState(),
+  )
   const [user, setUser] = useState<AppUser | null>(null)
   const [authReady, setAuthReady] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -76,6 +82,7 @@ export default function App() {
   const [editing, setEditing] = useState<JobApplication | null>(null)
   const [prefill, setPrefill] = useState<Partial<NewJobApplication> | null>(null)
   const [emailOpen, setEmailOpen] = useState(false)
+  const [gmailOpen, setGmailOpen] = useState(false)
   const [bookmarkletOpen, setBookmarkletOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -101,8 +108,8 @@ export default function App() {
   }
 
   useEffect(() => {
-    saveStorage({ applications, version: 1, prepNotes })
-  }, [applications, prepNotes])
+    saveStorage({ applications, version: 1, prepNotes, gmailSync })
+  }, [applications, prepNotes, gmailSync])
 
   useEffect(() => {
     let cancelled = false
@@ -134,12 +141,18 @@ export default function App() {
           skipNextCloudSave.current = true
           setApplications(cloud.applications)
           setPrepNotes(cloud.prepNotes)
+          setGmailSync(cloud.gmailSync || emptyGmailSyncState())
           showToast('Loaded from Appwrite')
         } else if (applications.length > 0 || prepNotes.length > 0) {
-          await saveCloudState(user.$id, { applications, prepNotes, version: 1 })
+          await saveCloudState(user.$id, { applications, prepNotes, gmailSync, version: 1 })
           if (!cancelled) showToast('Uploaded local data to Appwrite')
         } else {
-          await saveCloudState(user.$id, { applications: [], prepNotes: [], version: 1 })
+          await saveCloudState(user.$id, {
+            applications: [],
+            prepNotes: [],
+            gmailSync: emptyGmailSyncState(),
+            version: 1,
+          })
         }
         if (!cancelled) setCloudHydrated(true)
       } catch (err) {
@@ -166,7 +179,7 @@ export default function App() {
 
     const timer = window.setTimeout(() => {
       setSyncing(true)
-      saveCloudState(user.$id, { applications, prepNotes, version: 1 })
+      saveCloudState(user.$id, { applications, prepNotes, gmailSync, version: 1 })
         .catch((err) => {
           const message = err instanceof Error ? err.message : 'Cloud save failed'
           showToast(message)
@@ -175,7 +188,7 @@ export default function App() {
     }, 600)
 
     return () => window.clearTimeout(timer)
-  }, [applications, prepNotes, user, cloudHydrated])
+  }, [applications, prepNotes, gmailSync, user, cloudHydrated])
 
   useEffect(() => {
     return () => {
@@ -340,7 +353,7 @@ export default function App() {
   }
 
   const exportData = () => {
-    const data = JSON.stringify({ applications, version: 1, prepNotes }, null, 2)
+    const data = JSON.stringify({ applications, version: 1, prepNotes, gmailSync }, null, 2)
     const blob = new Blob([data], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -358,12 +371,14 @@ export default function App() {
         const data = JSON.parse(String(e.target?.result ?? '')) as {
           applications?: JobApplication[]
           prepNotes?: typeof prepNotes
+          gmailSync?: GmailSyncState
         }
         if (!data.applications || !Array.isArray(data.applications)) {
           throw new Error('Invalid data format')
         }
         setApplications(data.applications)
         if (Array.isArray(data.prepNotes)) setPrepNotes(data.prepNotes)
+        if (data.gmailSync) setGmailSync(data.gmailSync)
         showToast(`Imported ${data.applications.length} applications`)
       } catch (err) {
         console.error(err)
@@ -406,6 +421,9 @@ export default function App() {
               </button>
               <button type="button" className="btn btn-ghost" onClick={() => setEmailOpen(true)}>
                 Paste email
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => setGmailOpen(true)}>
+                Sync Gmail
               </button>
               <button type="button" className="btn btn-ghost" onClick={() => setBookmarkletOpen(true)}>
                 Get Bookmarklet
@@ -579,6 +597,18 @@ export default function App() {
         onClose={() => setEmailOpen(false)}
         onCreate={createFromEmail}
         onUpdate={updateFromEmail}
+      />
+
+      <GmailSyncPanel
+        open={gmailOpen}
+        applications={applications}
+        gmailSync={gmailSync}
+        onClose={() => setGmailOpen(false)}
+        onToast={showToast}
+        onApplySync={({ applications: nextApps, gmailSync: nextGmail }) => {
+          setApplications(nextApps)
+          setGmailSync(nextGmail)
+        }}
       />
 
       <BookmarkletModal
