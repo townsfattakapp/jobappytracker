@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
+import DropdownMenu from './DropdownMenu.tsx'
 import JobForm from './JobForm.tsx'
 import KanbanBoard from './KanbanBoard.tsx'
 import TableView from './TableView.tsx'
@@ -402,143 +403,127 @@ export default function App() {
 
   return (
     <div className="app-page text-foreground">
-      <button
-        type="button"
-        className="theme-toggle-fab"
-        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-        title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-      >
-        {theme === 'dark' ? (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="4" />
-            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-          </svg>
-        ) : (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z" />
-          </svg>
-        )}
-      </button>
+        {/* Top Nav handled inside header below */}
 
       <div className="app-shell">
-        <header className="animate-rise mb-6 w-full min-w-0 sm:mb-8">
-          <div className="flex w-full min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="mx-auto max-w-2xl pr-10 text-center sm:mx-0 sm:max-w-xl sm:pr-0 sm:text-left lg:max-w-2xl">
-              <p className="mb-1 text-sm font-bold tracking-wide text-primary">JOBAPPY</p>
-              <h1 className="font-display text-[1.75rem] leading-tight text-foreground sm:text-4xl">
-                Your job search, organized
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-                Track applications, follow-ups, and recruiting emails without the clutter.
-              </p>
-            </div>
-
-            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end sm:gap-3">
-              <button type="button" className="btn btn-primary col-span-2 sm:col-span-1" onClick={openCreate}>
-                Add application
-              </button>
-              <button type="button" className="btn btn-ghost" onClick={() => setEmailOpen(true)}>
-                Paste email
-              </button>
-              <button type="button" className="btn btn-ghost" onClick={() => setGmailOpen(true)}>
-                Sync Gmail
-              </button>
-              <button type="button" className="btn btn-ghost" onClick={() => setBookmarkletOpen(true)}>
-                Bookmarklet
+        <header className="animate-rise mb-6 w-full min-w-0 sm:mb-8 flex flex-col gap-6 sm:gap-8">
+          
+          {/* Top Navigation Bar */}
+          <div className="flex w-full items-center justify-between">
+            <div className="font-bold tracking-wide text-primary text-xl">JOBAPPY</div>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <AuthPanel
+                user={user}
+                syncing={syncing}
+                onSignedIn={handleSignedIn}
+                onSignOut={handleSignOut}
+                onToast={showToast}
+              />
+              <DropdownMenu label="⚙️">
+                <button type="button" className="dropdown-item" onClick={() => setGmailOpen(true)}>
+                  Sync Gmail
+                </button>
+                <button type="button" className="dropdown-item" onClick={exportData}>
+                  Export Backup
+                </button>
+                <button
+                  type="button"
+                  className="dropdown-item"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Import Backup
+                </button>
+                <button
+                  type="button"
+                  className="dropdown-item text-destructive hover:text-destructive"
+                  onClick={() => {
+                    if (confirm('Clear all applications? This cannot be undone.')) {
+                      setApplications([])
+                      showToast('Pipeline cleared')
+                    }
+                  }}
+                >
+                  Clear all Data
+                </button>
+              </DropdownMenu>
+              <button
+                type="button"
+                className="theme-toggle-fab"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+              >
+                {theme === 'dark' ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z" /></svg>
+                )}
               </button>
             </div>
           </div>
 
-          <div className="mt-4 flex w-full min-w-0 flex-wrap items-center justify-center gap-2 sm:mt-5 sm:justify-start">
-            <AuthPanel
-              user={user}
-              syncing={syncing}
-              onSignedIn={handleSignedIn}
-              onSignOut={handleSignOut}
-              onToast={showToast}
-            />
-            <button type="button" className="btn btn-ghost btn-sm" onClick={exportData}>
-              Export
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              Import
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                if (confirm('Clear all applications? This cannot be undone.')) {
-                  setApplications([])
-                  showToast('Pipeline cleared')
-                }
-              }}
-            >
-              Clear all
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json,application/json"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) {
-                  importData(file)
-                  e.target.value = ''
-                }
-              }}
-            />
+          {/* Hero Section */}
+          <div className="flex flex-col items-center text-center sm:items-start sm:text-left mt-2 sm:mt-4">
+            <h1 className="font-display text-gradient text-[2rem] leading-[1.1] sm:text-5xl pb-1">
+              Your job search, organized
+            </h1>
+            <p className="mt-3 text-[0.95rem] text-muted-foreground sm:text-lg max-w-xl">
+              Track applications, follow-ups, and recruiting emails without the clutter.
+            </p>
           </div>
+
+          {/* Action Buttons */}
+          <div className="grid w-full grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:w-auto mt-2">
+            <button type="button" className="btn btn-primary col-span-2 sm:col-span-1 shadow-md hover:shadow-lg h-12 sm:h-11 text-base sm:text-[0.95rem]" onClick={openCreate}>
+              Add application
+            </button>
+            <button type="button" className="btn btn-ghost h-12 sm:h-11 text-base sm:text-[0.95rem]" onClick={() => setEmailOpen(true)}>
+              Paste email
+            </button>
+            <button type="button" className="btn btn-ghost h-12 sm:h-11 text-base sm:text-[0.95rem]" onClick={() => setBookmarkletOpen(true)}>
+              Bookmarklet
+            </button>
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) {
+                importData(file)
+                e.target.value = ''
+              }
+            }}
+          />
         </header>
 
         <section className="stats-grid animate-rise mb-6 w-full min-w-0 sm:mb-7">
           {[
-            { label: 'Tracked', value: stats.total },
-            { label: 'Open', value: stats.open },
-            { label: 'Interviews', value: stats.interviews },
-            { label: 'Offers', value: stats.offers },
-            { label: 'Overdue', value: stats.overdue, alert: stats.overdue > 0 },
+            { label: 'Tracked', value: stats.total, icon: '📊' },
+            { label: 'Open', value: stats.open, icon: '📬' },
+            { label: 'Interviews', value: stats.interviews, icon: '🗣️' },
+            { label: 'Offers', value: stats.offers, icon: '🏆' },
+            { label: 'Overdue', value: stats.overdue, alert: stats.overdue > 0, icon: '⚠️' },
           ].map((item) => (
-            <div key={item.label} className="stat-card rounded-xl surface">
-              <p className="text-sm font-medium text-muted-foreground">{item.label}</p>
-              <p
-                className={`stat-value mt-1.5 ${item.alert ? 'text-destructive' : 'text-foreground'}`}
-              >
-                {item.value}
-              </p>
+            <div key={item.label} className="stat-card rounded-xl surface flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">{item.label}</p>
+                <p
+                  className={`stat-value mt-1.5 ${item.alert ? 'text-destructive' : 'text-foreground'}`}
+                >
+                  {item.value}
+                </p>
+              </div>
+              <div className="text-3xl opacity-80">{item.icon}</div>
             </div>
           ))}
         </section>
 
-        <div className="toolbar-row mb-5 min-w-0 sm:mb-6">
-          <div className="view-toggle" role="group" aria-label="View mode">
+        <div className="mb-5 sm:mb-6 w-full flex flex-col xl:flex-row gap-4 items-start xl:items-center">
+          <div className="view-toggle shrink-0" role="group" aria-label="View mode">
             {(
               [
                 { mode: 'board' as ViewMode, short: 'Board', full: 'Board' },
@@ -558,27 +543,27 @@ export default function App() {
               </button>
             ))}
           </div>
-        </div>
 
-        {view !== 'prepKit' ? (
-          <div className="mb-7 w-full">
-            <SearchFilter
-              query={searchQuery}
-              setQuery={setSearchQuery}
-              status={filterStatus}
-              setStatus={setFilterStatus}
-              sortBy={sortBy}
-              setSortBy={setSortBy}
-              sortDir={sortDir}
-              setSortDir={setSortDir}
-              resultCount={sortedApplications.length}
-              onClear={() => {
-                setSearchQuery('')
-                setFilterStatus('')
-              }}
-            />
-          </div>
-        ) : null}
+          {view !== 'prepKit' ? (
+            <div className="w-full xl:w-auto xl:flex-1">
+              <SearchFilter
+                query={searchQuery}
+                setQuery={setSearchQuery}
+                status={filterStatus}
+                setStatus={setFilterStatus}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+                sortDir={sortDir}
+                setSortDir={setSortDir}
+                resultCount={sortedApplications.length}
+                onClear={() => {
+                  setSearchQuery('')
+                  setFilterStatus('')
+                }}
+              />
+            </div>
+          ) : null}
+        </div>
 
         <div className="w-full">
           {view === 'prepKit' ? (

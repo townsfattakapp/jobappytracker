@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { pingAppwrite } from './lib/appwrite'
 import { signIn, signUp, type AppUser } from './lib/cloudSync'
 
 interface AuthPanelProps {
@@ -24,7 +23,6 @@ export default function AuthPanel({
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
-  const [pingBusy, setPingBusy] = useState(false)
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -47,16 +45,6 @@ export default function AuthPanel({
       onToast(message)
     } finally {
       setBusy(false)
-    }
-  }
-
-  const runPing = async () => {
-    setPingBusy(true)
-    try {
-      const result = await pingAppwrite()
-      onToast(result.ok ? `✓ ${result.message}` : `Ping failed: ${result.message}`)
-    } finally {
-      setPingBusy(false)
     }
   }
 
@@ -177,15 +165,17 @@ export default function AuthPanel({
 
   if (user) {
     return (
-      <div className="flex max-w-full flex-wrap items-center gap-2">
-        <span className="max-w-[14rem] truncate text-sm text-muted-foreground sm:max-w-xs">
+      <div className="flex items-center gap-2">
+        <span className="hidden sm:inline max-w-[14rem] truncate text-sm text-muted-foreground">
           {syncing ? 'Syncing…' : `Cloud · ${user.email || user.name || 'signed in'}`}
         </span>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={runPing} disabled={pingBusy}>
-          {pingBusy ? 'Pinging…' : 'Send a ping'}
-        </button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={onSignOut}>
-          Sign out
+        <button
+          type="button"
+          className="theme-toggle-fab bg-muted/50 text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+          onClick={onSignOut}
+          title="Sign out of Cloud Sync"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
         </button>
       </div>
     )
@@ -193,21 +183,17 @@ export default function AuthPanel({
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className="btn btn-ghost btn-sm" onClick={runPing} disabled={pingBusy}>
-          {pingBusy ? 'Pinging…' : 'Send a ping'}
-        </button>
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          onClick={() => {
-            setMode('signup')
-            setOpen(true)
-          }}
-        >
-          Cloud sync
-        </button>
-      </div>
+      <button
+        type="button"
+        className="theme-toggle-fab bg-primary/10 text-primary border-primary/20 hover:bg-primary hover:text-primary-foreground"
+        title="Enable Cloud Sync"
+        onClick={() => {
+          setMode('signup')
+          setOpen(true)
+        }}
+      >
+        ☁️
+      </button>
       {modal}
     </>
   )
