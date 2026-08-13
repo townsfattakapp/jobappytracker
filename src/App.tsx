@@ -403,64 +403,65 @@ export default function App() {
 
   return (
     <div className="app-page text-foreground">
-        {/* Top Nav handled inside header below */}
-
-      <div className="app-shell">
-        <header className="animate-rise mb-6 w-full min-w-0 sm:mb-8 flex flex-col gap-6 sm:gap-8">
-          
-          {/* Top Navigation Bar */}
-          <div className="flex w-full items-center justify-between">
-            <div className="font-bold tracking-wide text-primary text-xl">JOBAPPY</div>
-            <div className="flex items-center gap-2 sm:gap-3">
-              <AuthPanel
-                user={user}
-                syncing={syncing}
-                onSignedIn={handleSignedIn}
-                onSignOut={handleSignOut}
-                onToast={showToast}
-              />
-              <DropdownMenu label="⚙️">
-                <button type="button" className="dropdown-item" onClick={() => setGmailOpen(true)}>
-                  Sync Gmail
-                </button>
-                <button type="button" className="dropdown-item" onClick={exportData}>
-                  Export Backup
-                </button>
-                <button
-                  type="button"
-                  className="dropdown-item"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Import Backup
-                </button>
-                <button
-                  type="button"
-                  className="dropdown-item text-destructive hover:text-destructive"
-                  onClick={() => {
-                    if (confirm('Clear all applications? This cannot be undone.')) {
-                      setApplications([])
-                      showToast('Pipeline cleared')
-                    }
-                  }}
-                >
-                  Clear all Data
-                </button>
-              </DropdownMenu>
+      {/* Sticky Top Navigation Bar */}
+      <div className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/80 backdrop-blur-md">
+        <div className="mx-auto w-full max-w-[1120px] px-4 sm:px-5 md:max-w-[1200px] md:px-6 xl:max-w-[1280px] xl:px-8 py-3 sm:py-4 flex items-center justify-between">
+          <div className="font-bold tracking-wide text-primary text-[1.15rem]">JOBAPPY</div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <AuthPanel
+              user={user}
+              syncing={syncing}
+              onSignedIn={handleSignedIn}
+              onSignOut={handleSignOut}
+              onToast={showToast}
+            />
+            <DropdownMenu label="⚙️">
+              <button type="button" className="dropdown-item" onClick={() => setGmailOpen(true)}>
+                Sync Gmail
+              </button>
+              <button type="button" className="dropdown-item" onClick={exportData}>
+                Export Backup
+              </button>
               <button
                 type="button"
-                className="theme-toggle-fab"
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+                className="dropdown-item"
+                onClick={() => fileInputRef.current?.click()}
               >
-                {theme === 'dark' ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z" /></svg>
-                )}
+                Import Backup
               </button>
-            </div>
+              <button
+                type="button"
+                className="dropdown-item text-destructive hover:text-destructive"
+                onClick={() => {
+                  if (confirm('Clear all applications? This cannot be undone.')) {
+                    setApplications([])
+                    showToast('Pipeline cleared')
+                  }
+                }}
+              >
+                Clear all Data
+              </button>
+            </DropdownMenu>
+            <button
+              type="button"
+              className="theme-toggle-fab"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            >
+              {theme === 'dark' ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z" /></svg>
+              )}
+            </button>
           </div>
+        </div>
+      </div>
+
+      <div className="app-shell pt-6 sm:pt-8">
+        <header className="animate-rise mb-6 w-full min-w-0 sm:mb-8 flex flex-col gap-6 sm:gap-8">
+
 
           {/* Hero Section */}
           <div className="flex flex-col items-center text-center sm:items-start sm:text-left mt-2 sm:mt-4">

@@ -138,18 +138,18 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center animate-fade">
+    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-end sm:justify-center animate-fade">
       <button
         type="button"
-        className="absolute inset-0 bg-[hsl(var(--ink)/0.45)] backdrop-blur-[2px]"
+        className="absolute inset-0 bg-[hsl(var(--ink)/0.5)] backdrop-blur-sm"
         aria-label="Close dialog"
         onClick={onClose}
       />
       <form
         onSubmit={handleSubmit}
-        className="relative z-10 max-h-[92vh] flex flex-col w-full max-w-2xl rounded-2xl surface p-5 sm:p-6 animate-slide-up bg-[hsl(var(--card))]"
+        className="relative z-10 flex flex-col w-full h-[95dvh] rounded-t-3xl sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl surface animate-slide-up bg-[hsl(var(--card))] overflow-hidden"
       >
-        <div className="mb-4 flex items-start justify-between gap-4 shrink-0">
+        <div className="px-5 pt-5 sm:px-6 sm:pt-6 pb-2 shrink-0 flex items-start justify-between gap-4">
           <div>
             <p className="text-base font-medium text-muted-foreground">
               {editing ? 'Edit application' : 'New application'}
@@ -163,7 +163,7 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
           </button>
         </div>
 
-        <div className="flex border-b border-border mb-5 overflow-x-auto shrink-0 hide-scrollbar">
+        <div className="px-5 sm:px-6 shrink-0 flex gap-2 overflow-x-auto hide-scrollbar pb-1">
           {(['details', 'contacts', 'interviews'] as const).map((tab) => (
             <button
               key={tab}
@@ -181,8 +181,9 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
             </button>
           ))}
         </div>
+        <div className="w-full h-px bg-border shrink-0"></div>
 
-        <div className="overflow-y-auto flex-1 min-h-[300px] pr-2 custom-scrollbar">
+        <div className="px-5 sm:px-6 py-4 overflow-y-auto flex-1 min-h-[300px] custom-scrollbar">
           <div className={activeTab === 'details' ? 'block' : 'hidden'}>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Company">
@@ -390,8 +391,11 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end shrink-0 pt-4 border-t border-border bg-[hsl(var(--card))]">
-          <button type="submit" className="btn btn-primary w-full sm:w-auto">
+        <div className="px-5 pb-5 sm:px-6 sm:pb-6 pt-4 border-t border-border flex shrink-0 justify-end gap-3 bg-[hsl(var(--card))]">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary min-w-[120px]">
             {editing ? 'Save changes' : 'Add application'}
           </button>
         </div>
