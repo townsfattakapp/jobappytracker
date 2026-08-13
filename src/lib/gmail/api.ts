@@ -39,8 +39,22 @@ export async function getGmailProfile(accessToken: string): Promise<{ emailAddre
   return gmailFetch('users/me/profile', accessToken)
 }
 
-/** Strict Gmail search — phrase/ATS focused; excludes common consumer noise. */
-function buildJobEmailQuery(days = 45): string {
+/** Calendar day for Gmail `after:` / `before:` (local timezone). */
+function gmailDayStamp(daysFromToday: number): string {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() + daysFromToday)
+  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
+}
+
+/**
+ * Strict Gmail search anchored to the current date.
+ * Window = [today - days, tomorrow) so today's mail is always included.
+ */
+function buildJobEmailQuery(days = 30): string {
+  const after = gmailDayStamp(-Math.max(1, days))
+  const before = gmailDayStamp(1) // exclusive upper bound → includes all of today
+
   const positive = [
     'subject:("thank you for applying"',
     'OR "thanks for applying"',
@@ -87,27 +101,52 @@ function buildJobEmailQuery(days = 45): string {
     '-in:trash',
     '-subject:(invoice OR receipt OR order OR shipped OR shipping OR delivery OR newsletter OR password OR otp OR "verification code" OR payment OR subscription OR refund OR "sign-in" OR "sign in" OR "security alert" OR package OR tracking OR bill OR statement)',
     '-from:(noreply@github.com OR notifications@github.com OR no-reply@accounts.google.com)',
-    `newer_than:${days}d`,
+    `after:${after}`,
+    `before:${before}`,
   ].join(' ')
 
   return `(${positive}) ${negative}`
 }
 
+export type GmailListedMessage = GmailMessageListItem & {
+  internalDate: string
+}
+
 export async function listJobEmailMessageIds(
   accessToken: string,
   options: { maxResults?: number; newerThanDays?: number } = {},
-): Promise<{ messages: GmailMessageListItem[]; resultSizeEstimate: number }> {
-  const q = encodeURIComponent(buildJobEmailQuery(options.newerThanDays ?? 45))
+): Promise<{ messages: GmailListedMessage[]; resultSizeEstimate: number; windowLabel: string }> {
+  const days = options.newerThanDays ?? 30
+  const q = encodeURIComponent(buildJobEmailQuery(days))
   const max = options.maxResults ?? 40
-  // Gmail returns messages newest-first by default.
   const data = await gmailFetch<{
     messages?: GmailMessageListItem[]
     resultSizeEstimate?: number
   }>(`users/me/messages?q=${q}&maxResults=${max}`, accessToken)
 
+  const listed = data.messages || []
+
+  // Confirm newest-first using internalDate (current/latest date first).
+  const withDates = await Promise.all(
+    listed.map(async (item) => {
+      const meta = await gmailFetch<Pick<GmailMessage, 'id' | 'threadId' | 'internalDate'>>(
+        `users/me/messages/${encodeURIComponent(item.id)}?format=metadata&metadataHeaders=Date`,
+        accessToken,
+      )
+      return {
+        id: item.id,
+        threadId: item.threadId,
+        internalDate: meta.internalDate || '0',
+      }
+    }),
+  )
+
+  withDates.sort((a, b) => Number(b.internalDate) - Number(a.internalDate))
+
   return {
-    messages: data.messages || [],
+    messages: withDates,
     resultSizeEstimate: data.resultSizeEstimate || 0,
+    windowLabel: `today back ${days} days`,
   }
 }
 

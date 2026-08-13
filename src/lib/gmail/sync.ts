@@ -310,13 +310,20 @@ export async function runGmailSync(options: {
     phase: 'listing',
     current: 0,
     total: 0,
-    message: 'Scanning latest job emails…',
+    message: 'Scanning from today (newest first)…',
   })
-  // Always start from newest mail in the recent window — never from lastSyncAt.
-  // Already-seen messages are skipped via processedMessageIds (duplicate prevention).
+  // Always anchored to the current date — never lastSyncAt.
+  // Messages are sorted newest → oldest; already-seen IDs are skipped.
   const listed = await listJobEmailMessageIds(accessToken, {
     maxResults: 40,
-    newerThanDays: 45,
+    newerThanDays: 30,
+  })
+
+  onProgress({
+    phase: 'listing',
+    current: 0,
+    total: listed.messages.length,
+    message: `Found ${listed.messages.length} recent emails (${listed.windowLabel})…`,
   })
 
   const processed = new Set(gmailSync.processedMessageIds)

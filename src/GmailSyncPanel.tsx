@@ -183,8 +183,8 @@ export default function GmailSyncPanel({
                     : 'Never'}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Scans newest job emails first (last 45 days). Already-synced messages are
-                  skipped; duplicates are matched by message/thread ID and company + role.
+                  Scans from today backward (last 30 days), newest emails first. Already-synced
+                  messages are skipped; duplicates match by message/thread ID and company + role.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
