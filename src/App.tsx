@@ -403,20 +403,20 @@ export default function App() {
   return (
     <div className="app-page text-foreground">
       <div className="app-shell">
-        <header className="animate-rise mb-8 w-full">
-          <div className="flex w-full flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <header className="animate-rise mb-6 w-full min-w-0 sm:mb-8">
+          <div className="flex w-full min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="mx-auto max-w-2xl text-center sm:mx-0 sm:max-w-xl sm:text-left lg:max-w-2xl">
               <p className="mb-1 text-sm font-bold tracking-wide text-primary">JOBAPPY</p>
-              <h1 className="font-display text-3xl text-foreground sm:text-4xl">
+              <h1 className="font-display text-[1.75rem] leading-tight text-foreground sm:text-4xl">
                 Your job search, organized
               </h1>
-              <p className="mt-2 text-base text-muted-foreground">
+              <p className="mt-2 text-sm text-muted-foreground sm:text-base">
                 Track applications, follow-ups, and recruiting emails without the clutter.
               </p>
             </div>
 
-            <div className="flex flex-wrap justify-center gap-3 sm:justify-end">
-              <button type="button" className="btn btn-primary" onClick={openCreate}>
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end sm:gap-3">
+              <button type="button" className="btn btn-primary col-span-2 sm:col-span-1" onClick={openCreate}>
                 Add application
               </button>
               <button type="button" className="btn btn-ghost" onClick={() => setEmailOpen(true)}>
@@ -426,7 +426,7 @@ export default function App() {
                 Sync Gmail
               </button>
               <button type="button" className="btn btn-ghost" onClick={() => setBookmarkletOpen(true)}>
-                Get Bookmarklet
+                Bookmarklet
               </button>
               <button
                 type="button"
@@ -434,12 +434,12 @@ export default function App() {
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                 aria-label="Toggle theme"
               >
-                {theme === 'dark' ? '☀️' : '🌙'}
+                {theme === 'dark' ? 'Light' : 'Dark'}
               </button>
             </div>
           </div>
 
-          <div className="mt-5 flex w-full flex-wrap items-center justify-center gap-2 sm:justify-start">
+          <div className="mt-4 flex w-full min-w-0 flex-wrap items-center justify-center gap-2 sm:mt-5 sm:justify-start">
             <AuthPanel
               user={user}
               syncing={syncing}
@@ -485,7 +485,7 @@ export default function App() {
           </div>
         </header>
 
-        <section className="stats-grid animate-rise mb-7 w-full">
+        <section className="stats-grid animate-rise mb-6 w-full min-w-0 sm:mb-7">
           {[
             { label: 'Tracked', value: stats.total },
             { label: 'Open', value: stats.open },
@@ -504,16 +504,24 @@ export default function App() {
           ))}
         </section>
 
-        <div className="toolbar-row mb-6">
-          <div className="view-toggle mx-auto sm:mx-0" role="group" aria-label="View mode">
-            {(['board', 'list', 'dashboard', 'prepKit'] as ViewMode[]).map((mode) => (
+        <div className="toolbar-row mb-5 min-w-0 sm:mb-6">
+          <div className="view-toggle" role="group" aria-label="View mode">
+            {(
+              [
+                { mode: 'board' as ViewMode, short: 'Board', full: 'Board' },
+                { mode: 'list' as ViewMode, short: 'List', full: 'List' },
+                { mode: 'dashboard' as ViewMode, short: 'Stats', full: 'Dashboard' },
+                { mode: 'prepKit' as ViewMode, short: 'Prep', full: 'Prep Kit' },
+              ]
+            ).map(({ mode, short, full }) => (
               <button
                 key={mode}
                 type="button"
                 aria-pressed={view === mode}
                 onClick={() => setView(mode)}
               >
-                {mode === 'prepKit' ? 'Prep Kit' : mode.charAt(0).toUpperCase() + mode.slice(1)}
+                <span className="sm:hidden">{short}</span>
+                <span className="hidden sm:inline">{full}</span>
               </button>
             ))}
           </div>

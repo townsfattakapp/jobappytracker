@@ -183,8 +183,8 @@ export default function GmailSyncPanel({
                     : 'Never'}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Only emails newer than the last sync are processed. Duplicates are matched by
-                  Gmail message/thread id, then company + role.
+                  Scans newest job emails first (last 45 days). Already-synced messages are
+                  skipped; duplicates are matched by message/thread ID and company + role.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">

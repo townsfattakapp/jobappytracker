@@ -39,35 +39,26 @@ export async function getGmailProfile(accessToken: string): Promise<{ emailAddre
   return gmailFetch('users/me/profile', accessToken)
 }
 
-function buildJobEmailQuery(afterIso: string | null): string {
+/** Always scan newest mail first within a recent window. Deduping is by messageId. */
+function buildJobEmailQuery(days = 45): string {
   const clauses = [
     '(subject:(application OR interview OR offer OR assessment OR shortlist OR shortlisted OR recruiting OR "thank you for applying" OR "under review" OR "we received your application" OR "moved forward" OR rejection OR "coding challenge" OR hackerrank OR "next steps") OR from:(careers OR recruiting OR talent OR noreply OR jobs OR hiring))',
     '-category:promotions',
     '-in:spam',
     '-in:trash',
+    `newer_than:${days}d`,
   ]
-
-  if (afterIso) {
-    const d = new Date(afterIso)
-    if (!Number.isNaN(d.getTime())) {
-      const y = d.getFullYear()
-      const m = String(d.getMonth() + 1).padStart(2, '0')
-      const day = String(d.getDate()).padStart(2, '0')
-      clauses.push(`after:${y}/${m}/${day}`)
-    }
-  } else {
-    clauses.push('newer_than:45d')
-  }
 
   return clauses.join(' ')
 }
 
 export async function listJobEmailMessageIds(
   accessToken: string,
-  options: { afterIso: string | null; maxResults?: number },
+  options: { maxResults?: number; newerThanDays?: number } = {},
 ): Promise<{ messages: GmailMessageListItem[]; resultSizeEstimate: number }> {
-  const q = encodeURIComponent(buildJobEmailQuery(options.afterIso))
+  const q = encodeURIComponent(buildJobEmailQuery(options.newerThanDays ?? 45))
   const max = options.maxResults ?? 40
+  // Gmail returns messages newest-first by default.
   const data = await gmailFetch<{
     messages?: GmailMessageListItem[]
     resultSizeEstimate?: number

@@ -177,8 +177,8 @@ export default function AuthPanel({
 
   if (user) {
     return (
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm text-muted-foreground">
+      <div className="flex max-w-full flex-wrap items-center gap-2">
+        <span className="max-w-[14rem] truncate text-sm text-muted-foreground sm:max-w-xs">
           {syncing ? 'Syncing…' : `Cloud · ${user.email || user.name || 'signed in'}`}
         </span>
         <button type="button" className="btn btn-ghost btn-sm" onClick={runPing} disabled={pingBusy}>

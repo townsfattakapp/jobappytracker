@@ -258,10 +258,17 @@ export async function runGmailSync(options: {
   const profile = await getGmailProfile(accessToken)
   gmailSync.connectedEmail = profile.emailAddress
 
-  onProgress({ phase: 'listing', current: 0, total: 0, message: 'Scanning recent job emails…' })
+  onProgress({
+    phase: 'listing',
+    current: 0,
+    total: 0,
+    message: 'Scanning latest job emails…',
+  })
+  // Always start from newest mail in the recent window — never from lastSyncAt.
+  // Already-seen messages are skipped via processedMessageIds (duplicate prevention).
   const listed = await listJobEmailMessageIds(accessToken, {
-    afterIso: gmailSync.lastSyncAt,
     maxResults: 40,
+    newerThanDays: 45,
   })
 
   const processed = new Set(gmailSync.processedMessageIds)

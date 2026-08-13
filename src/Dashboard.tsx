@@ -43,9 +43,9 @@ export default function Dashboard({ applications }: DashboardProps) {
   const maxFunnel = stats.funnel[0].count || 1
 
   return (
-    <div className="animate-rise w-full flex flex-col gap-6">
-      <section className="surface rounded-2xl p-6">
-        <h2 className="text-xl font-display font-semibold mb-6 text-foreground">Pipeline Funnel</h2>
+    <div className="animate-rise w-full min-w-0 flex flex-col gap-5 sm:gap-6">
+      <section className="surface rounded-2xl p-4 sm:p-6">
+        <h2 className="text-lg font-display font-semibold mb-4 text-foreground sm:mb-6 sm:text-xl">Pipeline Funnel</h2>
         <div className="flex flex-col gap-4">
           {stats.funnel.map((step) => {
             const percentage = Math.round((step.count / maxFunnel) * 100) || 0
@@ -67,13 +67,13 @@ export default function Dashboard({ applications }: DashboardProps) {
         </div>
       </section>
 
-      <section className="surface rounded-2xl p-6">
-        <h2 className="text-xl font-display font-semibold mb-6 text-foreground">Status Breakdown</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+      <section className="surface rounded-2xl p-4 sm:p-6">
+        <h2 className="text-lg font-display font-semibold mb-4 text-foreground sm:mb-6 sm:text-xl">Status Breakdown</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4">
           {stats.statusCounts.map(({ status, count }) => (
-            <div key={status} className="p-4 rounded-xl border border-border bg-[hsl(var(--card))] flex flex-col items-center justify-center text-center">
-              <span className="text-2xl font-bold text-foreground mb-1">{count}</span>
-              <span className="text-sm font-medium text-muted-foreground">{status}</span>
+            <div key={status} className="flex min-w-0 flex-col items-center justify-center rounded-xl border border-border bg-[hsl(var(--card))] p-3 text-center sm:p-4">
+              <span className="mb-1 text-xl font-bold text-foreground sm:text-2xl">{count}</span>
+              <span className="text-xs font-medium text-muted-foreground sm:text-sm">{status}</span>
             </div>
           ))}
         </div>
