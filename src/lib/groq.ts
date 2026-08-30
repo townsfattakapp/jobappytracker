@@ -1,5 +1,7 @@
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
-export const GROQ_MODEL = 'llama-3.1-8b-instant'
+export const GROQ_MODEL = 'openai/gpt-oss-20b'
+/** Tried in order when a model is retired or unavailable for the key. */
+const GROQ_MODEL_FALLBACKS = ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'groq/compound-mini']
 const STORAGE_KEY = 'job-app-groq-key'
 
 export function getGroqApiKey(): string {
@@ -24,6 +26,26 @@ export function hasGroqApiKey(): boolean {
 
 export type GroqMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 
+async function callGroq(
+  apiKey: string,
+  model: string,
+  options: { messages: GroqMessage[]; temperature?: number; json?: boolean },
+): Promise<Response> {
+  return fetch(GROQ_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      temperature: options.temperature ?? 0.3,
+      ...(options.json ? { response_format: { type: 'json_object' } } : {}),
+      messages: options.messages,
+    }),
+  })
+}
+
 export async function groqChat(options: {
   messages: GroqMessage[]
   temperature?: number
@@ -33,25 +55,30 @@ export async function groqChat(options: {
   const apiKey = getGroqApiKey()
   if (!apiKey) throw new Error('Add your free Groq API key first')
 
-  const response = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: options.model || GROQ_MODEL,
-      temperature: options.temperature ?? 0.3,
-      ...(options.json ? { response_format: { type: 'json_object' } } : {}),
-      messages: options.messages,
-    }),
-  })
+  const candidates = options.model
+    ? [options.model, ...GROQ_MODEL_FALLBACKS]
+    : [GROQ_MODEL, ...GROQ_MODEL_FALLBACKS]
 
-  if (!response.ok) {
-    const detail = await response.text().catch(() => '')
+  let response: Response | null = null
+  let lastDetail = ''
+
+  for (const model of candidates) {
+    response = await callGroq(apiKey, model, options)
+    if (response.ok) break
+
+    lastDetail = await response.text().catch(() => '')
     if (response.status === 401) throw new Error('Groq API key is invalid')
     if (response.status === 429) throw new Error('Groq rate limit hit — try again in a minute')
-    throw new Error(detail || `Groq request failed (${response.status})`)
+
+    // Retired/unavailable model — try the next candidate.
+    const retryable =
+      (response.status === 400 || response.status === 404) &&
+      /model_not_found|does not exist|decommissioned/i.test(lastDetail)
+    if (!retryable) break
+  }
+
+  if (!response || !response.ok) {
+    throw new Error(lastDetail || `Groq request failed (${response?.status ?? 'network error'})`)
   }
 
   const data = (await response.json()) as {
