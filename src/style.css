@@ -2442,3 +2442,18 @@ a {
   background: hsl(var(--background) / 0.92);
   backdrop-filter: blur(10px);
 }
+
+/* --- Trial banner --- */
+.trial-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+  margin-bottom: 1.25rem;
+  padding: 0.7rem 1rem;
+  border-radius: 0.9rem;
+  border: 1px solid hsl(var(--ig-magenta) / 0.35);
+  background: linear-gradient(90deg, hsl(var(--ig-purple) / 0.12), hsl(var(--ig-orange) / 0.1));
+  font-size: 0.9rem;
+}

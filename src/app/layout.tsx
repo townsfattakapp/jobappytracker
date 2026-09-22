@@ -4,6 +4,7 @@ import { Inter, JetBrains_Mono } from 'next/font/google'
 import { Providers } from './providers'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://prep.evolw.in'),
   title: 'Prep by EVOLW',
   description: 'Track job applications, sync recruiting emails, and run a daily interview-prep plan.',
   applicationName: 'Prep',

@@ -20,7 +20,7 @@ const goal = {
   createdAt: today,
   updatedAt: today,
 };
-await page.goto("http://localhost:3000", { waitUntil: "networkidle" });
+await page.goto("http://localhost:3000/app", { waitUntil: "networkidle" });
 await page.evaluate((g) => {
   localStorage.setItem(
     "job-app-tracker-v2",

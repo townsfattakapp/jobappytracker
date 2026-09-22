@@ -27,6 +27,15 @@ Without `DATABASE_URL` the app still runs in local-only mode; sign-in and cloud 
 | `GROQ_API_KEY` / `OPENAI_API_KEY` | server, optional | Shared AI keys. Only signed-in users can use them; anyone can instead add a personal key in Settings, which stays in their browser. |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | public, optional | Google OAuth *web* client ID with the Gmail API enabled and your origin under authorized JavaScript origins. Enables Gmail sync. |
 
+## Billing, trials and AI keys
+
+- **Plan**: one subscription, Prep Pro at ₹199/month through Razorpay Subscriptions, after a 7-day free trial that starts at sign-up (`TRIAL_DAYS` to change). The marketing site at `/` explains it; the product lives at `/app`.
+- **Entitlement** (`src/lib/billing/entitlement.ts`): trial → active → cancelling (access until the paid period ends) → expired. Past-due subscriptions keep access until `currentEnd` while Razorpay retries. Paid API routes (`/api/ai/chat`, `/api/run`) return 402 without access; the app shows the paywall. Guest mode (local only) has no AI or code runner.
+- **Razorpay setup**: create API keys in the dashboard, run `npm run razorpay:plan` once to create the monthly plan and set `RAZORPAY_PLAN_ID`, then add a webhook for `https://<domain>/api/billing/webhook` with the `subscription.*` events and put its secret in `RAZORPAY_WEBHOOK_SECRET`. Checkout runs in the browser; `/api/billing/verify` checks the signature and grants access immediately, and the webhook keeps the row in sync afterwards. Test keys work end to end with Razorpay's test cards and UPI.
+- **AI keys**: each learner saves their own OpenAI or Groq key in Settings. It is validated against the provider, encrypted with AES-256-GCM (`AI_KEY_ENCRYPTION_SECRET`, falling back to `AUTH_SECRET`) and stored in `user_ai_keys`. The gateway uses it for that learner's requests; `GROQ_API_KEY`/`OPENAI_API_KEY` on the server remain an optional shared fallback.
+- **Screenshots** on the landing page come from `npm run screens`, which drives the running app with seeded data and writes `public/screens/*.jpg`.
+- Tests: `npm run test:billing` (entitlement rules, signature checks) and `npm run test:e2e:billing` (trial, paywall, 402s, AI key validation, landing redirect).
+
 ## Curriculum content
 
 The learning tracks live in `src/data/curriculum/`. The generated `<track>.ts` files hold the structure (ids, categories, task templates) and must keep their ids, because saved workspaces and plans reference them. Authored content sits in `src/data/curriculum/content/<track>.ts`: per category, one tuple per topic with a description, three concept titles and quiz questions, plus `add` (new topics) and `retitle` (renames that keep ids). `applyContent` in `enrich.ts` merges the two at load time.

@@ -67,6 +67,9 @@ import { javaDsaSeed } from './data/javaDsaSeed'
 import { engineeringLabsSeed } from './data/engineeringLabsSeed'
 import { systemDesignSeed } from './data/systemDesignSeed'
 import { CLOUD_MERGED_EVENT, getCurrentUser, loadCloudState, saveCloudState, signOut, type AppUser } from './lib/cloudSync'
+import Paywall from './components/Paywall'
+import { BILLING_CHANGED_EVENT, fetchBillingState, type BillingState } from './lib/billing/client'
+import { BILLING_REQUIRED_EVENT } from './lib/aiGatewayClient'
 import { CODE_LANGUAGES, CODE_LANGUAGE_EVENT, getCodeLanguage, setCodeLanguage } from './lib/preferences'
 import { allCurriculums } from './data/curriculum'
 import { scheduleTrackIntoRoadmap } from './lib/roadmapGenerator'
@@ -163,6 +166,7 @@ export default function App() {
   const [preferences, setPreferences] = useState<UserPreferences>(() => ({ codeLanguage: getCodeLanguage(), ...(stored.preferences || {}) }))
 
   const [user, setUser] = useState<AppUser | null>(null)
+  const [billing, setBilling] = useState<BillingState | null>(null)
   const [authReady, setAuthReady] = useState(false)
   const [guestMode, setGuestMode] = useState(() => readLocal(GUEST_MODE_KEY) === '1')
   const [authModalOpen, setAuthModalOpen] = useState(false)
@@ -337,6 +341,38 @@ export default function App() {
       if (getCodeLanguage() !== cloudLanguage) setCodeLanguage(cloudLanguage as (typeof CODE_LANGUAGES)[number])
     }
   }, [])
+
+  // Returning visitors skip the marketing page next time (see src/proxy.ts).
+  useEffect(() => {
+    try {
+      document.cookie = 'prep-returning=1; path=/; max-age=31536000; SameSite=Lax'
+    } catch {
+      // cookies blocked
+    }
+  }, [])
+
+  // Plan and trial state for the signed-in account; refreshed after checkout or a 402 from the API.
+  useEffect(() => {
+    if (!authReady) return
+    if (!user) {
+      setBilling(null)
+      return
+    }
+    let cancelled = false
+    const load = () => {
+      fetchBillingState().then((state) => {
+        if (!cancelled && state) setBilling(state)
+      })
+    }
+    load()
+    window.addEventListener(BILLING_CHANGED_EVENT, load)
+    window.addEventListener(BILLING_REQUIRED_EVENT, load)
+    return () => {
+      cancelled = true
+      window.removeEventListener(BILLING_CHANGED_EVENT, load)
+      window.removeEventListener(BILLING_REQUIRED_EVENT, load)
+    }
+  }, [authReady, user?.$id, user])
 
   // A save that collided with another device was merged automatically: show the merged result.
   useEffect(() => {
@@ -725,6 +761,16 @@ export default function App() {
       <main className="flex-1 min-w-0 md:ml-64 pb-24 md:pb-0 relative">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background -z-10 pointer-events-none"></div>
         <div className="app-shell pt-5 sm:pt-8">
+          {user && billing?.entitlement?.status === 'trial' && billing.entitlement.daysLeft <= 3 && (
+            <div className="trial-banner">
+              <span>
+                <strong>{billing.entitlement.daysLeft === 0 ? 'Your free trial ends today.' : `${billing.entitlement.daysLeft} day${billing.entitlement.daysLeft === 1 ? '' : 's'} left in your free trial.`}</strong> Keep your plan, notes and progress for ₹199/month.
+              </span>
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => setView('settings')}>
+                Subscribe
+              </button>
+            </div>
+          )}
           {header && (
             <header className="animate-rise mb-6 w-full min-w-0 sm:mb-8 flex flex-col gap-5">
               <div className="flex flex-col items-start text-left">
@@ -1189,6 +1235,8 @@ export default function App() {
                 onImportLocalHistory={handleImportLocal}
                 onClearLocalData={clearLocalData}
                 onToast={showToast}
+                billing={billing}
+                onBillingChange={(entitlement) => setBilling((b) => (b ? { ...b, entitlement } : b))}
               />
             ) : view === 'dashboard' ? (
               <Dashboard
@@ -1286,6 +1334,17 @@ export default function App() {
         />
       )}
 
+      {user && billing?.entitlement && !billing.entitlement.access && (
+        <Paywall
+          billing={billing}
+          email={user.email}
+          onSubscribed={(entitlement) => {
+            setBilling((b) => (b ? { ...b, entitlement } : b))
+            showToast('Welcome to Prep Pro')
+          }}
+          onSignOut={handleSignOut}
+        />
+      )}
       {!authReady && showAuthGate && (
         <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center">
           <div className="animate-pulse">

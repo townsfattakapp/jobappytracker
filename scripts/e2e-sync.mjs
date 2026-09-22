@@ -13,7 +13,7 @@ const password = 'Sync-Test-Only-2026!'
 
 const open = async (create) => {
   const page = await (await browser.newContext()).newPage()
-  await page.goto('http://localhost:3000', { waitUntil: 'networkidle' })
+  await page.goto('http://localhost:3000/app', { waitUntil: 'networkidle' })
   if (!create) await page.getByRole('tab', { name: 'Sign in' }).click()
   await page.getByLabel('Email', { exact: true }).fill(email)
   await page.getByLabel('Password', { exact: true }).fill(password)

@@ -7,12 +7,8 @@ import {
   parsedEmailToDraft,
   type EmailParseResult,
 } from './emailParser.ts'
-import {
-  getClientGroqApiKey,
-  parseJobEmailWithGroq,
-  setClientGroqApiKey,
-} from './lib/groqEmail.ts'
-import { AI_SETUP_HINT, isAiAvailable } from './lib/aiGatewayClient'
+import { parseJobEmailWithGroq } from './lib/groqEmail.ts'
+import { AI_SETUP_HINT, aiUnavailableReason, isAiAvailable } from './lib/aiGatewayClient'
 import { type JobApplication, type NewJobApplication, type Status, STATUS_ORDER } from './types'
 
 interface EmailImportProps {
@@ -57,8 +53,6 @@ export default function EmailImport({
   const [draft, setDraft] = useState<DraftFields | null>(null)
   const [mode, setMode] = useState<'create' | 'update'>('create')
   const [aiBusy, setAiBusy] = useState(false)
-  const [groqKey, setGroqKey] = useState('')
-  const [showKey, setShowKey] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -69,9 +63,6 @@ export default function EmailImport({
     setMode('create')
     setError(null)
     setAiBusy(false)
-    const existing = getClientGroqApiKey()
-    setGroqKey(existing)
-    setShowKey(!existing)
   }, [open])
 
   useEffect(() => {
@@ -104,10 +95,8 @@ export default function EmailImport({
 
   const runAiParse = async (text = raw) => {
     setError(null)
-    if (groqKey.trim()) setClientGroqApiKey(groqKey.trim())
     if (!(await isAiAvailable())) {
-      setShowKey(true)
-      setError(AI_SETUP_HINT)
+      setError((await aiUnavailableReason()) || AI_SETUP_HINT)
       return
     }
 
@@ -130,12 +119,6 @@ export default function EmailImport({
     } finally {
       setAiBusy(false)
     }
-  }
-
-  const saveKey = () => {
-    setClientGroqApiKey(groqKey)
-    setShowKey(false)
-    setError(null)
   }
 
   const apply = () => {
@@ -239,38 +222,9 @@ export default function EmailImport({
             />
           </label>
 
-          <div className="rounded-xl border border-border bg-muted/40 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-sm font-semibold text-foreground">AI analysis</p>
-                <p className="text-xs text-muted-foreground">
-                  Optional free Groq key (console.groq.com), stored only in this browser. Signed-in users may already have AI enabled.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => setShowKey((v) => !v)}
-              >
-                {showKey ? 'Hide key' : Boolean(getClientGroqApiKey()) || groqKey ? 'Edit key' : 'Add key'}
-              </button>
-            </div>
-            {showKey ? (
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                <input
-                  className="input-field font-mono text-sm"
-                  type="password"
-                  value={groqKey}
-                  onChange={(e) => setGroqKey(e.target.value)}
-                  placeholder="gsk_..."
-                  autoComplete="off"
-                />
-                <button type="button" className="btn btn-ghost" onClick={saveKey}>
-                  Save key
-                </button>
-              </div>
-            ) : null}
-          </div>
+          <p className="text-xs text-muted-foreground rounded-xl border border-border bg-muted/40 px-3 py-2">
+            <span className="font-semibold text-foreground">AI analysis</span> uses the OpenAI or Groq key saved in Settings and works while your account is on a trial or subscription.
+          </p>
 
           <div className="flex flex-wrap gap-2">
             <button

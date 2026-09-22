@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { auth } from '../../../../lib/auth'
+import { getUserAiKey, getUserAiKeySummary } from '../../../../lib/server/aiKeys'
+import { getEntitlement, requireAccess } from '../../../../lib/server/entitlement'
 
 export const maxDuration = 60
+export const dynamic = 'force-dynamic'
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 
@@ -15,6 +18,8 @@ const OPENAI_MODELS = ['gpt-4o-mini', 'gpt-4.1-mini', 'gpt-4o']
 const MAX_MESSAGES = 60
 const MAX_TOTAL_CHARS = 120_000
 
+const NO_KEY_MESSAGE = 'Add your OpenAI or Groq API key in Settings to enable AI features.'
+
 function serverKeys() {
   return {
     groq: (process.env.GROQ_API_KEY || '').trim(),
@@ -22,20 +27,22 @@ function serverKeys() {
   }
 }
 
-/** Lets the client know whether AI works without a personal key. */
+/** Tells the client whether AI can run for this account and why not otherwise. */
 export async function GET() {
-  const keys = serverKeys()
-  return NextResponse.json({ serverConfigured: Boolean(keys.groq || keys.openai) })
+  const session = await auth()
+  const server = serverKeys()
+  const serverConfigured = Boolean(server.groq || server.openai)
+  if (!session?.user?.id) {
+    return NextResponse.json({ signedIn: false, access: false, available: false, serverConfigured, userKey: null, reason: 'Sign in to use AI.' })
+  }
+  const [entitlement, userKey] = await Promise.all([getEntitlement(session.user.id), getUserAiKeySummary(session.user.id)])
+  const hasKey = Boolean(userKey) || serverConfigured
+  const available = entitlement.access && hasKey
+  const reason = !entitlement.access ? 'Your free trial has ended. Subscribe to keep using AI.' : !hasKey ? NO_KEY_MESSAGE : null
+  return NextResponse.json({ signedIn: true, access: entitlement.access, status: entitlement.status, available, serverConfigured, userKey, reason })
 }
 
-async function callProvider(
-  url: string,
-  apiKey: string,
-  model: string,
-  messages: ChatMessage[],
-  temperature: number,
-  json: boolean,
-) {
+async function callProvider(url: string, apiKey: string, model: string, messages: ChatMessage[], temperature: number, json: boolean) {
   return fetch(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -68,36 +75,20 @@ export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => null)
     if (!body) return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
-    const { messages: rawMessages, temperature = 0.3, json = false, provider = 'auto', clientProvidedKey } = body
+    const { messages: rawMessages, temperature = 0.3, json = false, provider = 'auto' } = body
 
     const messages = sanitizeMessages(rawMessages)
     if (!messages) return NextResponse.json({ error: 'Invalid or oversized messages array' }, { status: 400 })
 
-    const clientGroq = typeof clientProvidedKey?.groq === 'string' ? clientProvidedKey.groq.trim() : ''
-    const clientOpenAi = typeof clientProvidedKey?.openai === 'string' ? clientProvidedKey.openai.trim() : ''
+    const gate = await requireAccess()
+    if (gate instanceof NextResponse) return gate
+
+    // The learner's own key first; the deployment's shared key as a fallback.
+    const own = await getUserAiKey(gate.userId)
     const server = serverKeys()
-
-    // Personal keys are the user's own spend. Server keys are only for signed-in users.
-    let groqKey = clientGroq
-    let openAiKey = clientOpenAi
-    if (!groqKey && !openAiKey && (server.groq || server.openai)) {
-      const session = await auth()
-      if (!session?.user?.id) {
-        return NextResponse.json(
-          { error: 'Sign in to use the built-in AI, or add your own Groq/OpenAI key in Settings.' },
-          { status: 401 },
-        )
-      }
-      groqKey = server.groq
-      openAiKey = server.openai
-    }
-
-    if (!groqKey && !openAiKey) {
-      return NextResponse.json(
-        { error: 'AI is not configured. Add a free Groq key or an OpenAI key in Settings.' },
-        { status: 400 },
-      )
-    }
+    const groqKey = own?.provider === 'groq' ? own.key : own ? '' : server.groq
+    const openAiKey = own?.provider === 'openai' ? own.key : own ? '' : server.openai
+    if (!groqKey && !openAiKey) return NextResponse.json({ error: NO_KEY_MESSAGE, code: 'no_key' }, { status: 400 })
 
     const temp = typeof temperature === 'number' && temperature >= 0 && temperature <= 2 ? temperature : 0.3
     let lastError = ''
@@ -125,11 +116,12 @@ export async function POST(req: Request) {
     }
 
     if (!response) {
-      const friendly = / 401:/.test(lastError) || /invalid api key/i.test(lastError)
-        ? 'The AI provider rejected the API key. Check it in Settings.'
-        : / 429:/.test(lastError) || /rate limit/i.test(lastError)
-          ? 'The AI provider is rate limiting requests. Wait a moment and try again.'
-          : 'The AI provider is unavailable right now.'
+      const friendly =
+        / 401:/.test(lastError) || /invalid api key/i.test(lastError)
+          ? 'The AI provider rejected your API key. Update it in Settings.'
+          : / 429:/.test(lastError) || /rate limit/i.test(lastError)
+            ? 'The AI provider is rate limiting requests. Wait a moment and try again.'
+            : 'The AI provider is unavailable right now.'
       return NextResponse.json({ error: friendly, details: lastError }, { status: 502 })
     }
 

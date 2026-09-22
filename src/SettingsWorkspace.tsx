@@ -1,11 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
-import {
-  getClientGroqApiKey,
-  setClientGroqApiKey,
-  getClientOpenAIApiKey,
-  setClientOpenAIApiKey,
-  isServerAiConfigured,
-} from './lib/aiGatewayClient'
+import { useRef } from 'react'
+import AiKeyPanel from './components/AiKeyPanel'
+import SubscriptionPanel from './components/SubscriptionPanel'
+import type { BillingState } from './lib/billing/client'
+import type { Entitlement } from './lib/billing/entitlement'
 import { isGmailConfigured } from './lib/gmail'
 import type { AppUser } from './lib/cloudSync'
 import { CODE_LANGUAGES, useCodeLanguage, type CodeLanguage } from './lib/preferences'
@@ -25,6 +22,8 @@ interface SettingsWorkspaceProps {
   onImportLocalHistory: (file: File) => void
   onClearLocalData: () => void
   onToast: (message: string) => void
+  billing: BillingState | null
+  onBillingChange: (entitlement: Entitlement) => void
 }
 
 export default function SettingsWorkspace({
@@ -42,32 +41,12 @@ export default function SettingsWorkspace({
   onImportLocalHistory,
   onClearLocalData,
   onToast,
+  billing,
+  onBillingChange,
 }: SettingsWorkspaceProps) {
-  const [groqKey, setGroqKey] = useState('')
-  const [openAiKey, setOpenAiKey] = useState('')
-  const [showKeys, setShowKeys] = useState(false)
-  const [serverAi, setServerAi] = useState<boolean | null>(null)
   const [codeLanguage, setCodeLanguage] = useCodeLanguage()
   const backupInput = useRef<HTMLInputElement>(null)
   const historyInput = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    setGroqKey(getClientGroqApiKey())
-    setOpenAiKey(getClientOpenAIApiKey())
-    let cancelled = false
-    isServerAiConfigured().then((v) => {
-      if (!cancelled) setServerAi(v)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const handleSaveKeys = () => {
-    setClientGroqApiKey(groqKey)
-    setClientOpenAIApiKey(openAiKey)
-    onToast(groqKey.trim() || openAiKey.trim() ? 'AI keys saved in this browser' : 'AI keys removed')
-  }
 
   const gmailConfigured = isGmailConfigured()
 
@@ -121,6 +100,8 @@ export default function SettingsWorkspace({
         )}
       </section>
 
+      <SubscriptionPanel billing={billing} signedIn={Boolean(user)} onSignIn={onSignIn} onChange={onBillingChange} onToast={onToast} />
+
       <section className="surface rounded-2xl p-6 border border-border space-y-4">
         <h2 className="text-xl font-bold border-b border-border pb-2">Learning preferences</h2>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -171,72 +152,7 @@ export default function SettingsWorkspace({
         </div>
       </section>
 
-      <section className="surface rounded-2xl p-6 border border-border space-y-6">
-        <div>
-          <h2 className="text-xl font-bold border-b border-border pb-2 mb-3">AI providers</h2>
-          <p className="text-sm text-muted-foreground">
-            AI powers email analysis, prep notes, the tutor, mock interviews and the lab mentor.
-            {serverAi === true
-              ? user
-                ? ' This deployment includes AI for signed-in users, so keys below are optional.'
-                : ' This deployment includes AI once you sign in. Or add your own key below.'
-              : serverAi === false
-                ? ' Add your own key below to enable it.'
-                : ''}
-          </p>
-        </div>
-
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold" htmlFor="groq-key">
-              Groq API key (recommended, free tier)
-            </label>
-            <input
-              id="groq-key"
-              type={showKeys ? 'text' : 'password'}
-              className="input-field w-full md:w-2/3 font-mono text-sm"
-              placeholder="gsk_…"
-              value={groqKey}
-              onChange={(e) => setGroqKey(e.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-            />
-            <p className="text-xs text-muted-foreground">
-              Create one at{' '}
-              <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" className="text-primary hover:underline">
-                console.groq.com
-              </a>
-              . Fast and free for personal use.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold" htmlFor="openai-key">
-              OpenAI API key (optional fallback)
-            </label>
-            <input
-              id="openai-key"
-              type={showKeys ? 'text' : 'password'}
-              className="input-field w-full md:w-2/3 font-mono text-sm"
-              placeholder="sk-…"
-              value={openAiKey}
-              onChange={(e) => setOpenAiKey(e.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button type="button" className="btn btn-primary" onClick={handleSaveKeys}>
-            Save keys
-          </button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowKeys((v) => !v)}>
-            {showKeys ? 'Hide keys' : 'Show keys'}
-          </button>
-          <span className="text-xs text-muted-foreground">Keys stay in this browser’s local storage and are sent only to your chosen provider.</span>
-        </div>
-      </section>
+      <AiKeyPanel signedIn={Boolean(user)} onSignIn={onSignIn} onToast={onToast} />
 
       <section className="surface rounded-2xl p-6 border border-border space-y-3">
         <h2 className="text-xl font-bold border-b border-border pb-2">Integrations</h2>

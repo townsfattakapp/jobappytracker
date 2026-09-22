@@ -1,6 +1,6 @@
 import { chromium } from 'playwright'
 
-const BASE = process.env.BASE_URL || 'http://localhost:3000'
+const BASE = process.env.BASE_URL || 'http://localhost:3000/app'
 
 async function main() {
   const browser = await chromium.launch({ headless: true })
