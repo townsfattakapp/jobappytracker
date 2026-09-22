@@ -13,6 +13,7 @@ import { type Attachment, type JobApplication } from '../types'
 import { saveAttachmentFile, getAttachmentFile, deleteAttachmentFile } from '../db'
 import { AI_SETUP_HINT, isAiAvailable } from '../lib/aiGatewayClient'
 import { generatePrepContent, PREP_AI_ACTIONS, type PrepAiAction } from '../lib/groqPrep'
+import { sanitizeEditorHtml } from '../lib/markdown'
 
 export interface RichTextEditorProps {
   initialTitle: string
@@ -103,7 +104,7 @@ export default function RichTextEditor({
       TaskList,
       TaskItem.configure({ nested: true }),
     ],
-    content: initialContent,
+    content: sanitizeEditorHtml(initialContent),
     editorProps: {
       attributes: {
         class: 'tiptap prep-kit-tiptap prose-tiptap focus:outline-none min-h-[300px]',
@@ -153,11 +154,11 @@ export default function RichTextEditor({
       })
 
       if (action === 'improve-note') {
-        editor.commands.setContent(result.html)
+        editor.commands.setContent(sanitizeEditorHtml(result.html))
       } else if (!editor.getText().trim()) {
-        editor.commands.setContent(result.html)
+        editor.commands.setContent(sanitizeEditorHtml(result.html))
       } else {
-        editor.commands.setContent(`${editor.getHTML()}<hr/>${result.html}`)
+        editor.commands.setContent(sanitizeEditorHtml(`${editor.getHTML()}<hr/>${result.html}`))
       }
       contentRef.current = editor.getHTML()
 
