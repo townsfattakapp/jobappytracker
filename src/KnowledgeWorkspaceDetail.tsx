@@ -775,41 +775,44 @@ export default function KnowledgeWorkspaceDetail({
       </div>
 
       {curriculumInfo.topic?.description && (
-        <p className="surface p-6 rounded-xl border border-border whitespace-pre-line text-lg leading-relaxed shadow-sm">
-          {curriculumInfo.topic.description}
-        </p>
-      )}
-
-      {!curriculumInfo.topic?.description && (
-        <div className="rounded-xl border border-dashed border-border p-5 text-sm">
-          <p className="font-semibold text-foreground">No authored lesson for this topic yet.</p>
-          <p className="text-muted-foreground mt-1">
-            Learn it from the resources below or ask the AI to explain it from zero, then capture what you understood as a note.
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button className="btn btn-primary btn-sm" disabled={explaining} onClick={() => void explainWithAi()}>
-              {explaining ? "Writing explanation…" : `✨ Explain this topic with AI in ${codeLanguage}`}
-            </button>
-            <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-              Code language
-              <select
-                aria-label="Preferred code language"
-                className="input-field !w-auto !py-1 !px-2 text-xs"
-                value={codeLanguage}
-                onChange={(e) => setCodeLanguage(e.target.value as (typeof CODE_LANGUAGES)[number])}
-              >
-                {CODE_LANGUAGES.map((l) => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button className="btn btn-ghost btn-sm" onClick={() => setShowTutor(true)}>Ask the tutor a question</button>
-          </div>
-          {explainError && <p className="mt-2 text-sm text-destructive" role="alert">{explainError}</p>}
+        <div className="surface p-6 rounded-xl border border-border shadow-sm">
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Overview</p>
+          <p className="whitespace-pre-line text-lg leading-relaxed">{curriculumInfo.topic.description}</p>
         </div>
       )}
+
+      <div className={`rounded-xl border p-5 text-sm ${curriculumInfo.topic?.description ? "border-primary/25 bg-primary/5" : "border-dashed border-border"}`}>
+        <p className="font-semibold text-foreground">
+          {curriculumInfo.topic?.description ? "Go deeper with an AI lesson" : "No authored lesson for this topic yet."}
+        </p>
+        <p className="text-muted-foreground mt-1">
+          {curriculumInfo.topic?.description
+            ? `Get a full explanation from zero: definition, why it matters, a real-world example, step-by-step walkthrough and code in ${codeLanguage}. It is saved as a note you can edit.`
+            : "Learn it from the resources below or ask the AI to explain it from zero, then capture what you understood as a note."}
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button className="btn btn-primary btn-sm" disabled={explaining} onClick={() => void explainWithAi()}>
+            {explaining ? "Writing explanation…" : `✨ Explain this topic with AI in ${codeLanguage}`}
+          </button>
+          <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+            Code language
+            <select
+              aria-label="Preferred code language"
+              className="input-field !w-auto !py-1 !px-2 text-xs"
+              value={codeLanguage}
+              onChange={(e) => setCodeLanguage(e.target.value as (typeof CODE_LANGUAGES)[number])}
+            >
+              {CODE_LANGUAGES.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button className="btn btn-ghost btn-sm" onClick={() => setShowTutor(true)}>Ask the tutor a question</button>
+        </div>
+        {explainError && <p className="mt-2 text-sm text-destructive" role="alert">{explainError}</p>}
+      </div>
 
       {curriculumInfo.topic && curriculumInfo.topic.subtopics.length > 0 && (
         <details className="surface rounded-xl border border-border p-4">
