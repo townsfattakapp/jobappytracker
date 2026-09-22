@@ -56,7 +56,7 @@ Rules:
 - problemStatement: 1–3 sentences
 - inputOutput: a sample input and its expected output, one per line
 - explanation: step-by-step reasoning in plain words (use "1." "2." numbering inside the string, separated by newlines)
-- implementationCode: complete, runnable ${ctx.language} code with brief comments (plain text, no markdown fences)
+- implementationCode: complete, runnable ${ctx.language} code with brief comments (plain text, no markdown fences). Format it exactly as a developer would: one statement per line, real newline characters between lines, 4-space indentation. Never put a whole program on one line.
 - commonMistakes: one sentence`,
   )
   return Array.isArray(data.examples) ? data.examples.filter((e) => e && e.title) : []

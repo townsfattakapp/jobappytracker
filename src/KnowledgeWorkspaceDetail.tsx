@@ -17,6 +17,7 @@ import AITutor from "./components/AITutor.tsx";
 import CodeEditor from "./components/CodeEditor.tsx";
 import { AI_SETUP_HINT, chatWithAI, isAiAvailable } from "./lib/aiGatewayClient";
 import { highlightCode, renderMarkdown } from "./lib/markdown";
+import { ensureReadableCode } from "./lib/formatCode";
 import { CODE_LANGUAGES, LANGUAGE_IDS, useCodeLanguage } from "./lib/preferences";
 import { generateDiagram, generateExamples, generateFlashcards, generateMistakes, generatePracticeProblems, type TopicContext } from "./lib/aiLearning";
 import AlgoEditor from "./components/compiler/AlgoEditor.tsx";
@@ -27,7 +28,7 @@ import { getUmlTemplates } from "./data/umlTemplates.ts";
 
 /** Static, syntax-coloured code for read-only views (no editor instance needed). */
 function CodeView({ code, language }: { code: string; language?: string }) {
-  const { html, language: lang } = highlightCode(code, language);
+  const { html, language: lang } = highlightCode(ensureReadableCode(code, language), language);
   return (
     <div className="code-card">
       <div className="code-card-head"><span>{lang}</span></div>
@@ -36,60 +37,115 @@ function CodeView({ code, language }: { code: string; language?: string }) {
   );
 }
 
-function ExampleItem({ example, onUpdate, onDelete }: { example: TopicExample; onUpdate: (e: TopicExample) => void; onDelete: () => void }) {
+const LANGUAGE_LABELS: Record<string, string> = { java: 'Java', javascript: 'JavaScript', typescript: 'TypeScript', python: 'Python', cpp: 'C++', go: 'Go' };
+
+/** Splits "1. do this 2. do that" or one-step-per-line text into an ordered list. */
+function parseSteps(text: string): string[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+  const lines = trimmed.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  const numbered = lines.filter((l) => /^\d+[.)]\s+/.test(l));
+  if (numbered.length >= 2 && numbered.length >= lines.length - 1) return numbered.map((l) => l.replace(/^\d+[.)]\s+/, ''));
+  const inline = trimmed.split(/\s*(?=\b\d+[.)]\s)/).map((x) => x.trim()).filter(Boolean);
+  if (inline.length >= 2 && inline.every((x) => /^\d+[.)]\s/.test(x))) return inline.map((l) => l.replace(/^\d+[.)]\s+/, ''));
+  return [];
+}
+
+function ExampleItem({ example, onUpdate, onDelete, onPractice }: { example: TopicExample; onUpdate: (e: TopicExample) => void; onDelete: () => void; onPractice?: (code: string, language: string, title: string) => void }) {
   const isNew = example.title === 'New Example' && !example.explanation;
   const [editing, setEditing] = useState(isNew);
   const [draft, setDraft] = useState<TopicExample>(example);
-  const code = example.implementationCode || (example as TopicExample & { codeSnippet?: string }).codeSnippet || '';
+  const [copied, setCopied] = useState(false);
+  const rawCode = example.implementationCode || (example as TopicExample & { codeSnippet?: string }).codeSnippet || '';
   const lang = example.implementationLanguage || 'javascript';
+  const code = ensureReadableCode(rawCode, lang);
+  const steps = parseSteps(example.explanation || '');
 
   if (!editing) {
     return (
-      <div className="surface p-5 rounded-xl border border-border flex flex-col gap-4 group">
-        <div className="flex justify-between items-start gap-4">
+      <article className="surface rounded-2xl border border-border overflow-hidden group">
+        <header className="flex flex-wrap items-start justify-between gap-3 px-5 pt-5">
           <div className="min-w-0">
-            <h3 className="font-bold text-lg">{example.title}</h3>
-            {(example.timeComplexity || example.spaceComplexity) && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {example.timeComplexity ? `Time ${example.timeComplexity}` : ''}
-                {example.timeComplexity && example.spaceComplexity ? ' · ' : ''}
-                {example.spaceComplexity ? `Space ${example.spaceComplexity}` : ''}
-              </p>
-            )}
+            <h3 className="font-bold text-lg leading-snug">{example.title}</h3>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {example.timeComplexity && <span className="example-chip">⏱ Time {example.timeComplexity}</span>}
+              {example.spaceComplexity && <span className="example-chip">▦ Space {example.spaceComplexity}</span>}
+              {code && <span className="example-chip is-lang">{LANGUAGE_LABELS[lang] || lang}</span>}
+            </div>
           </div>
-          <div className="flex gap-2 sm:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+          <div className="flex gap-1 sm:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
             <button className="btn btn-ghost btn-sm" onClick={() => { setDraft(example); setEditing(true); }}>Edit</button>
             <button className="btn btn-ghost btn-sm text-destructive" onClick={onDelete}>Delete</button>
           </div>
+        </header>
+
+        <div className="px-5 pt-4 pb-5 grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          <div className="space-y-5 min-w-0">
+            {example.problemStatement && (
+              <section>
+                <p className="example-label">Problem</p>
+                <p className="whitespace-pre-wrap leading-relaxed">{example.problemStatement}</p>
+              </section>
+            )}
+            {example.explanation && (
+              <section>
+                <p className="example-label">Step by step</p>
+                {steps.length ? (
+                  <ol className="example-steps">
+                    {steps.map((step, i) => (
+                      <li key={i}>{step}</li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="whitespace-pre-wrap leading-relaxed">{example.explanation}</p>
+                )}
+              </section>
+            )}
+          </div>
+          <div className="space-y-4 min-w-0">
+            {example.inputOutput && (
+              <section>
+                <p className="example-label">Input → output</p>
+                <pre className="example-io">{example.inputOutput}</pre>
+              </section>
+            )}
+            {example.commonMistakes && (
+              <section className="example-watch">
+                <span className="font-semibold text-[hsl(var(--ig-orange))]">Watch out: </span>
+                {example.commonMistakes}
+              </section>
+            )}
+          </div>
         </div>
-        {example.problemStatement && (
-          <div>
-            <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Problem</h4>
-            <p className="whitespace-pre-wrap">{example.problemStatement}</p>
-          </div>
-        )}
-        {example.inputOutput && (
-          <div>
-            <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Input → output</h4>
-            <pre className="!my-0 !py-3 text-xs">{example.inputOutput}</pre>
-          </div>
-        )}
-        {example.explanation && (
-          <div>
-            <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Step by step</h4>
-            <p className="whitespace-pre-wrap leading-relaxed">{example.explanation}</p>
-          </div>
-        )}
+
         {code && (
-          <div>
-            <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Code · {lang}</h4>
+          <div className="example-code px-5 pb-5">
+            <div className="example-code-head">
+              <span>Code · {LANGUAGE_LABELS[lang] || lang}</span>
+              <span className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  className="example-tool"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(code).then(() => {
+                      setCopied(true);
+                      window.setTimeout(() => setCopied(false), 1500);
+                    });
+                  }}
+                >
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+                {onPractice && (
+                  <button type="button" className="example-tool is-primary" onClick={() => onPractice(code, lang, example.title)} title="Open this code in the Practice runner">
+                    ▶ Try in Practice
+                  </button>
+                )}
+              </span>
+            </div>
             <CodeView code={code} language={lang} />
           </div>
         )}
-        {example.commonMistakes && (
-          <p className="text-sm rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2"><span className="font-semibold text-amber-500">Watch out: </span>{example.commonMistakes}</p>
-        )}
-      </div>
+      </article>
     );
   }
 
@@ -700,7 +756,7 @@ export default function KnowledgeWorkspaceDetail({
               problemStatement: e.problemStatement || "",
               inputOutput: e.inputOutput || "",
               explanation: e.explanation || "",
-              implementationCode: e.implementationCode || "",
+              implementationCode: ensureReadableCode(e.implementationCode || "", LANGUAGE_IDS[codeLanguage]),
               implementationLanguage: LANGUAGE_IDS[codeLanguage],
               timeComplexity: e.timeComplexity,
               spaceComplexity: e.spaceComplexity,
@@ -1109,7 +1165,7 @@ export default function KnowledgeWorkspaceDetail({
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-border overflow-x-auto no-scrollbar">
+      <div className="workspace-tabs flex border-b border-border overflow-x-auto no-scrollbar">
         {(
           [
             "Concepts",
@@ -1146,6 +1202,23 @@ export default function KnowledgeWorkspaceDetail({
           {activeTab === "Concepts" && renderConcepts()}
           {activeTab === "Examples" && (
             <div className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-lg text-muted-foreground uppercase tracking-wider">Worked examples</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {workspace.examples.length
+                      ? `${workspace.examples.length} example${workspace.examples.length === 1 ? "" : "s"} · traced step by step, with code you can copy or run.`
+                      : "Small, fully traced problems with code. Generate a set or write your own."}
+                  </p>
+                </div>
+                <AiGenerateButton label={`Generate 3 worked examples in ${codeLanguage}`} busy={aiBusy === "examples"} onClick={() => void runGenerate("examples")} />
+              </div>
+              {aiError && <p className="text-sm text-destructive" role="alert">{aiError}</p>}
+              {workspace.examples.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+                  No worked examples yet. Generate three in {codeLanguage}, or add one by hand below.
+                </div>
+              )}
               {workspace.examples.map((example) => (
                 <ExampleItem
                   key={example.id}
@@ -1155,6 +1228,15 @@ export default function KnowledgeWorkspaceDetail({
                     if (confirm("Delete this example?")) {
                       handleUpdate({ examples: workspace.examples.filter(x => x.id !== example.id) })
                     }
+                  }}
+                  onPractice={(code, language, title) => {
+                    handleUpdate({
+                      codeSnippets: [
+                        ...workspace.codeSnippets,
+                        { id: uuidv4(), title: `Try: ${title}`, language, code, description: "Copied from the worked example. Edit it, run it, and break it on purpose." },
+                      ],
+                    });
+                    setActiveTab("Practice");
                   }}
                 />
               ))}
@@ -1177,11 +1259,6 @@ export default function KnowledgeWorkspaceDetail({
               >
                 + Add Worked Example
               </button>
-              <div className="flex flex-wrap items-center gap-3">
-                <AiGenerateButton label={`Generate 3 worked examples in ${codeLanguage}`} busy={aiBusy === "examples"} onClick={() => void runGenerate("examples")} />
-                <span className="text-xs text-muted-foreground">Traced step by step, with code and complexity.</span>
-              </div>
-              {aiError && <p className="text-sm text-destructive" role="alert">{aiError}</p>}
             </div>
           )}
           {activeTab === "Diagrams" && renderDiagrams()}
