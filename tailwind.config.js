@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  content: ['./src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
@@ -33,6 +33,14 @@ export default {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        ig: {
+          purple: 'hsl(var(--ig-purple))',
+          magenta: 'hsl(var(--ig-magenta))',
+          red: 'hsl(var(--ig-red))',
+          orange: 'hsl(var(--ig-orange))',
+          yellow: 'hsl(var(--ig-yellow))',
+          blue: 'hsl(var(--ig-blue))',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -40,8 +48,9 @@ export default {
         sm: 'calc(var(--radius) - 4px)',
       },
       fontFamily: {
-        sans: ['"Source Sans 3"', 'Figtree', 'Segoe UI', 'sans-serif'],
-        display: ['"Source Serif 4"', 'Fraunces', 'Georgia', 'serif'],
+        sans: ['var(--font-sans)', 'Inter', 'system-ui', 'sans-serif'],
+        display: ['var(--font-sans)', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', '"JetBrains Mono"', 'Consolas', 'monospace'],
       },
     },
   },

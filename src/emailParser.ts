@@ -150,7 +150,10 @@ function cleanCompany(raw: string): string {
   return raw
     .replace(/\s+/g, ' ')
     .replace(/["'<>]/g, '')
-    .replace(/\b(?:inc|llc|ltd|corp|co|gmbh)\.?$/i, '')
+    // "Notion for the Full Stack Engineer position" -> "Notion"
+    .replace(/\s+(?:for|as|regarding|about|re|to join|on)\b.*$/i, '')
+    .replace(/[.,;:!?]+$/, '')
+    .replace(/\b(?:inc|llc|ltd|corp|co|gmbh|pvt|private limited)\.?$/i, '')
     .replace(/\b(?:careers|jobs|talent|recruiting|recruitment|hiring|team|noreply)\b/gi, '')
     .replace(/\s+[-|].*$/, '')
     .trim()
@@ -193,7 +196,7 @@ function extractRole(text: string, subject: string): string {
     /(?:position|role|job title)\s*[:\-–]\s*([^\n,]{2,80})/i,
     /application(?: for)?(?: the)?\s+([A-Z][^.\n,]{2,80}?)\s+(?:position|role)/i,
     /interested in the\s+([A-Z][^.\n,]{2,80}?)\s+role/i,
-    /(?:re:|subject:)?\s*(?:your application(?: for)?|interview for)\s+([^\n|–-]{2,80})/i,
+    /(?:re:|subject:)?[ \t]*(?:your application for|interview for)[ \t]+([^\n|–-]{2,80})/i,
   ]
 
   for (const pattern of patterns) {
@@ -222,8 +225,9 @@ function extractCompany(text: string, subject: string, from: string): string {
   const fromEmail = from.match(/[\w.+-]+@([\w.-]+)/)?.[1] || ''
 
   const patterns = [
-    /thank you for applying to\s+([A-Z][\w .&'-]{1,60})/i,
+    /thank(?:s| you) for applying (?:to|at|with)\s+([A-Z][\w .&'-]{1,60})/i,
     /(?:application|interview|offer).{0,40}\bat\s+([A-Z][\w .&'-]{1,60})/i,
+    /your application (?:to|with)\s+([A-Z][\w .&'-]{1,60})/i,
     /(?:from|with)\s+([A-Z][\w .&'-]{1,40})\s+(?:recruiting|talent|careers|hiring)/i,
     /^([\w .&'-]{2,40})\s+careers\b/im,
     /welcome to the\s+([A-Z][\w .&'-]{1,40})\s+hiring/i,
@@ -252,7 +256,7 @@ function extractCompany(text: string, subject: string, from: string): string {
     }
   }
 
-  if (fromEmail && /careers|recruiting|talent|hiring|jobs|greenhouse|lever|ashby|workday/i.test(fromEmail)) {
+  if (fromEmail && /careers|recruiting|recruit|talent|hiring|jobs|greenhouse|lever|ashby|workday/i.test(from)) {
     const fromDomain = domainToCompany(fromEmail)
     if (fromDomain) return fromDomain
   }
@@ -274,13 +278,17 @@ function extractLocation(text: string): string {
   return match[1].split(/\n|·|\|/)[0].trim().replace(/\.$/, '')
 }
 
+function localDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function extractAppliedDate(raw: string): string | null {
   const dateHeader = extractHeader(raw, 'Date')
   if (dateHeader) {
     const parsed = new Date(dateHeader)
-    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0]
+    if (!Number.isNaN(parsed.getTime())) return localDateKey(parsed)
   }
-  return new Date().toISOString().split('T')[0]
+  return localDateKey(new Date())
 }
 
 function detectStatus(text: string): { status: Status; signals: string[] } {

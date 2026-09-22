@@ -147,7 +147,7 @@ export default function GmailSyncPanel({
               Sync recruiting emails
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Scan new job emails, update statuses, and keep a sync history in Appwrite.
+              Scan recent recruiting emails, create or update applications, and keep a history you can correct.
             </p>
           </div>
           <button type="button" className="btn btn-ghost" onClick={onClose}>
@@ -157,18 +157,21 @@ export default function GmailSyncPanel({
 
         <div className="space-y-5 overflow-y-auto p-5 sm:p-6">
           {!configured ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-              <p className="font-semibold">Google OAuth client ID required</p>
-              <p className="mt-1">
-                Set <code className="font-mono">VITE_GOOGLE_CLIENT_ID</code> in{' '}
-                <code className="font-mono">.env</code> / GitHub Secrets, enable the Gmail API, and
-                add authorized JavaScript origins for <code className="font-mono">localhost</code>{' '}
-                and your GitHub Pages domain.
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-foreground">
+              <p className="font-semibold">Gmail sync is not configured on this deployment</p>
+              <p className="mt-1 text-muted-foreground">
+                The host needs a Google OAuth web client ID in{' '}
+                <code className="font-mono">NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> with the Gmail API enabled and this
+                site’s origin listed under authorized JavaScript origins. Until then, use “Paste email” to import
+                recruiting emails manually.
               </p>
             </div>
           ) : null}
 
           <div className="rounded-xl border border-border bg-muted/30 p-4">
+            <p className="mb-3 text-xs text-muted-foreground">
+              Read-only access. The access token stays in this tab and is never stored on the server.
+            </p>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-foreground">

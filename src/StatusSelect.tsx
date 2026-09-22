@@ -1,22 +1,14 @@
 import { type Status, STATUS_ORDER } from './types'
 
-const statusClass: Record<Status, string> = {
-  Wishlist: 'status-wishlist',
-  Applied: 'status-applied',
-  'Under Review': 'status-under-review',
-  Assessment: 'status-assessment',
-  Interview: 'status-interview',
-  'HR Round': 'status-hr-round',
-  Offer: 'status-offer',
-  Rejected: 'status-rejected',
-  Withdrawn: 'status-withdrawn',
-}
+import { STATUS_CLASS as statusClass } from './StatusBadge.tsx'
 
 interface StatusSelectProps {
-  value: Status
+  value: Status | ''
   onChange: (status: Status) => void
   ariaLabel: string
   className?: string
+  /** Shown as the first, non-selectable option when no status is chosen yet. */
+  placeholder?: string
 }
 
 export default function StatusSelect({
@@ -24,14 +16,22 @@ export default function StatusSelect({
   onChange,
   ariaLabel,
   className = '',
+  placeholder,
 }: StatusSelectProps) {
   return (
     <select
-      className={`status-select ${statusClass[value]} ${className}`}
+      className={`status-select ${value ? statusClass[value] : 'status-wishlist'} ${className}`}
       value={value}
       aria-label={ariaLabel}
-      onChange={(e) => onChange(e.target.value as Status)}
+      onChange={(e) => {
+        if (e.target.value) onChange(e.target.value as Status)
+      }}
     >
+      {placeholder ? (
+        <option value="" disabled>
+          {placeholder}
+        </option>
+      ) : null}
       {STATUS_ORDER.map((s) => (
         <option key={s} value={s}>
           {s}

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import {
   type JobApplication,
@@ -7,6 +7,7 @@ import {
   type Contact,
   type InterviewRound,
   STATUS_ORDER,
+  todayKey,
 } from './types'
 
 interface JobFormProps {
@@ -51,49 +52,112 @@ function toForm(app: JobApplication): NewJobApplication {
   }
 }
 
+/** Accepts "linkedin.com/jobs/123" as well as full URLs; returns '' for junk. */
+export function normalizeUrl(value: string): string {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+  try {
+    const url = new URL(withScheme)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return ''
+    return url.toString()
+  } catch {
+    return ''
+  }
+}
+
 export default function JobForm({ open, initial, prefill, onClose, onSave }: JobFormProps) {
   const [form, setForm] = useState<NewJobApplication>(emptyForm)
   const [activeTab, setActiveTab] = useState<'details' | 'contacts' | 'interviews'>('details')
+  const [error, setError] = useState<string | null>(null)
+  const baselineRef = useRef<string>('')
+  const companyRef = useRef<HTMLInputElement>(null)
   const editing = Boolean(initial)
 
   useEffect(() => {
     if (!open) return
-    const baseForm = { ...emptyForm, appliedDate: new Date().toISOString().split('T')[0] }
+    let next: NewJobApplication
     if (initial) {
-      setForm(toForm(initial))
+      next = toForm(initial)
     } else if (prefill) {
-      setForm({ ...baseForm, ...prefill })
+      next = { ...emptyForm, ...prefill, status: prefill.status || 'Applied', appliedDate: prefill.appliedDate || todayKey() }
     } else {
-      setForm(baseForm)
+      next = { ...emptyForm }
     }
+    setForm(next)
+    baselineRef.current = JSON.stringify(next)
     setActiveTab('details')
+    setError(null)
+    const id = window.setTimeout(() => companyRef.current?.focus(), 50)
+    return () => window.clearTimeout(id)
   }, [open, initial, prefill])
+
+  const isDirty = () => JSON.stringify(form) !== baselineRef.current
+
+  const requestClose = () => {
+    if (isDirty() && !window.confirm('Discard unsaved changes?')) return
+    onClose()
+  }
 
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        requestClose()
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  }, [open, form])
 
   if (!open) return null
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    const today = new Date().toISOString().split('T')[0]
+    const company = form.company.trim()
+    const role = form.role.trim()
+    if (!company || !role) {
+      setActiveTab('details')
+      setError('Company and role are required.')
+      window.setTimeout(() => companyRef.current?.focus(), 30)
+      return
+    }
+    if (form.jobUrl.trim() && !normalizeUrl(form.jobUrl)) {
+      setActiveTab('details')
+      setError('The job URL does not look like a valid link.')
+      return
+    }
+    if (form.appliedDate && form.followUpDate && form.followUpDate < form.appliedDate) {
+      setActiveTab('details')
+      setError('The follow-up date is before the applied date.')
+      return
+    }
+    setError(null)
     onSave(
       {
         ...form,
-        salary: form.salary || null,
-        source: form.source || null,
-        appliedDate: form.appliedDate || (form.status === 'Wishlist' ? null : today),
+        company,
+        role,
+        location: form.location.trim(),
+        salary: form.salary?.trim() || null,
+        source: form.source?.trim() || null,
+        appliedDate: form.appliedDate || (form.status === 'Wishlist' ? null : todayKey()),
         followUpDate: form.followUpDate || null,
-        jobUrl: form.jobUrl.trim(),
+        jobUrl: normalizeUrl(form.jobUrl),
+        contacts: (form.contacts || []).filter((c) => c.name.trim() || c.email.trim() || c.linkedin.trim()),
+        interviewRounds: (form.interviewRounds || []).filter((r) => r.name.trim() || r.notes.trim()),
       },
       initial?.id,
     )
+  }
+
+  const setStatus = (status: Status) => {
+    setForm((prev) => ({
+      ...prev,
+      status,
+      appliedDate: prev.appliedDate || (status === 'Wishlist' ? '' : todayKey()),
+    }))
   }
 
   const addContact = () => {
@@ -119,12 +183,12 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
       ...form,
       interviewRounds: [
         ...(form.interviewRounds || []),
-        { id: uuidv4(), name: '', date: new Date().toISOString().split('T')[0], notes: '', passed: true },
+        { id: uuidv4(), name: '', date: todayKey(), notes: '', passed: null },
       ],
     })
   }
 
-  const updateInterview = (id: string, field: keyof InterviewRound, value: any) => {
+  const updateInterview = <K extends keyof InterviewRound>(id: string, field: K, value: InterviewRound[K]) => {
     setForm({
       ...form,
       interviewRounds: (form.interviewRounds || []).map((r) =>
@@ -143,31 +207,37 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
         type="button"
         className="absolute inset-0 bg-[hsl(var(--ink)/0.5)] backdrop-blur-sm"
         aria-label="Close dialog"
-        onClick={onClose}
+        onClick={requestClose}
       />
       <form
         onSubmit={handleSubmit}
+        noValidate
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="job-form-title"
         className="relative z-10 flex flex-col w-full h-[95dvh] rounded-t-3xl sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl surface animate-slide-up bg-[hsl(var(--card))] overflow-hidden"
       >
         <div className="px-5 pt-5 sm:px-6 sm:pt-6 pb-2 shrink-0 flex items-start justify-between gap-4">
           <div>
-            <p className="text-base font-medium text-muted-foreground">
+            <p className="text-sm font-medium text-muted-foreground">
               {editing ? 'Edit application' : 'New application'}
             </p>
-            <h2 className="font-display mt-1 text-3xl font-semibold tracking-tight">
+            <h2 id="job-form-title" className="font-display mt-1 text-2xl sm:text-3xl font-semibold tracking-tight">
               {editing ? form.company || 'Update role' : 'Track a role'}
             </h2>
           </div>
-          <button type="button" className="btn btn-ghost" onClick={onClose}>
+          <button type="button" className="btn btn-ghost" onClick={requestClose}>
             Close
           </button>
         </div>
 
-        <div className="px-5 sm:px-6 shrink-0 flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+        <div className="px-5 sm:px-6 shrink-0 flex gap-2 overflow-x-auto hide-scrollbar pb-1" role="tablist">
           {(['details', 'contacts', 'interviews'] as const).map((tab) => (
             <button
               key={tab}
               type="button"
+              role="tab"
+              aria-selected={activeTab === tab}
               className={`px-4 py-2 font-semibold capitalize whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === tab
                   ? 'border-primary text-primary'
@@ -184,33 +254,40 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
         <div className="w-full h-px bg-border shrink-0"></div>
 
         <div className="px-5 sm:px-6 py-4 overflow-y-auto flex-1 min-h-[300px] custom-scrollbar">
+          {error ? (
+            <p className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive" role="alert">
+              {error}
+            </p>
+          ) : null}
           <div className={activeTab === 'details' ? 'block' : 'hidden'}>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Company">
+              <Field label="Company *">
                 <input
-                  required
+                  ref={companyRef}
                   className="input-field"
                   value={form.company || ''}
                   onChange={(e) => setForm({ ...form, company: e.target.value })}
                   placeholder="Acme Inc."
+                  autoComplete="organization"
                 />
               </Field>
-              <Field label="Role">
+              <Field label="Role *">
                 <input
-                  required
                   className="input-field"
                   value={form.role || ''}
                   onChange={(e) => setForm({ ...form, role: e.target.value })}
                   placeholder="Frontend Engineer"
+                  autoComplete="organization-title"
                 />
               </Field>
               <Field label="Job URL" className="sm:col-span-2">
                 <input
-                  type="url"
+                  type="text"
+                  inputMode="url"
                   className="input-field"
                   value={form.jobUrl || ''}
                   onChange={(e) => setForm({ ...form, jobUrl: e.target.value })}
-                  placeholder="https://"
+                  placeholder="linkedin.com/jobs/view/…"
                 />
               </Field>
               <Field label="Location">
@@ -218,7 +295,7 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
                   className="input-field"
                   value={form.location || ''}
                   onChange={(e) => setForm({ ...form, location: e.target.value })}
-                  placeholder="Remote · NYC"
+                  placeholder="Remote · Bengaluru"
                 />
               </Field>
               <Field label="Salary">
@@ -229,27 +306,11 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
                   placeholder="₹15 LPA"
                 />
               </Field>
-              <Field label="Applied Date">
-                <input
-                  type="date"
-                  className="input-field"
-                  value={form.appliedDate || ''}
-                  onChange={(e) => setForm({ ...form, appliedDate: e.target.value })}
-                />
-              </Field>
-              <Field label="Source">
-                <input
-                  className="input-field"
-                  value={form.source || ''}
-                  onChange={(e) => setForm({ ...form, source: e.target.value })}
-                  placeholder="LinkedIn, Referral..."
-                />
-              </Field>
               <Field label="Status">
                 <select
                   className="input-field"
                   value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value as Status })}
+                  onChange={(e) => setStatus(e.target.value as Status)}
                 >
                   {STATUS_ORDER.map((status) => (
                     <option key={status} value={status}>
@@ -258,7 +319,30 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
                   ))}
                 </select>
               </Field>
-              <Field label="Follow-up Date">
+              <Field label="Source">
+                <input
+                  className="input-field"
+                  value={form.source || ''}
+                  onChange={(e) => setForm({ ...form, source: e.target.value })}
+                  placeholder="LinkedIn, Referral…"
+                  list="job-source-options"
+                />
+                <datalist id="job-source-options">
+                  {['LinkedIn', 'Referral', 'Company site', 'Naukri', 'Indeed', 'Wellfound', 'Recruiter outreach', 'Email'].map((s) => (
+                    <option key={s} value={s} />
+                  ))}
+                </datalist>
+              </Field>
+              <Field label="Applied date">
+                <input
+                  type="date"
+                  className="input-field"
+                  value={form.appliedDate || ''}
+                  max={todayKey()}
+                  onChange={(e) => setForm({ ...form, appliedDate: e.target.value })}
+                />
+              </Field>
+              <Field label="Follow-up date">
                 <input
                   type="date"
                   className="input-field"
@@ -271,16 +355,25 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
                   className="input-field min-h-[5rem] resize-y"
                   value={form.notes || ''}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  placeholder="Important details..."
+                  placeholder="Important details, referral names, compensation notes…"
                 />
               </Field>
+              <label className="flex items-center gap-2 text-sm font-medium text-foreground sm:col-span-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="touch-check rounded border-input"
+                  checked={form.pinned}
+                  onChange={(e) => setForm({ ...form, pinned: e.target.checked })}
+                />
+                Pin to the top of the board
+              </label>
             </div>
           </div>
 
           <div className={activeTab === 'contacts' ? 'block' : 'hidden'}>
             <div className="flex flex-col gap-4">
               {(!form.contacts || form.contacts.length === 0) && (
-                <p className="text-muted-foreground text-center py-8">No contacts added yet.</p>
+                <p className="text-muted-foreground text-center py-8">No contacts added yet. Add recruiters or referrals here.</p>
               )}
               {form.contacts?.map((contact) => (
                 <div key={contact.id} className="p-4 rounded-xl border border-border bg-[hsl(var(--card))] relative flex flex-col gap-3">
@@ -315,7 +408,8 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
                     <input
                       className="input-field text-sm"
                       placeholder="LinkedIn URL"
-                      type="url"
+                      type="text"
+                      inputMode="url"
                       value={contact.linkedin || ''}
                       onChange={(e) => updateContact(contact.id, 'linkedin', e.target.value)}
                     />
@@ -327,7 +421,7 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
                 className="btn btn-ghost border-dashed border-2 py-3 text-muted-foreground"
                 onClick={addContact}
               >
-                + Add Contact
+                + Add contact
               </button>
             </div>
           </div>
@@ -350,7 +444,7 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-6">
                     <input
                       className="input-field text-sm"
-                      placeholder="Round Name (e.g. Tech Screen)"
+                      placeholder="Round name (e.g. Tech screen)"
                       value={round.name || ''}
                       onChange={(e) => updateInterview(round.id, 'name', e.target.value)}
                     />
@@ -358,24 +452,33 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
                       className="input-field text-sm"
                       type="date"
                       value={round.date || ''}
-                      onChange={(e) => updateInterview(round.id, 'date', e.target.value)}
+                      onChange={(e) => updateInterview(round.id, 'date', e.target.value || null)}
                     />
                     <div className="sm:col-span-2">
                       <textarea
                         className="input-field text-sm min-h-[4rem] resize-y"
-                        placeholder="Interview notes..."
+                        placeholder="Interview notes, questions asked, how it went…"
                         value={round.notes || ''}
                         onChange={(e) => updateInterview(round.id, 'notes', e.target.value)}
                       />
                     </div>
-                    <label className="flex items-center gap-2 text-sm text-foreground sm:col-span-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(round.passed)}
-                        onChange={(e) => updateInterview(round.id, 'passed', e.target.checked)}
-                        className="w-4 h-4 rounded border-input"
-                      />
-                      Passed
+                    <label className="text-sm text-foreground sm:col-span-2">
+                      <span className="label-quiet">Result</span>
+                      <select
+                        className="input-field text-sm"
+                        value={round.passed === null ? 'pending' : round.passed ? 'passed' : 'failed'}
+                        onChange={(e) =>
+                          updateInterview(
+                            round.id,
+                            'passed',
+                            e.target.value === 'pending' ? null : e.target.value === 'passed',
+                          )
+                        }
+                      >
+                        <option value="pending">Awaiting result</option>
+                        <option value="passed">Passed</option>
+                        <option value="failed">Did not pass</option>
+                      </select>
                     </label>
                   </div>
                 </div>
@@ -385,14 +488,14 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
                 className="btn btn-ghost border-dashed border-2 py-3 text-muted-foreground"
                 onClick={addInterview}
               >
-                + Add Interview Round
+                + Add interview round
               </button>
             </div>
           </div>
         </div>
 
         <div className="px-5 pb-5 sm:px-6 sm:pb-6 pt-4 border-t border-border flex shrink-0 justify-end gap-3 bg-[hsl(var(--card))]">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>
+          <button type="button" className="btn btn-ghost" onClick={requestClose}>
             Cancel
           </button>
           <button type="submit" className="btn btn-primary min-w-[120px]">

@@ -7,6 +7,7 @@ interface KanbanBoardProps {
   onPinToggle: (id: string) => void
   onEdit: (app: JobApplication) => void
   onDelete: (id: string) => void
+  onAdd?: () => void
 }
 
 export default function KanbanBoard({
@@ -15,6 +16,7 @@ export default function KanbanBoard({
   onPinToggle,
   onEdit,
   onDelete,
+  onAdd,
 }: KanbanBoardProps) {
   const columns = STATUS_ORDER.map((status) => ({
     status,
@@ -25,14 +27,22 @@ export default function KanbanBoard({
 
   return (
     <div className="animate-rise w-full min-w-0">
-      <div className="mb-4">
-        <h2 className="font-display text-2xl text-foreground sm:text-3xl">Pipeline</h2>
-        <p className="mt-1 text-sm text-muted-foreground sm:text-base">
-          Update status on each card — swipe sideways to see every stage
-        </p>
+      <div className="mb-3">
+        <p className="text-sm text-muted-foreground">Change the status on any card to move it between stages.</p>
         <p className="kanban-scroll-hint">Swipe columns →</p>
       </div>
 
+      {applications.length === 0 && (
+        <div className="surface rounded-2xl p-8 mb-4 text-center">
+          <p className="font-semibold text-foreground">Nothing on the board yet</p>
+          <p className="text-sm text-muted-foreground mt-1">Add an application or paste a recruiting email to get started.</p>
+          {onAdd && (
+            <button type="button" className="btn btn-primary mt-4" onClick={onAdd}>
+              + Add application
+            </button>
+          )}
+        </div>
+      )}
       <div className="kanban-board" role="list">
         {columns.map((column) => (
           <section key={column.status} className="kanban-column surface" role="listitem">

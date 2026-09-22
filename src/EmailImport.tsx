@@ -8,11 +8,11 @@ import {
   type EmailParseResult,
 } from './emailParser.ts'
 import {
-  getGroqApiKey,
-  hasGroqApiKey,
+  getClientGroqApiKey,
   parseJobEmailWithGroq,
-  setGroqApiKey,
+  setClientGroqApiKey,
 } from './lib/groqEmail.ts'
+import { AI_SETUP_HINT, isAiAvailable } from './lib/aiGatewayClient'
 import { type JobApplication, type NewJobApplication, type Status, STATUS_ORDER } from './types'
 
 interface EmailImportProps {
@@ -69,7 +69,7 @@ export default function EmailImport({
     setMode('create')
     setError(null)
     setAiBusy(false)
-    const existing = getGroqApiKey()
+    const existing = getClientGroqApiKey()
     setGroqKey(existing)
     setShowKey(!existing)
   }, [open])
@@ -104,12 +104,12 @@ export default function EmailImport({
 
   const runAiParse = async (text = raw) => {
     setError(null)
-    if (!hasGroqApiKey() && !groqKey.trim()) {
+    if (groqKey.trim()) setClientGroqApiKey(groqKey.trim())
+    if (!(await isAiAvailable())) {
       setShowKey(true)
-      setError('Add your free Groq API key to use AI analysis')
+      setError(AI_SETUP_HINT)
       return
     }
-    if (groqKey.trim()) setGroqApiKey(groqKey.trim())
 
     setAiBusy(true)
     try {
@@ -133,7 +133,7 @@ export default function EmailImport({
   }
 
   const saveKey = () => {
-    setGroqApiKey(groqKey)
+    setClientGroqApiKey(groqKey)
     setShowKey(false)
     setError(null)
   }
@@ -187,7 +187,7 @@ export default function EmailImport({
               Paste a recruiting email
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Use quick extract or Groq AI for better company, role, and status detection.
+              Quick extract works offline; AI analysis improves company, role and status detection.
             </p>
           </div>
           <button type="button" className="btn btn-ghost" onClick={onClose}>
@@ -225,7 +225,7 @@ export default function EmailImport({
                 void runAiParse(SAMPLE_EMAILS.evolw)
               }}
             >
-              Try: Evolw (AI)
+              Try: Under review (AI)
             </button>
           </div>
 
@@ -242,9 +242,9 @@ export default function EmailImport({
           <div className="rounded-xl border border-border bg-muted/40 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <p className="text-sm font-semibold text-foreground">Groq AI</p>
+                <p className="text-sm font-semibold text-foreground">AI analysis</p>
                 <p className="text-xs text-muted-foreground">
-                  Free key from console.groq.com — stored only in this browser
+                  Optional free Groq key (console.groq.com), stored only in this browser. Signed-in users may already have AI enabled.
                 </p>
               </div>
               <button
@@ -252,7 +252,7 @@ export default function EmailImport({
                 className="btn btn-ghost btn-sm"
                 onClick={() => setShowKey((v) => !v)}
               >
-                {showKey ? 'Hide key' : hasGroqApiKey() || groqKey ? 'Edit key' : 'Add key'}
+                {showKey ? 'Hide key' : Boolean(getClientGroqApiKey()) || groqKey ? 'Edit key' : 'Add key'}
               </button>
             </div>
             {showKey ? (
@@ -287,7 +287,7 @@ export default function EmailImport({
               disabled={raw.trim().length < 20 || aiBusy}
               onClick={() => void runAiParse()}
             >
-              {aiBusy ? 'Analyzing…' : 'Analyze with Groq AI'}
+              {aiBusy ? 'Analyzing…' : 'Analyze with AI'}
             </button>
           </div>
 

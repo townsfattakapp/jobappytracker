@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid'
 import { findMatchingApplication, parseJobEmail, type EmailParseResult } from '../../emailParser'
 import { parseJobEmailWithGroq } from '../groqEmail'
-import { hasGroqApiKey } from '../groq'
+import { getClientGroqApiKey } from '../aiGatewayClient'
 import {
   shouldApplyIncomingStatus,
   type GmailSyncedEmail,
@@ -41,17 +41,29 @@ function extractRecruiter(fromHeader: string): { name: string; email: string } {
   return { name: name.replace(/["']/g, '').trim(), email }
 }
 
+function localDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** Only accept dates that make sense for an upcoming interview (last week .. next 6 months). */
+function plausibleInterviewDate(d: Date): boolean {
+  const now = Date.now()
+  const t = d.getTime()
+  return t >= now - 7 * 86400000 && t <= now + 183 * 86400000
+}
+
 function extractInterviewDate(text: string): string | null {
   const patterns = [
     /(?:interview|call|meeting)\s+(?:on|for)\s+([A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4})/i,
     /(?:scheduled|schedule)\s+(?:for|on)\s+([A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4})/i,
-    /\b(\d{4}-\d{2}-\d{2})\b/,
+    /(?:interview|call|meeting|scheduled)[^.\n]{0,40}?\b(\d{4}-\d{2}-\d{2})\b/i,
   ]
   for (const pattern of patterns) {
     const match = text.match(pattern)
     if (!match?.[1]) continue
-    const d = new Date(match[1])
-    if (!Number.isNaN(d.getTime())) return d.toISOString().split('T')[0]
+    const iso = /^\d{4}-\d{2}-\d{2}$/.test(match[1])
+    const d = iso ? new Date(`${match[1]}T12:00:00`) : new Date(match[1])
+    if (!Number.isNaN(d.getTime()) && plausibleInterviewDate(d)) return localDateKey(d)
   }
   return null
 }
@@ -120,7 +132,7 @@ async function analyzeEmail(raw: string): Promise<{
   // Only spend AI on emails that already look like recruiting mail.
   const subject = raw.match(/^Subject:\s*(.+)$/im)?.[1] || ''
   const from = raw.match(/^From:\s*(.+)$/im)?.[1] || ''
-  if (ambiguous && hasGroqApiKey() && isLikelyRecruitingEmail(subject, from, rules.notes.slice(0, 200))) {
+  if (ambiguous && Boolean(getClientGroqApiKey()) && isLikelyRecruitingEmail(subject, from, rules.notes.slice(0, 200))) {
     try {
       const ai = await parseJobEmailWithGroq(raw)
       // AI can invent job apps from noise — keep only if still job-like.

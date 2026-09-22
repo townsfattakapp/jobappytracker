@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import StatusSelect from './StatusSelect.tsx'
 import { type JobApplication, type Status, formatDate, isOverdue } from './types'
 
@@ -10,6 +10,9 @@ interface TableViewProps {
   onDelete: (id: string) => void
   onBulkStatusChange?: (ids: Set<string>, status: Status) => void
   onBulkDelete?: (ids: Set<string>) => void
+  onAdd?: () => void
+  /** Whether any applications exist at all (to distinguish "no matches" from "empty"). */
+  hasAny?: boolean
 }
 
 export default function TableView({
@@ -20,6 +23,8 @@ export default function TableView({
   onDelete,
   onBulkStatusChange,
   onBulkDelete,
+  onAdd,
+  hasAny = true,
 }: TableViewProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -29,17 +34,24 @@ export default function TableView({
   const safePage = Math.max(1, Math.min(currentPage, totalPages || 1))
   const paginatedApps = applications.slice((safePage - 1) * pageSize, safePage * pageSize)
 
+  // Drop selections that no longer match the current filter so bulk actions never hit hidden rows.
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === 0) return prev
+      const visible = new Set(applications.map((a) => a.id))
+      const next = new Set([...prev].filter((id) => visible.has(id)))
+      return next.size === prev.size ? prev : next
+    })
+  }, [applications])
+
   return (
     <div className="animate-rise w-full min-w-0">
-      <div className="mb-4 w-full">
-        <h2 className="font-display text-2xl text-foreground sm:text-3xl">Applications</h2>
-        <p className="mt-1 text-sm text-muted-foreground sm:text-base">
-          {applications.length} shown · tap a company to edit
-        </p>
-      </div>
+      <p className="mb-3 text-sm text-muted-foreground">
+        {applications.length} shown · click a company to edit
+      </p>
 
       <div className="relative flex w-full min-w-0 flex-col overflow-hidden rounded-2xl surface">
-        <div className="app-row-head">
+        <div className="app-row-head" role="row">
           <div className="flex items-center justify-center">
             <input
               type="checkbox"
@@ -63,9 +75,21 @@ export default function TableView({
         </div>
 
         {applications.length === 0 && (
-          <p className="px-5 py-16 text-center text-base text-muted-foreground">
-            No applications match your filters.
-          </p>
+          <div className="px-5 py-16 text-center text-base text-muted-foreground">
+            {hasAny ? (
+              <p>No applications match your filters.</p>
+            ) : (
+              <>
+                <p className="font-semibold text-foreground">No applications yet</p>
+                <p className="text-sm mt-1">Add one manually, paste a recruiting email, or connect Gmail.</p>
+                {onAdd && (
+                  <button type="button" className="btn btn-primary mt-4" onClick={onAdd}>
+                    + Add application
+                  </button>
+                )}
+              </>
+            )}
+          </div>
         )}
 
         <div className="min-w-0 flex-1">
@@ -210,8 +234,8 @@ export default function TableView({
             <div className="flex items-center justify-center gap-2">
               <button
                 type="button"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(Math.max(1, safePage - 1))}
+                disabled={safePage === 1}
                 className="btn btn-ghost btn-sm min-w-[5.5rem]"
               >
                 Previous
@@ -221,8 +245,8 @@ export default function TableView({
               </span>
               <button
                 type="button"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages || totalPages === 0}
+                onClick={() => setCurrentPage(Math.min(totalPages, safePage + 1))}
+                disabled={safePage >= totalPages || totalPages === 0}
                 className="btn btn-ghost btn-sm min-w-[5.5rem]"
               >
                 Next
@@ -239,7 +263,8 @@ export default function TableView({
             <div className="hidden h-5 w-px bg-[hsl(var(--paper))]/20 sm:block" />
             <div className="flex w-full flex-wrap items-center justify-center gap-2 sm:w-auto">
               <StatusSelect
-                value={'' as Status}
+                value=""
+                placeholder="Set status…"
                 ariaLabel="Bulk update status"
                 onChange={(s) => {
                   if (onBulkStatusChange) onBulkStatusChange(selectedIds, s)
