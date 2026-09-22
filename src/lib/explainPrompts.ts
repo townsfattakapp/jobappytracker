@@ -127,16 +127,18 @@ export function buildExplainPrompt(input: ExplainInput): { system: string; user:
 
   if (input.mode === 'hld') {
     const design = input.parentTitle || input.title
+    const product = design.replace(/\s+design$/i, '')
     return {
-      noteTitle: `AI design walkthrough: ${input.title}`,
+      noteTitle: input.parentTitle ? `AI design walkthrough: ${product} — deep dive: ${input.title}` : `AI design walkthrough: ${product}`,
       system: [
         'You are a staff engineer coaching a candidate for a system design interview at a product company (Google, Amazon, Uber, Razorpay, Swiggy level).',
-        'Produce the complete design a strong candidate would present, not a definition. Be concrete: name real numbers, technologies and trade-offs.',
+        `The system being designed is ${product}. Name it explicitly and repeatedly ("In ${product}, …"); never describe it as a generic service. Where the real ${product} (or a close peer such as Dropbox, OneDrive, WhatsApp, Netflix, Uber, depending on the product) is known to do something a particular way, say so and use it as evidence.`,
+        'Produce the complete design a strong candidate would present, not a definition. Be concrete: name real numbers, technologies and trade-offs. Every number must be physically plausible (e.g. a 10 GB download cannot finish in 2 seconds); give realistic targets and show the arithmetic.',
         ...MERMAID_RULES,
         'Tables are allowed for estimates, data model and APIs. No full programs; short pseudo-code only where it clarifies.',
         'Use exactly these H2 sections in this order:',
-        '## Problem and scope',
-        '(Functional requirements as 5–7 bullets, non-functional requirements as bullets with target numbers: latency, availability, consistency, durability, scale. Then "Out of scope" bullets.)',
+        `## Problem and scope: ${product}`,
+        `(Open with two sentences: what ${product} does for its users and the core promise (e.g. "any file, on every device, always the latest version"). Then functional requirements as 5–7 bullets, non-functional requirements as bullets with target numbers: latency, availability, consistency, durability, scale. Then "Out of scope" bullets.)`,
         '## Back-of-envelope estimation',
         '(A table: users, daily active users, read and write QPS, storage per year, bandwidth. Show the arithmetic in one line per row. State assumptions.)',
         '## High-level architecture',
@@ -150,7 +152,7 @@ export function buildExplainPrompt(input: ExplainInput): { system: string; user:
         '## Key flow',
         '(Name the most important write path in the heading text after a colon, e.g. "## Key flow: upload and sync". One ```mermaid sequenceDiagram of that flow, then bullets explaining each step and failure handling.)',
         `## Deep dive: ${input.title}`,
-        `(The part of the design the interviewer will push on. ${input.parentTitle ? `Explain ${input.title} inside the ${design} design in depth: algorithm, data structures, sizes, edge cases.` : 'Pick the two hardest sub-parts and go deep: algorithm, data structures, sizes, edge cases.'})`,
+        `(The part of the design the interviewer will push on. ${input.parentTitle ? `Explain ${input.title} as it works inside ${product}: algorithm, data structures, sizes, edge cases, and how it connects to the components above.` : 'Pick the two hardest sub-parts and go deep: algorithm, data structures, sizes, edge cases.'})`,
         '## Scaling, reliability and trade-offs',
         '(Bullets: each bottleneck → fix. Cover caching, sharding or partitioning, replication, consistency versus availability, rate limiting, failure recovery, cost.)',
         '## Common mistakes in interviews',
@@ -161,15 +163,16 @@ export function buildExplainPrompt(input: ExplainInput): { system: string; user:
         '(5 bullets a candidate can revise from in two minutes.)',
         ...COMMON,
       ].join('\n'),
-      user: `${user('Design topic')} Target: a product-company system design round.`,
+      user: `Design the system: "${product}" (curriculum topic "${design}" from the track "${input.trackTitle || 'High-Level System Design'}").${input.parentTitle ? ` Deep-dive focus: "${input.title}".` : ''} Sub-parts the curriculum lists: ${parts}. Target: a product-company system design round.`,
     }
   }
 
   if (input.mode === 'lld') {
     return {
-      noteTitle: `AI object design: ${input.title} (${input.language.split(',')[0].trim()})`,
+      noteTitle: input.parentTitle ? `AI object design: ${input.parentTitle} — focus: ${input.title} (${input.language.split(',')[0].trim()})` : `AI object design: ${input.title} (${input.language.split(',')[0].trim()})`,
       system: [
         'You are a staff engineer coaching a candidate for a low-level design (object-oriented design) interview at a product company.',
+        `The problem being designed is ${input.parentTitle || input.title}. Name it explicitly throughout${input.parentTitle ? `, and keep the focus on ${input.title} within it` : ''}.`,
         `All code must be in ${input.language}. Never switch languages.`,
         'Produce the design a strong candidate would present: entities, responsibilities, diagrams, patterns, a code skeleton and edge cases. Be concrete.',
         ...MERMAID_RULES,
