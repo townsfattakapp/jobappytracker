@@ -18,6 +18,7 @@ import CodeEditor from "./components/CodeEditor.tsx";
 import { AI_SETUP_HINT, chatWithAI, isAiAvailable } from "./lib/aiGatewayClient";
 import { highlightCode, renderMarkdown } from "./lib/markdown";
 import { ensureReadableCode } from "./lib/formatCode";
+import { buildExplainPrompt, explainModeForTrack, extractMermaidBlocks } from "./lib/explainPrompts";
 import { CODE_LANGUAGES, LANGUAGE_IDS, useCodeLanguage } from "./lib/preferences";
 import { generateDiagram, generateExamples, generateFlashcards, generateMistakes, generatePracticeProblems, type TopicContext } from "./lib/aiLearning";
 import AlgoEditor from "./components/compiler/AlgoEditor.tsx";
@@ -662,60 +663,57 @@ export default function KnowledgeWorkspaceDetail({
   const [explaining, setExplaining] = useState(false);
   const [explainError, setExplainError] = useState<string | null>(null);
   const [codeLanguage, setCodeLanguage] = useCodeLanguage();
+  const explainMode = explainModeForTrack(curriculumInfo.track?.id);
+  const [explainNotice, setExplainNotice] = useState<string | null>(null);
   const explainWithAi = async () => {
     setExplainError(null);
+    setExplainNotice(null);
     if (!(await isAiAvailable())) {
       setExplainError(AI_SETUP_HINT);
       return;
     }
     setExplaining(true);
     try {
-      const parts = curriculumInfo.topic?.subtopics.map((s) => s.title).join(", ") || "";
+      const prompt = buildExplainPrompt({
+        mode: explainMode,
+        title: curriculumInfo.title,
+        parentTitle: curriculumInfo.subtopic && curriculumInfo.topic ? curriculumInfo.topic.title : undefined,
+        trackTitle: curriculumInfo.track?.title,
+        parts: curriculumInfo.topic?.subtopics.map((s) => s.title) || [],
+        language: codeLanguage,
+      });
       const text = await chatWithAI({
         temperature: 0.3,
         messages: [
-          {
-            role: "system",
-            content: [
-              "You are a patient senior engineer teaching a junior developer who is preparing for interviews.",
-              `All code must be in ${codeLanguage}. Never switch languages.`,
-              "Start from zero: assume the reader has never heard the term. Prefer plain words over jargon; define any jargon the first time it appears.",
-              "Write GitHub-flavoured Markdown with real line breaks. Use exactly these H2 sections in this order:",
-              `## What is ${curriculumInfo.title}?`,
-              "(2–3 plain-language sentences that define it, then one everyday analogy in **bold** on its own line.)",
-              "## Why it matters",
-              "(Where it shows up in real software and interviews. 3 bullets.)",
-              "## Real-world example",
-              "(One concrete story from a product people know, e.g. a food-delivery app or a payment system, showing the concept in action. 1 short paragraph.)",
-              "## How it works, step by step",
-              "(A numbered list from the simplest case to the general case.)",
-              `## Example in ${codeLanguage}`,
-              "(One fenced code block with the language tag and comments, then a 3–4 line walkthrough.)",
-              "## Common mistakes",
-              "(Bullets: mistake → why it happens → fix.)",
-              "## Interview questions",
-              "(3 questions, each followed by a one-line model answer.)",
-              "## Quick recap",
-              "(3 bullets a learner can revise from in one minute.)",
-              "Use short paragraphs and bullet lists (each bullet on its own line). No tables. No preamble or closing remarks.",
-            ].join("\n"),
-          },
-          {
-            role: "user",
-            content: `Topic: "${curriculumInfo.title}" from the track "${curriculumInfo.track?.title || "software engineering"}". Sub-parts to cover: ${parts || "core concept, examples, pitfalls"}.`,
-          },
+          { role: "system", content: prompt.system },
+          { role: "user", content: prompt.user },
         ],
       });
-      const html = renderMarkdown(text);
+      const { markdown, diagrams } = extractMermaidBlocks(text, explainMode);
+      const now = new Date().toISOString();
       const note: TopicNote = {
         id: uuidv4(),
-        title: `AI explanation: ${curriculumInfo.title} (${codeLanguage})`,
-        content: html,
+        title: prompt.noteTitle,
+        content: renderMarkdown(markdown),
         attachments: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: now,
+        updatedAt: now,
       };
-      handleUpdate({ notes: [note, ...workspace.notes], learningStatus: workspace.learningStatus === "Not Started" ? "Learning" : workspace.learningStatus });
+      const newDiagrams: TopicDiagram[] = diagrams.map((d) => ({
+        id: uuidv4(),
+        title: d.title,
+        type: d.type,
+        mermaidCode: d.mermaidCode,
+        creationMethod: "ai",
+        createdAt: now,
+        updatedAt: now,
+      }));
+      handleUpdate({
+        notes: [note, ...workspace.notes],
+        diagrams: newDiagrams.length ? [...workspace.diagrams, ...newDiagrams] : workspace.diagrams,
+        learningStatus: workspace.learningStatus === "Not Started" ? "Learning" : workspace.learningStatus,
+      });
+      if (newDiagrams.length) setExplainNotice(`Added ${newDiagrams.length} diagram${newDiagrams.length === 1 ? "" : "s"} to the Diagrams tab.`);
     } catch (err) {
       setExplainError(err instanceof Error ? err.message : "AI request failed");
     } finally {
@@ -839,17 +837,34 @@ export default function KnowledgeWorkspaceDetail({
 
       <div className={`rounded-xl border p-5 text-sm ${curriculumInfo.topic?.description ? "border-primary/25 bg-primary/5" : "border-dashed border-border"}`}>
         <p className="font-semibold text-foreground">
-          {curriculumInfo.topic?.description ? "Go deeper with an AI lesson" : "No authored lesson for this topic yet."}
+          {explainMode === "hld"
+            ? "Get the full system design walkthrough"
+            : explainMode === "lld"
+              ? "Get the object design"
+              : curriculumInfo.topic?.description
+                ? "Go deeper with an AI lesson"
+                : "No authored lesson for this topic yet."}
         </p>
         <p className="text-muted-foreground mt-1">
-          {curriculumInfo.topic?.description
-            ? `Get a full explanation from zero: definition, why it matters, a real-world example, step-by-step walkthrough and code in ${codeLanguage}. It is saved as a note you can edit.`
-            : "Learn it from the resources below or ask the AI to explain it from zero, then capture what you understood as a note."}
+          {explainMode === "hld"
+            ? "Requirements, back-of-envelope estimates, architecture and sequence diagrams, data model, APIs, a deep dive, scaling trade-offs and how to present it in 45 minutes. Diagrams land in the Diagrams tab; the write-up is saved as an editable note."
+            : explainMode === "lld"
+              ? `Requirements, core classes, a class diagram and sequence diagram, the design patterns that fit, a code skeleton in ${codeLanguage}, edge cases and trade-offs. Saved as a note you can edit.`
+              : curriculumInfo.topic?.description
+                ? `Get a full explanation from zero: definition, why it matters, a real-world example, step-by-step walkthrough and code in ${codeLanguage}. It is saved as a note you can edit.`
+                : "Learn it from the resources below or ask the AI to explain it from zero, then capture what you understood as a note."}
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button className="btn btn-primary btn-sm" disabled={explaining} onClick={() => void explainWithAi()}>
-            {explaining ? "Writing explanation…" : `✨ Explain this topic with AI in ${codeLanguage}`}
+            {explaining
+              ? explainMode === "concept" ? "Writing explanation…" : "Designing…"
+              : explainMode === "hld"
+                ? "✨ Design this system with AI"
+                : explainMode === "lld"
+                  ? `✨ Design the classes with AI in ${codeLanguage}`
+                  : `✨ Explain this topic with AI in ${codeLanguage}`}
           </button>
+          {explainMode !== "hld" && (
           <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
             Code language
             <select
@@ -865,9 +880,18 @@ export default function KnowledgeWorkspaceDetail({
               ))}
             </select>
           </label>
+          )}
           <button className="btn btn-ghost btn-sm" onClick={() => setShowTutor(true)}>Ask the tutor a question</button>
         </div>
         {explainError && <p className="mt-2 text-sm text-destructive" role="alert">{explainError}</p>}
+        {explainNotice && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            {explainNotice}{" "}
+            <button type="button" className="font-semibold text-primary underline-offset-2 hover:underline" onClick={() => setActiveTab("Diagrams")}>
+              Open Diagrams
+            </button>
+          </p>
+        )}
       </div>
 
       {curriculumInfo.topic && curriculumInfo.topic.subtopics.length > 0 && (
