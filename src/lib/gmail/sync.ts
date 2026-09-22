@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid'
 import { findMatchingApplication, parseJobEmail, type EmailParseResult } from '../../emailParser'
 import { parseJobEmailWithGroq } from '../groqEmail'
-import { getClientGroqApiKey } from '../aiGatewayClient'
+import { isAiAvailable } from '../aiGatewayClient'
 import {
   shouldApplyIncomingStatus,
   type GmailSyncedEmail,
@@ -132,7 +132,7 @@ async function analyzeEmail(raw: string): Promise<{
   // Only spend AI on emails that already look like recruiting mail.
   const subject = raw.match(/^Subject:\s*(.+)$/im)?.[1] || ''
   const from = raw.match(/^From:\s*(.+)$/im)?.[1] || ''
-  if (ambiguous && Boolean(getClientGroqApiKey()) && isLikelyRecruitingEmail(subject, from, rules.notes.slice(0, 200))) {
+  if (ambiguous && isLikelyRecruitingEmail(subject, from, rules.notes.slice(0, 200)) && (await isAiAvailable())) {
     try {
       const ai = await parseJobEmailWithGroq(raw)
       // AI can invent job apps from noise — keep only if still job-like.

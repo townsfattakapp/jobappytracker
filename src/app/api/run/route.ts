@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAccess } from "../../../lib/server/entitlement";
 
 export const maxDuration = 60;
 
@@ -231,6 +232,9 @@ async function runPiston(
 // --- Route -----------------------------------------------------------------
 
 export async function POST(req: Request) {
+  // The sandbox is a paid feature: signed-in accounts on a trial or subscription.
+  const gate = await requireAccess();
+  if (gate instanceof NextResponse) return gate;
   let body: { language?: unknown; code?: unknown; stdin?: unknown };
   try {
     body = await req.json();

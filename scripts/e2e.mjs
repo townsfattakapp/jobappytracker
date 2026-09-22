@@ -2,7 +2,7 @@ import { chromium } from 'playwright'
 import { readFileSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 
-const BASE = process.env.BASE_URL || 'http://localhost:3000'
+const BASE = process.env.BASE_URL || 'http://localhost:3000/app'
 
 async function main() {
   const browser = await chromium.launch({ headless: true })

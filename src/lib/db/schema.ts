@@ -8,6 +8,7 @@ export const users = pgTable("users", {
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
   passwordHash: text("passwordHash"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
 })
 
 export const accounts = pgTable("accounts", {
@@ -273,5 +274,30 @@ export const careerState = pgTable('career_state', {
   userId: text('userId').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
   payload: jsonb('payload').$type<import('../../types').Storage>().notNull(),
   revision: integer('revision').notNull().default(1),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+})
+
+/** Razorpay subscriptions; one row per subscription id, the newest row per user is authoritative. */
+export const subscriptions = pgTable('subscriptions', {
+  id: text('id').primaryKey(),
+  userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  planId: text('planId').notNull(),
+  status: text('status').notNull(),
+  currentStart: timestamp('currentStart'),
+  currentEnd: timestamp('currentEnd'),
+  chargeAt: timestamp('chargeAt'),
+  lastPaymentId: text('lastPaymentId'),
+  cancelledAt: timestamp('cancelledAt'),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+})
+
+/** The learner's own AI provider key, encrypted at rest; only the last characters are kept in clear for display. */
+export const userAiKeys = pgTable('user_ai_keys', {
+  userId: text('userId').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  provider: text('provider').notNull(),
+  encryptedKey: text('encryptedKey').notNull(),
+  keyHint: text('keyHint').notNull(),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
   updatedAt: timestamp('updatedAt').notNull().defaultNow(),
 })

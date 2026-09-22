@@ -10,7 +10,7 @@ const password = "Learning-Test-Only-2026!";
 try {
   const context = await browser.newContext();
   const page = await context.newPage();
-  await page.goto("http://localhost:3000");
+  await page.goto("http://localhost:3000/app");
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Create account", exact: true }).click();
@@ -75,7 +75,7 @@ try {
   console.log("PASS: authenticated cloud snapshot created", row);
   const context2 = await browser.newContext();
   const p2 = await context2.newPage();
-  await p2.goto("http://localhost:3000");
+  await p2.goto("http://localhost:3000/app");
   await p2.getByRole("tab", { name: "Sign in", exact: true }).click();
   await p2.getByLabel("Email", { exact: true }).fill(email);
   await p2.getByLabel("Password", { exact: true }).fill(password);

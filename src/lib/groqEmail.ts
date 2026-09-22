@@ -35,11 +35,6 @@ function normalizeStatus(value: string | undefined, fallback: Status): Status {
   return fallback
 }
 
-export {
-  getClientGroqApiKey,
-  setClientGroqApiKey
-} from './aiGatewayClient'
-
 export async function parseJobEmailWithGroq(rawEmail: string): Promise<EmailParseResult> {
   const baseline = parseJobEmail(rawEmail)
   const clipped = rawEmail.trim().slice(0, 12000)
