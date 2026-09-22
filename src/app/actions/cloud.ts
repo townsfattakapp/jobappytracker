@@ -52,7 +52,8 @@ export async function serverSaveCloudState(
   // A reload may interrupt the response after the write committed. Replay is idempotent.
   const same = await db.select({revision:careerState.revision}).from(careerState).where(and(eq(careerState.userId,userId),sql`${careerState.payload} = ${JSON.stringify(storage)}::jsonb`));
   if(same.length)return same[0].revision;
-  throw new Error(
-    "Another device has newer changes. Your local work is kept. Export a backup before resolving the cloud conflict.",
-  );
+  // Another device wrote first. Hand back its copy so the client can merge and retry
+  // rather than failing the request (a thrown error here surfaces as a 500 in the browser).
+  const current = await db.query.careerState.findFirst({ where: eq(careerState.userId, userId) });
+  return { conflict: true as const, revision: current?.revision ?? 0, payload: (current?.payload ?? null) as Storage | null };
 }

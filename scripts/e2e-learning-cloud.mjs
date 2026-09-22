@@ -95,29 +95,24 @@ try {
     "PASS: new goal with stable IDs, task and saved note load on a second device",
   );
   await p2.locator(".tiptap").fill("Newer device note");
-  await p2.waitForTimeout(1000);
-  await page.locator(".tiptap").fill("Retained stale-device local note");
-  await page
-    .getByText(/Another device has newer changes/)
-    .first()
-    .waitFor();
+  await p2.waitForTimeout(1500);
+  // The first device is now behind the cloud revision. Its next save collides,
+  // gets merged automatically (latest edit of the same note wins) and succeeds.
+  await page.locator(".tiptap").fill("Latest edit from the stale device");
+  await page.getByText("Merged changes from another device").first().waitFor({ timeout: 20000 });
+  await page.waitForTimeout(1500);
   let snapshot = (
-    await pool.query('SELECT payload FROM career_state WHERE "userId"=$1', [
+    await pool.query('SELECT payload, revision FROM career_state WHERE "userId"=$1', [
       user.id,
     ])
-  ).rows[0].payload;
+  ).rows[0];
   assert.match(
-    snapshot.knowledgeWorkspaces[0].notes[0].content,
-    /Newer device note/,
+    snapshot.payload.knowledgeWorkspaces[0].notes[0].content,
+    /Latest edit from the stale device/,
   );
-  assert.match(
-    (
-      await page.evaluate(() =>
-        JSON.parse(localStorage.getItem("job-app-tracker-v2")),
-      )
-    ).knowledgeWorkspaces[0].notes[0].content,
-    /Retained stale-device/,
-  );
+  assert.equal(await page.getByText(/Another device has newer changes/).count(), 0);
+  console.log("PASS: stale-device save merged automatically without a conflict error");
+  snapshot = snapshot.payload;
   await context2.setOffline(true);
   await p2.locator(".tiptap").fill("Offline note replayed after reconnect");
   await p2.waitForTimeout(900);
@@ -133,7 +128,7 @@ try {
     /Offline note replayed/,
   );
   console.log(
-    "PASS: stale-device conflict preserves both versions; offline outbox retries on reconnect",
+    "PASS: offline outbox retries on reconnect and merges cleanly",
   );
 } finally {
   await browser.close();

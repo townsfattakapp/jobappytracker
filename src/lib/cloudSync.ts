@@ -1,4 +1,5 @@
 import { exportLocalHistory, importLocalHistory } from "../db";
+import { mergeStorage } from './mergeStorage';
 import type {
   GmailSyncState,
   JobApplication,
@@ -120,6 +121,13 @@ export async function loadCloudState(
     await importLocalHistory(state.payload.learningHistory);
   return state?.payload as CloudPayload | null;
 }
+/** Fired on window with the merged snapshot after a conflict was resolved automatically. */
+export const CLOUD_MERGED_EVENT = 'jobappy:cloud-merged';
+export const CLOUD_CONFLICT_MESSAGE =
+  'Another device has newer changes. Your local work is kept. Export a backup before resolving the cloud conflict.';
+
+const MAX_MERGE_ATTEMPTS = 3;
+
 export function saveCloudState(
   userId: string,
   storage: Storage,
@@ -129,15 +137,35 @@ export function saveCloudState(
   const operation = saveQueue
     .catch(() => {})
     .then(async () => {
-      const revision = Number(localStorage.getItem(revisionKey(userId)) || 0);
-      const learningHistory = await exportLocalHistory();
-      const next = await serverSaveCloudState(
-        { ...storage, learningHistory },
-        revision,
-      );
-      localStorage.setItem(revisionKey(userId), String(next));
-      if (localStorage.getItem(pendingKey(userId)) === serialized)
-        localStorage.removeItem(pendingKey(userId));
+      let revision = Number(localStorage.getItem(revisionKey(userId)) || 0);
+      let current: Storage = storage;
+      let merged = false;
+      for (let attempt = 0; attempt < MAX_MERGE_ATTEMPTS; attempt += 1) {
+        const learningHistory = await exportLocalHistory();
+        const result = await serverSaveCloudState(
+          { ...current, learningHistory },
+          revision,
+        );
+        if (typeof result === 'number') {
+          localStorage.setItem(revisionKey(userId), String(result));
+          if (localStorage.getItem(pendingKey(userId)) === serialized)
+            localStorage.removeItem(pendingKey(userId));
+          if (merged)
+            window.dispatchEvent(
+              new CustomEvent(CLOUD_MERGED_EVENT, { detail: current }),
+            );
+          return;
+        }
+        // Someone else saved first: fold their copy into ours and try again with their revision.
+        revision = result.revision;
+        if (result.payload) {
+          if (result.payload.learningHistory)
+            await importLocalHistory(result.payload.learningHistory);
+          current = mergeStorage(current, result.payload);
+          merged = true;
+        }
+      }
+      throw new Error(CLOUD_CONFLICT_MESSAGE);
     });
   saveQueue = operation;
   return operation;
