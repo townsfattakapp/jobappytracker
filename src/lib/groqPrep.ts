@@ -1,4 +1,4 @@
-import { groqChat } from './groq'
+import { chatWithAI } from './aiGatewayClient'
 import type { JobApplication } from '../types'
 
 export type PrepAiAction =
@@ -180,7 +180,7 @@ export async function generatePrepContent(options: {
     options.noteHtml,
   )
 
-  const content = await groqChat({
+  const content = await chatWithAI({
     temperature: 0.4,
     messages: [
       { role: 'system', content: system },

@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789988408680,
+      "tag": "0000_overrated_the_santerians",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790080000000,
+      "tag": "0001_career_state",
+      "breakpoints": true
+    }
+  ]
+}

@@ -36,8 +36,10 @@ const GIS_SRC = 'https://accounts.google.com/gsi/client'
 let gisLoadPromise: Promise<void> | null = null
 let cachedToken: { accessToken: string; expiresAt: number } | null = null
 
+import { publicEnv } from '../env'
+
 export function getGoogleClientId(): string {
-  return (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined)?.trim() || ''
+  return publicEnv.googleClientId
 }
 
 export function isGmailConfigured(): boolean {
@@ -95,7 +97,7 @@ export async function requestGmailAccessToken(options?: {
 }): Promise<string> {
   const clientId = getGoogleClientId()
   if (!clientId) {
-    throw new Error('Missing VITE_GOOGLE_CLIENT_ID — add your Google OAuth Web client ID')
+    throw new Error('Gmail sync is not configured. Set NEXT_PUBLIC_GOOGLE_CLIENT_ID to a Google OAuth web client ID.')
   }
 
   const existing = getCachedGmailAccessToken()

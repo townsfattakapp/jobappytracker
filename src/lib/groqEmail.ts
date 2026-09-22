@@ -1,4 +1,4 @@
-import { extractJsonObject, groqChat } from './groq'
+import { extractJsonObject, chatWithAI } from './aiGatewayClient'
 import { parseJobEmail, type EmailParseResult } from '../emailParser'
 import { STATUS_ORDER, type Status } from '../types'
 
@@ -36,10 +36,9 @@ function normalizeStatus(value: string | undefined, fallback: Status): Status {
 }
 
 export {
-  getGroqApiKey,
-  setGroqApiKey,
-  hasGroqApiKey,
-} from './groq'
+  getClientGroqApiKey,
+  setClientGroqApiKey
+} from './aiGatewayClient'
 
 export async function parseJobEmailWithGroq(rawEmail: string): Promise<EmailParseResult> {
   const baseline = parseJobEmail(rawEmail)
@@ -72,7 +71,7 @@ Email:
 ${clipped}
 """`
 
-  const content = await groqChat({
+  const content = await chatWithAI({
     temperature: 0.1,
     json: true,
     messages: [
