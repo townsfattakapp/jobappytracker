@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: 'Prep by EVOLW',
   description: 'Track job applications, sync recruiting emails, and run a daily interview-prep plan.',
   applicationName: 'Prep',
-  icons: { icon: '/favicon.svg' },
+  icons: { icon: '/favicon.svg', shortcut: '/favicon.svg', apple: '/favicon.svg' },
 }
 
 export const viewport: Viewport = {

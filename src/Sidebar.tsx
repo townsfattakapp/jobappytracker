@@ -1,3 +1,4 @@
+import BrandLogo from './components/BrandLogo'
 import type { AppUser } from './lib/cloudSync'
 
 export type ViewMode =
@@ -76,13 +77,7 @@ export default function Sidebar({ view, setView, theme, setTheme, user, syncing,
           className="flex items-center gap-2 px-2 mb-8 mt-2 text-left"
           aria-label="Go to Today"
         >
-          <div className="w-8 h-8 rounded-lg ig-gradient flex items-center justify-center text-white font-bold shadow-lg shadow-primary/20">
-            P
-          </div>
-          <span className="flex flex-col leading-none">
-            <span className="font-display font-bold tracking-tight text-xl text-foreground">Prep</span>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">by EVOLW</span>
-          </span>
+          <BrandLogo size={34} />
         </button>
 
         <nav className="flex flex-col gap-6" aria-label="Primary">

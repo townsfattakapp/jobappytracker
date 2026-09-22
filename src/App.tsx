@@ -10,6 +10,11 @@ import Dashboard from './Dashboard.tsx'
 import SearchFilter from './SearchFilter.tsx'
 import EmailImport from './EmailImport.tsx'
 import BookmarkletModal from './BookmarkletModal.tsx'
+import dynamic from 'next/dynamic'
+import AppFooter from './components/AppFooter'
+import BrandLogo, { BrandMark } from './components/BrandLogo'
+
+const HeroScene = dynamic(() => import('./components/HeroScene'), { ssr: false, loading: () => null })
 import PrepKit from './PrepKit.tsx'
 import AuthPanel from './AuthPanel.tsx'
 import GmailSyncPanel from './GmailSyncPanel.tsx'
@@ -1185,6 +1190,7 @@ export default function App() {
               />
             )}
           </div>
+          <AppFooter />
         </div>
       </main>
 
@@ -1246,7 +1252,9 @@ export default function App() {
 
       {!authReady && showAuthGate && (
         <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center">
-          <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+          <div className="animate-pulse">
+            <BrandMark size={56} />
+          </div>
           <p className="mt-4 font-semibold text-muted-foreground animate-pulse">Loading Prep…</p>
         </div>
       )}
@@ -1254,6 +1262,10 @@ export default function App() {
         <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-xl flex items-center justify-center p-4 overflow-y-auto">
           <div className="w-full max-w-md bg-card/95 border border-border/50 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden my-auto">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-accent"></div>
+            <HeroScene height={180} className="-mx-6 sm:-mx-8 -mt-4 sm:-mt-6" />
+            <div className="flex justify-center mb-3 -mt-6 relative">
+              <BrandLogo size={40} />
+            </div>
             <h2 className="text-3xl font-display font-bold mb-2 text-center tracking-tight">Welcome to Prep</h2>
             <p className="text-muted-foreground text-center mb-4 font-medium text-sm">
               Sign in to sync across devices, or keep everything on this device.

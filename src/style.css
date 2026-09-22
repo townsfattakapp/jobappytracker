@@ -2271,3 +2271,42 @@ a {
   border-right: 0;
   border-left: 2px solid hsl(var(--muted-foreground) / 0.5);
 }
+
+/* --- Brand: hero scene and footer --- */
+.hero-scene {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  pointer-events: auto;
+}
+.hero-scene canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+.app-footer {
+  margin-top: 3rem;
+  padding: 1.25rem 0 0.5rem;
+  border-top: 1px solid hsl(var(--border) / 0.7);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  font-size: 0.78rem;
+}
+.app-footer-link {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  background: var(--ig-gradient-soft);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-decoration: none;
+}
+.app-footer-link:hover {
+  filter: brightness(1.15);
+  text-decoration: underline;
+  text-decoration-color: hsl(var(--ig-magenta));
+  -webkit-text-fill-color: transparent;
+}
