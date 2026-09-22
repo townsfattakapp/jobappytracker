@@ -4,9 +4,9 @@ import { Inter, JetBrains_Mono } from 'next/font/google'
 import { Providers } from './providers'
 
 export const metadata: Metadata = {
-  title: 'JobAppy Career OS',
+  title: 'Prep by EVOLW',
   description: 'Track job applications, sync recruiting emails, and run a daily interview-prep plan.',
-  applicationName: 'JobAppy',
+  applicationName: 'Prep',
   icons: { icon: '/favicon.svg' },
 }
 

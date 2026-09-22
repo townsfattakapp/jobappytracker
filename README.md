@@ -1,4 +1,4 @@
-# JobAppy Career OS
+# Prep by EVOLW
 
 A single-page job-search workspace built with Next.js 16, React 19 and PostgreSQL.
 

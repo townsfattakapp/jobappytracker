@@ -221,7 +221,7 @@ export default function LearningDayWorkspace({
         <span className="text-5xl mb-4" aria-hidden="true">🎯</span>
         <h2 className="text-2xl font-display font-bold text-foreground mb-2">Create a goal to start learning</h2>
         <p className="text-muted-foreground max-w-md mb-6">
-          Pick a target role, choose learning tracks, and JobAppy will lay out a day-by-day study plan you can adjust anytime.
+          Pick a target role, choose learning tracks, and Prep will lay out a day-by-day study plan you can adjust anytime.
         </p>
         <div className="flex flex-col sm:flex-row gap-3">
           <button className="btn btn-primary" onClick={onCreate}>

@@ -61,7 +61,7 @@ export default function BookmarkletModal({ open, onClose }: BookmarkletModalProp
               alert("Drag me to your bookmarks bar! Don't just click me.")
             }}
           >
-            + Add to JobAppy
+            + Add to Prep
           </a>
         </div>
 
@@ -69,7 +69,7 @@ export default function BookmarkletModal({ open, onClose }: BookmarkletModalProp
           <p className="font-semibold text-sm text-foreground">2. How to use it:</p>
           <ul className="list-decimal list-inside text-sm text-muted-foreground space-y-2">
             <li>Go to a job posting on LinkedIn or Indeed.</li>
-            <li>Click the <strong>Add to JobAppy</strong> bookmark in your browser.</li>
+            <li>Click the <strong>Add to Prep</strong> bookmark in your browser.</li>
             <li>A new tab will open with the job details pre-filled in your tracker!</li>
           </ul>
         </div>

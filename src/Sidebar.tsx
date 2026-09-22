@@ -77,9 +77,12 @@ export default function Sidebar({ view, setView, theme, setTheme, user, syncing,
           aria-label="Go to Today"
         >
           <div className="w-8 h-8 rounded-lg ig-gradient flex items-center justify-center text-white font-bold shadow-lg shadow-primary/20">
-            J
+            P
           </div>
-          <span className="font-display font-bold tracking-tight text-xl text-foreground">JobAppy</span>
+          <span className="flex flex-col leading-none">
+            <span className="font-display font-bold tracking-tight text-xl text-foreground">Prep</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">by EVOLW</span>
+          </span>
         </button>
 
         <nav className="flex flex-col gap-6" aria-label="Primary">

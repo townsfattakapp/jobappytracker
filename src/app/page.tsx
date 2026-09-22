@@ -7,7 +7,7 @@ const App = dynamic(() => import('../App'), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center min-h-screen text-muted-foreground">
-      Loading JobAppy Career OS...
+      Loading Prep…
     </div>
   )
 })

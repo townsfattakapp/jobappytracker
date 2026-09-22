@@ -10,7 +10,7 @@ export default function GlobalError({
   return (
     <html lang="en">
       <body style={{ fontFamily: 'system-ui, sans-serif', padding: '3rem 1.5rem', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>JobAppy hit an unexpected error</h1>
+        <h1 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Prep hit an unexpected error</h1>
         <p style={{ color: '#666', marginBottom: '1.5rem' }}>
           Your data is stored on this device. Reloading is safe.
         </p>

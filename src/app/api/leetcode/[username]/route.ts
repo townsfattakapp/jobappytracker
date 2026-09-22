@@ -31,7 +31,7 @@ export async function GET(_req: Request, context: { params: Promise<{ username: 
       headers: {
         'Content-Type': 'application/json',
         Referer: 'https://leetcode.com',
-        'User-Agent': 'Mozilla/5.0 (compatible; JobAppy/1.0)',
+        'User-Agent': 'Mozilla/5.0 (compatible; PrepByEvolw/1.0)',
       },
       body: JSON.stringify({ query: QUERY, variables: { username, limit: 20 } }),
       signal: AbortSignal.timeout(15_000),
