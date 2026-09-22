@@ -574,7 +574,7 @@ export default function App() {
         showToast(`Imported ${summary}`)
       } catch (err) {
         console.error(err)
-        showToast('Import failed. Choose a JobAppy backup JSON file.')
+        showToast('Import failed. Choose a Prep backup JSON file.')
       }
     }
     reader.readAsText(file)
@@ -606,7 +606,7 @@ export default function App() {
   }
 
   const clearLocalData = () => {
-    if (!window.confirm('Clear all JobAppy data stored in this browser? This cannot be undone.')) return
+    if (!window.confirm('Clear all Prep data stored in this browser? This cannot be undone.')) return
     clearStorage()
     writeLocal(STORAGE_OWNER_KEY, null)
     if (user) writeLocal(pendingKey(user.$id), null)
@@ -1247,14 +1247,14 @@ export default function App() {
       {!authReady && showAuthGate && (
         <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center">
           <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
-          <p className="mt-4 font-semibold text-muted-foreground animate-pulse">Loading JobAppy…</p>
+          <p className="mt-4 font-semibold text-muted-foreground animate-pulse">Loading Prep…</p>
         </div>
       )}
       {authReady && showAuthGate && (
         <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-xl flex items-center justify-center p-4 overflow-y-auto">
           <div className="w-full max-w-md bg-card/95 border border-border/50 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden my-auto">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-accent"></div>
-            <h2 className="text-3xl font-display font-bold mb-2 text-center tracking-tight">Welcome to JobAppy</h2>
+            <h2 className="text-3xl font-display font-bold mb-2 text-center tracking-tight">Welcome to Prep</h2>
             <p className="text-muted-foreground text-center mb-4 font-medium text-sm">
               Sign in to sync across devices, or keep everything on this device.
             </p>
