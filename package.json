@@ -19,6 +19,8 @@
     "test:learning": "node scripts/e2e-learning.mjs",
     "test:learning:cloud": "node scripts/e2e-learning-cloud.mjs",
     "test:learning:domain": "node scripts/test-learning-domain.mjs",
+    "curriculum:audit": "node scripts/auditCurriculum.mjs",
+    "curriculum:check": "node scripts/checkCurriculumContent.mjs",
     "db:migrate": "node scripts/migrate.mjs",
     "db:migrate:career": "node scripts/migrate-career-state.mjs"
   },
