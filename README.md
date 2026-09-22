@@ -27,6 +27,15 @@ Without `DATABASE_URL` the app still runs in local-only mode; sign-in and cloud 
 | `GROQ_API_KEY` / `OPENAI_API_KEY` | server, optional | Shared AI keys. Only signed-in users can use them; anyone can instead add a personal key in Settings, which stays in their browser. |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | public, optional | Google OAuth *web* client ID with the Gmail API enabled and your origin under authorized JavaScript origins. Enables Gmail sync. |
 
+## Curriculum content
+
+The learning tracks live in `src/data/curriculum/`. The generated `<track>.ts` files hold the structure (ids, categories, task templates) and must keep their ids, because saved workspaces and plans reference them. Authored content sits in `src/data/curriculum/content/<track>.ts`: per category, one tuple per topic with a description, three concept titles and quiz questions, plus `add` (new topics) and `retitle` (renames that keep ids). `applyContent` in `enrich.ts` merges the two at load time.
+
+```bash
+npm run curriculum:audit   # counts and gaps per track (missing descriptions, quizzes, duplicates)
+npm run curriculum:check   # every content entry matches a real category and topic
+```
+
 ## Scripts
 
 | Command | What it does |
