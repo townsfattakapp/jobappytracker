@@ -529,8 +529,15 @@ export interface LeetCodeConfig {
 }
 
 
+export interface UserPreferences {
+  /** Preferred language for examples, snippets and the practice editor. */
+  codeLanguage?: string
+}
+
 export interface Storage {
+  /** Serialised IndexedDB history (attempt details, transcripts, small attachments); filled in by cloud sync. */
   learningHistory?: string
+  preferences?: UserPreferences
   applications: JobApplication[]
   version: number
   prepNotes?: PrepNote[]

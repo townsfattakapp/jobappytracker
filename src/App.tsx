@@ -60,12 +60,14 @@ import {
   type SystemDesignExercise,
   type SystemDesignAttemptSummary,
   type KnowledgeWorkspace,
+  type UserPreferences,
 } from './types'
 import { exportLocalHistory, importLocalHistory } from './db'
 import { javaDsaSeed } from './data/javaDsaSeed'
 import { engineeringLabsSeed } from './data/engineeringLabsSeed'
 import { systemDesignSeed } from './data/systemDesignSeed'
 import { getCurrentUser, loadCloudState, saveCloudState, signOut, type AppUser } from './lib/cloudSync'
+import { CODE_LANGUAGES, CODE_LANGUAGE_EVENT, getCodeLanguage, setCodeLanguage } from './lib/preferences'
 import { allCurriculums } from './data/curriculum'
 import { scheduleTrackIntoRoadmap } from './lib/roadmapGenerator'
 
@@ -158,6 +160,7 @@ export default function App() {
   )
   const [systemDesignAttemptSummaries, setSystemDesignAttemptSummaries] = useState<SystemDesignAttemptSummary[]>(() => stored.systemDesignAttemptSummaries || [])
   const [knowledgeWorkspaces, setKnowledgeWorkspaces] = useState<KnowledgeWorkspace[]>(() => stored.knowledgeWorkspaces || [])
+  const [preferences, setPreferences] = useState<UserPreferences>(() => ({ codeLanguage: getCodeLanguage(), ...(stored.preferences || {}) }))
 
   const [user, setUser] = useState<AppUser | null>(null)
   const [authReady, setAuthReady] = useState(false)
@@ -231,6 +234,7 @@ export default function App() {
       systemDesignExercises,
       systemDesignAttemptSummaries,
       knowledgeWorkspaces,
+      preferences,
     }),
     [
       applications,
@@ -248,6 +252,7 @@ export default function App() {
       systemDesignExercises,
       systemDesignAttemptSummaries,
       knowledgeWorkspaces,
+      preferences,
     ],
   )
   const snapshotRef = useRef(snapshot)
@@ -326,7 +331,26 @@ export default function App() {
     setSystemDesignExercises(mergeSeed(cloud.systemDesignExercises || [], systemDesignSeed))
     setSystemDesignAttemptSummaries(cloud.systemDesignAttemptSummaries || [])
     setKnowledgeWorkspaces(cloud.knowledgeWorkspaces || [])
+    const cloudLanguage = cloud.preferences?.codeLanguage
+    if (cloudLanguage && (CODE_LANGUAGES as readonly string[]).includes(cloudLanguage)) {
+      setPreferences({ ...(cloud.preferences || {}), codeLanguage: cloudLanguage })
+      if (getCodeLanguage() !== cloudLanguage) setCodeLanguage(cloudLanguage as (typeof CODE_LANGUAGES)[number])
+    }
   }, [])
+
+  // Keep the synced preferences in step with the per-device setting (and vice versa on load).
+  useEffect(() => {
+    const onChange = (e: Event) => {
+      const language = (e as CustomEvent<string>).detail
+      setPreferences((p) => (p.codeLanguage === language ? p : { ...p, codeLanguage: language }))
+    }
+    window.addEventListener(CODE_LANGUAGE_EVENT, onChange)
+    return () => window.removeEventListener(CODE_LANGUAGE_EVENT, onChange)
+  }, [])
+  useEffect(() => {
+    const saved = stored.preferences?.codeLanguage
+    if (saved && (CODE_LANGUAGES as readonly string[]).includes(saved) && getCodeLanguage() !== saved) setCodeLanguage(saved as (typeof CODE_LANGUAGES)[number])
+  }, [stored.preferences?.codeLanguage])
 
   useEffect(() => {
     if (!authReady || !user) {
