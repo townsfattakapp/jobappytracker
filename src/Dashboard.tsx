@@ -1,3 +1,4 @@
+import dynamic from 'next/dynamic'
 import { useMemo } from 'react'
 import {
   type JobApplication,
@@ -14,6 +15,8 @@ import {
   todayKey,
 } from './types'
 import type { ViewMode } from './Sidebar'
+
+const HeroScene = dynamic(() => import('./components/HeroScene'), { ssr: false, loading: () => null })
 
 interface DashboardProps {
   applications: JobApplication[]
@@ -130,7 +133,7 @@ export default function Dashboard({
   if (applications.length === 0 && goals.length === 0) {
     return (
       <div className="py-16 px-6 text-center flex flex-col items-center justify-center surface rounded-3xl animate-fade">
-        <span className="text-6xl mb-4 block" aria-hidden="true">🚀</span>
+        <HeroScene height={210} className="w-full max-w-lg -mt-10 mb-2" />
         <h2 className="text-2xl font-display font-bold mb-2">Welcome to Prep</h2>
         <p className="text-muted-foreground max-w-md mx-auto mb-6">
           Track every application in one place, then build a daily prep plan so interviews never catch you off guard.
