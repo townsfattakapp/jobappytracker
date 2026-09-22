@@ -18,8 +18,8 @@ import CodeEditor from "./components/CodeEditor.tsx";
 import { AI_SETUP_HINT, chatWithAI, isAiAvailable } from "./lib/aiGatewayClient";
 import { highlightCode, renderMarkdown } from "./lib/markdown";
 import { ensureReadableCode } from "./lib/formatCode";
-import { buildExplainPrompt, explainModeForTrack, extractMermaidBlocks } from "./lib/explainPrompts";
-import { CODE_LANGUAGES, LANGUAGE_IDS, useCodeLanguage } from "./lib/preferences";
+import { buildExplainPrompt, explainModeForTrack, extractMermaidBlocks, shortLanguageLabel, trackCodeProfile } from "./lib/explainPrompts";
+import { CODE_LANGUAGES, useCodeLanguage } from "./lib/preferences";
 import { generateDiagram, generateExamples, generateFlashcards, generateMistakes, generatePracticeProblems, type TopicContext } from "./lib/aiLearning";
 import AlgoEditor from "./components/compiler/AlgoEditor.tsx";
 import FlashcardDeck from "./components/FlashcardDeck.tsx";
@@ -664,6 +664,8 @@ export default function KnowledgeWorkspaceDetail({
   const [explainError, setExplainError] = useState<string | null>(null);
   const [codeLanguage, setCodeLanguage] = useCodeLanguage();
   const explainMode = explainModeForTrack(curriculumInfo.track?.id);
+  const codeProfile = trackCodeProfile(curriculumInfo.track?.id, codeLanguage);
+  const codeLabel = shortLanguageLabel(codeProfile);
   const [explainNotice, setExplainNotice] = useState<string | null>(null);
   const explainWithAi = async () => {
     setExplainError(null);
@@ -680,7 +682,7 @@ export default function KnowledgeWorkspaceDetail({
         parentTitle: curriculumInfo.subtopic && curriculumInfo.topic ? curriculumInfo.topic.title : undefined,
         trackTitle: curriculumInfo.track?.title,
         parts: curriculumInfo.topic?.subtopics.map((s) => s.title) || [],
-        language: codeLanguage,
+        language: codeProfile.label,
       });
       const text = await chatWithAI({
         temperature: 0.3,
@@ -730,7 +732,7 @@ export default function KnowledgeWorkspaceDetail({
     track: curriculumInfo.track?.title,
     subtopics: curriculumInfo.topic?.subtopics.map((s) => s.title),
     notes: workspace.notes.map((n) => n.content.replace(/<[^>]+>/g, " ")).join("\n").slice(0, 2500),
-    language: codeLanguage,
+    language: codeProfile.label,
   });
   const runGenerate = async (kind: "examples" | "diagram" | "mistakes" | "flashcards" | "problems") => {
     setAiError(null);
@@ -754,8 +756,8 @@ export default function KnowledgeWorkspaceDetail({
               problemStatement: e.problemStatement || "",
               inputOutput: e.inputOutput || "",
               explanation: e.explanation || "",
-              implementationCode: ensureReadableCode(e.implementationCode || "", LANGUAGE_IDS[codeLanguage]),
-              implementationLanguage: LANGUAGE_IDS[codeLanguage],
+              implementationCode: ensureReadableCode(e.implementationCode || "", codeProfile.id),
+              implementationLanguage: codeProfile.id,
               timeComplexity: e.timeComplexity,
               spaceComplexity: e.spaceComplexity,
               commonMistakes: e.commonMistakes,
@@ -791,7 +793,7 @@ export default function KnowledgeWorkspaceDetail({
             ...items.map((p) => ({
               id: uuidv4(),
               title: p.title,
-              language: LANGUAGE_IDS[codeLanguage],
+              language: codeProfile.id,
               code: p.starterCode || "",
               description: `${p.prompt}${p.hint ? `\n\nHint: ${p.hint}` : ""}`,
             })),
@@ -849,9 +851,9 @@ export default function KnowledgeWorkspaceDetail({
           {explainMode === "hld"
             ? "Requirements, back-of-envelope estimates, architecture and sequence diagrams, data model, APIs, a deep dive, scaling trade-offs and how to present it in 45 minutes. Diagrams land in the Diagrams tab; the write-up is saved as an editable note."
             : explainMode === "lld"
-              ? `Requirements, core classes, a class diagram and sequence diagram, the design patterns that fit, a code skeleton in ${codeLanguage}, edge cases and trade-offs. Saved as a note you can edit.`
+              ? `Requirements, core classes, a class diagram and sequence diagram, the design patterns that fit, a code skeleton in ${codeLabel}, edge cases and trade-offs. Saved as a note you can edit.`
               : curriculumInfo.topic?.description
-                ? `Get a full explanation from zero: definition, why it matters, a real-world example, step-by-step walkthrough and code in ${codeLanguage}. It is saved as a note you can edit.`
+                ? `Get a full explanation from zero: definition, why it matters, a real-world example, step-by-step walkthrough and code in ${codeLabel}. It is saved as a note you can edit.`
                 : "Learn it from the resources below or ask the AI to explain it from zero, then capture what you understood as a note."}
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -861,10 +863,10 @@ export default function KnowledgeWorkspaceDetail({
               : explainMode === "hld"
                 ? "✨ Design this system with AI"
                 : explainMode === "lld"
-                  ? `✨ Design the classes with AI in ${codeLanguage}`
-                  : `✨ Explain this topic with AI in ${codeLanguage}`}
+                  ? `✨ Design the classes with AI in ${codeLabel}`
+                  : `✨ Explain this topic with AI in ${codeLabel}`}
           </button>
-          {explainMode !== "hld" && (
+          {!codeProfile.fixed && (
           <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
             Code language
             <select
@@ -1235,12 +1237,12 @@ export default function KnowledgeWorkspaceDetail({
                       : "Small, fully traced problems with code. Generate a set or write your own."}
                   </p>
                 </div>
-                <AiGenerateButton label={`Generate 3 worked examples in ${codeLanguage}`} busy={aiBusy === "examples"} onClick={() => void runGenerate("examples")} />
+                <AiGenerateButton label={`Generate 3 worked examples in ${codeLabel}`} busy={aiBusy === "examples"} onClick={() => void runGenerate("examples")} />
               </div>
               {aiError && <p className="text-sm text-destructive" role="alert">{aiError}</p>}
               {workspace.examples.length === 0 && (
                 <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                  No worked examples yet. Generate three in {codeLanguage}, or add one by hand below.
+                  No worked examples yet. Generate three in {codeLabel}, or add one by hand below.
                 </div>
               )}
               {workspace.examples.map((example) => (
@@ -1346,14 +1348,14 @@ export default function KnowledgeWorkspaceDetail({
                   className="btn btn-ghost border border-dashed border-border w-full py-4 text-primary"
                   onClick={() =>
                     handleUpdate({
-                      codeSnippets: [...workspace.codeSnippets, { id: uuidv4(), title: "Practice Solution", language: LANGUAGE_IDS[codeLanguage], code: "", description: "" }],
+                      codeSnippets: [...workspace.codeSnippets, { id: uuidv4(), title: "Practice Solution", language: codeProfile.id, code: "", description: "" }],
                     })
                   }
                 >
                   + Create Code Example / Solution
                 </button>
                 <div className="flex flex-wrap items-center gap-3">
-                  <AiGenerateButton label={`Generate 3 practice problems in ${codeLanguage}`} busy={aiBusy === "problems"} onClick={() => void runGenerate("problems")} />
+                  <AiGenerateButton label={`Generate 3 practice problems in ${codeLabel}`} busy={aiBusy === "problems"} onClick={() => void runGenerate("problems")} />
                   <span className="text-xs text-muted-foreground">Starter code with a TODO; write the solution and press Run.</span>
                 </div>
                 {aiError && <p className="text-sm text-destructive" role="alert">{aiError}</p>}
