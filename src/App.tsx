@@ -66,7 +66,7 @@ import { exportLocalHistory, importLocalHistory } from './db'
 import { javaDsaSeed } from './data/javaDsaSeed'
 import { engineeringLabsSeed } from './data/engineeringLabsSeed'
 import { systemDesignSeed } from './data/systemDesignSeed'
-import { getCurrentUser, loadCloudState, saveCloudState, signOut, type AppUser } from './lib/cloudSync'
+import { CLOUD_MERGED_EVENT, getCurrentUser, loadCloudState, saveCloudState, signOut, type AppUser } from './lib/cloudSync'
 import { CODE_LANGUAGES, CODE_LANGUAGE_EVENT, getCodeLanguage, setCodeLanguage } from './lib/preferences'
 import { allCurriculums } from './data/curriculum'
 import { scheduleTrackIntoRoadmap } from './lib/roadmapGenerator'
@@ -337,6 +337,18 @@ export default function App() {
       if (getCodeLanguage() !== cloudLanguage) setCodeLanguage(cloudLanguage as (typeof CODE_LANGUAGES)[number])
     }
   }, [])
+
+  // A save that collided with another device was merged automatically: show the merged result.
+  useEffect(() => {
+    const onMerged = (e: Event) => {
+      const merged = (e as CustomEvent<Storage>).detail
+      if (!merged) return
+      applyCloud(merged)
+      showToast('Merged changes from another device')
+    }
+    window.addEventListener(CLOUD_MERGED_EVENT, onMerged)
+    return () => window.removeEventListener(CLOUD_MERGED_EVENT, onMerged)
+  }, [applyCloud, showToast])
 
   // Keep the synced preferences in step with the per-device setting (and vice versa on load).
   useEffect(() => {

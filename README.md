@@ -51,7 +51,7 @@ npm run curriculum:check   # every content entry matches a real category and top
 ## Accounts and data
 
 - Accounts use email + password. Passwords are hashed with scrypt on the server. There is no password reset flow yet.
-- Each user's data is one JSONB document in `career_state` with an optimistic revision counter. If two devices write conflicting changes, the app keeps the local copy and offers a backup download and a "use cloud copy" option.
+- Each user's data is one JSONB document in `career_state` with an optimistic revision counter. When two devices save concurrently, the client merges the cloud copy into its own (collections unioned by id, the later edit of a record wins, task progress is never lost) and retries; the manual "use cloud copy" fallback remains for the rare case a merge keeps failing. `npm run test:merge` covers the merge rules.
 - Code attempts, design write-ups, interview transcripts and note attachments (files up to 1 MB each, 12 MB per account) are stored in IndexedDB and included in the cloud snapshot, so a second device gets them on sign-in. Larger files stay on the device that uploaded them.
 - The preferred code language syncs with the account. Theme, personal AI keys, tutor chats and unsaved drafts stay on the device.
 - Settings has full backup export/import and a "clear local data" action.
