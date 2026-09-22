@@ -4,8 +4,8 @@ import { v4 as uuidv4 } from 'uuid'
 import AITutor from './components/AITutor.tsx'
 import AlgoEditor from './components/compiler/AlgoEditor.tsx'
 import type { DsaProblem, DsaAttempt, DsaAttemptSummary } from './types'
-import { getDsaAttempts, saveDsaAttempt } from './db'
-import { getCodeLanguage, LANGUAGE_IDS, type CodeLanguage } from './lib/preferences'
+import { getDsaAttempts, HISTORY_IMPORTED_EVENT, saveDsaAttempt } from './db'
+import { CODE_LANGUAGE_EVENT, getCodeLanguage, LANGUAGE_IDS, type CodeLanguage } from './lib/preferences'
 
 /** Editor ids ('cpp') back to the display names stored on attempts ('C++'). */
 function displayLanguage(id: string) {
@@ -37,11 +37,28 @@ export default function ProblemDetail({ problem, onBack, backLabel = 'Back', onS
   const [outcome, setOutcome] = useLearningDraft<'Solved' | 'Solved with Hints' | 'Failed'>(`ProblemDetail:${problem.id}:outcome`, 'Solved')
   const [confidence, setConfidence] = useLearningDraft<1|2|3|4|5>(`ProblemDetail:${problem.id}:confidence`, 3)
 
+  // Follow the preferred language when it changes (Settings, or cloud sync after sign-in).
   useEffect(() => {
-    getDsaAttempts(problem.id).then(loaded => {
-      setAttempts(loaded.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()))
-      setLoading(false)
-    })
+    const onChange = (e: Event) => setLanguage((e as CustomEvent<string>).detail)
+    window.addEventListener(CODE_LANGUAGE_EVENT, onChange)
+    return () => window.removeEventListener(CODE_LANGUAGE_EVENT, onChange)
+  }, [setLanguage])
+
+  useEffect(() => {
+    let cancelled = false
+    const load = () =>
+      getDsaAttempts(problem.id).then((loaded) => {
+        if (cancelled) return
+        setAttempts(loaded.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()))
+        setLoading(false)
+      })
+    void load()
+    // Cloud history can land after this page opened (sign-in on a new device); reload when it does.
+    window.addEventListener(HISTORY_IMPORTED_EVENT, load)
+    return () => {
+      cancelled = true
+      window.removeEventListener(HISTORY_IMPORTED_EVENT, load)
+    }
   }, [problem.id])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -216,7 +233,7 @@ export default function ProblemDetail({ problem, onBack, backLabel = 'Back', onS
             <div className="flex flex-col gap-4">
               {problem.status !== 'Unattempted' && (
                 <div className="text-sm text-amber-500 bg-amber-500/10 p-4 rounded-xl border border-amber-500/20">
-                  ⚠️ <strong>Missing Local Data:</strong> Metadata indicates you have solved or attempted this problem, but the raw code was stored locally on another device.
+                  ⚠️ <strong>Attempt details not on this device.</strong> This problem is marked as attempted, but the code and notes were saved elsewhere. Signed-in attempts arrive with the next cloud sync; guest-mode attempts stay on the device where they were made.
                 </div>
               )}
               <div className="text-sm text-muted-foreground p-6 border border-dashed border-border rounded-xl text-center">

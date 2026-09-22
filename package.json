@@ -18,6 +18,7 @@
     "test:e2e:email": "node scripts/e2e-email.mjs",
     "test:learning": "node scripts/e2e-learning.mjs",
     "test:learning:cloud": "node scripts/e2e-learning-cloud.mjs",
+    "test:sync": "node scripts/e2e-sync.mjs",
     "test:learning:domain": "node scripts/test-learning-domain.mjs",
     "curriculum:audit": "node scripts/auditCurriculum.mjs",
     "curriculum:check": "node scripts/checkCurriculumContent.mjs",

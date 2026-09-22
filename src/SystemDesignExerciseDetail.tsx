@@ -2,7 +2,7 @@ import { useLearningDraft } from './lib/useLearningDraft'
 import { useState, useEffect } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import type { SystemDesignExercise, SystemDesignAttemptSummary, SystemDesignAttemptDetail } from './types'
-import { getSystemDesignAttemptDetails, saveSystemDesignAttemptDetail } from './db'
+import { getSystemDesignAttemptDetails, HISTORY_IMPORTED_EVENT, saveSystemDesignAttemptDetail } from './db'
 import MermaidEditor from './components/MermaidEditor.tsx'
 import AITutor from './components/AITutor.tsx'
 
@@ -31,10 +31,19 @@ export default function SystemDesignExerciseDetail({ exercise, onBack, backLabel
   const [confidence, setConfidence] = useLearningDraft<1|2|3|4|5>(`SystemDesignExerciseDetail:${exercise.id}:confidence`, 3)
 
   useEffect(() => {
-    getSystemDesignAttemptDetails(exercise.id).then(loaded => {
-      setAttempts(loaded)
-      setLoading(false)
-    })
+    let cancelled = false
+    const load = () =>
+      getSystemDesignAttemptDetails(exercise.id).then((loaded) => {
+        if (cancelled) return
+        setAttempts(loaded)
+        setLoading(false)
+      })
+    void load()
+    window.addEventListener(HISTORY_IMPORTED_EVENT, load)
+    return () => {
+      cancelled = true
+      window.removeEventListener(HISTORY_IMPORTED_EVENT, load)
+    }
   }, [exercise.id])
 
   const handleSubmit = async (e: React.FormEvent) => {

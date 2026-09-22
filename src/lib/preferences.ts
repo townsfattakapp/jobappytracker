@@ -5,6 +5,8 @@ export type CodeLanguage = (typeof CODE_LANGUAGES)[number]
 
 const KEY = 'jobappy-code-language'
 const EVENT = 'jobappy:code-language'
+/** Fired on window whenever the preferred code language changes; detail is the new language. */
+export const CODE_LANGUAGE_EVENT = EVENT
 
 /** Monaco / code-runner identifiers for each display language. */
 export const LANGUAGE_IDS: Record<CodeLanguage, string> = {
@@ -35,7 +37,7 @@ export function setCodeLanguage(language: CodeLanguage): void {
   window.dispatchEvent(new CustomEvent(EVENT, { detail: language }))
 }
 
-/** The learner's preferred programming language for examples, snippets and the DSA editor (per device). */
+/** The learner's preferred programming language for examples, snippets and the DSA editor (synced with the account). */
 export function useCodeLanguage(): [CodeLanguage, (language: CodeLanguage) => void] {
   const [language, setLanguage] = useState<CodeLanguage>(() => getCodeLanguage())
   useEffect(() => {
