@@ -1,5 +1,4 @@
 import { chatWithAI, extractJsonObject } from './aiGatewayClient'
-import type { CodeLanguage } from './preferences'
 
 export type TopicContext = {
   title: string
@@ -7,7 +6,8 @@ export type TopicContext = {
   subtopics?: string[]
   /** Plain-text excerpt of the learner's notes, used to keep generations on-topic. */
   notes?: string
-  language: CodeLanguage
+  /** Wording such as "Java", "SQL (PostgreSQL dialect)" or "TypeScript with React (TSX)". */
+  language: string
 }
 
 function contextBlock(ctx: TopicContext): string {
@@ -114,7 +114,7 @@ Return JSON: {"problems": [ { "title": string, "prompt": string, "starterCode": 
 Rules:
 - exactly ${count} problems, easy → medium → harder
 - prompt: the task plus 2 sample inputs/outputs, as plain text with newlines
-- starterCode: ${ctx.language} code with a function signature, a TODO comment where the solution goes, and a main/entry point that prints the result for the samples (plain text, no fences)
+- starterCode: ${ctx.language} code with a function signature, a TODO comment where the solution goes, and a main/entry point that prints the result for the samples (plain text, no fences). If the language is SQL, starterCode is a small schema with sample rows plus a query skeleton ending in a TODO. If it is shell, YAML or Dockerfile, starterCode is a config or script skeleton with TODO markers.
 - hint: one sentence`,
   )
   return Array.isArray(data.problems) ? data.problems.filter((p) => p && p.title) : []

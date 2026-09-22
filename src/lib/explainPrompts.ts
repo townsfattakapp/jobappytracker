@@ -1,16 +1,86 @@
 import type { TopicDiagram } from '../types'
 
 /**
- * Prompt templates for the "Explain this topic with AI" note.
+ * Prompt templates for the "Explain this topic with AI" note, chosen per track.
  *
- * Concept tracks (DSA, Java, JS, …) get a from-zero lesson with code.
- * High-level system design topics get an interview-style design walkthrough
- * (requirements, estimates, architecture and sequence diagrams, data model,
- * APIs, deep dive, trade-offs). Low-level design topics get an object design
- * (class diagram, interactions, patterns, code skeleton).
+ * - DSA and the language tracks: a from-zero lesson with code.
+ * - React, Node, SQL, DevOps, CS fundamentals: the same lesson shape with the
+ *   track's own language (TSX, Node TypeScript, SQL, shell/YAML, pseudo-code)
+ *   and extra sections that matter for that field (request flow, query
+ *   results, pipeline diagram, mental-model diagram, numbers to remember).
+ * - HLD: an interview-style system design walkthrough with diagrams.
+ * - LLD: an object design with class and sequence diagrams and a code skeleton.
  */
 
-export type ExplainMode = 'concept' | 'hld' | 'lld'
+export type ExplainMode = 'concept' | 'react' | 'node' | 'sql' | 'devops' | 'cs' | 'hld' | 'lld'
+
+export interface CodeProfile {
+  /** Human wording used in prompts and button labels. */
+  label: string
+  /** Highlighter / editor id for generated snippets. */
+  id: string
+  /** True when the track dictates the language and the picker is hidden. */
+  fixed: boolean
+}
+
+const PREFERRED_IDS: Record<string, string> = { Java: 'java', JavaScript: 'javascript', TypeScript: 'typescript', Python: 'python', 'C++': 'cpp', Go: 'go' }
+
+export function explainModeForTrack(trackId?: string): ExplainMode {
+  switch (trackId) {
+    case 'track-hld':
+      return 'hld'
+    case 'track-lld':
+      return 'lld'
+    case 'track-react':
+      return 'react'
+    case 'track-node':
+      return 'node'
+    case 'track-sql':
+      return 'sql'
+    case 'track-devops':
+      return 'devops'
+    case 'track-cs':
+      return 'cs'
+    default:
+      return 'concept'
+  }
+}
+
+/** Which language the AI should write in for a track, given the learner's preference. */
+export function trackCodeProfile(trackId: string | undefined, preferred: string): CodeProfile {
+  switch (trackId) {
+    case 'track-java':
+      return { label: 'Java', id: 'java', fixed: true }
+    case 'track-js':
+      return { label: 'JavaScript, or TypeScript when the topic is TypeScript', id: 'typescript', fixed: true }
+    case 'track-react':
+      return { label: 'TypeScript with React (TSX)', id: 'typescript', fixed: true }
+    case 'track-node':
+      return { label: 'TypeScript on Node.js', id: 'typescript', fixed: true }
+    case 'track-sql':
+      return { label: 'SQL (PostgreSQL dialect)', id: 'sql', fixed: true }
+    case 'track-devops':
+      return { label: 'shell, YAML or Dockerfile, whichever fits', id: 'bash', fixed: true }
+    case 'track-cs':
+      return { label: 'pseudo-code, or short C-style snippets only where they help', id: 'cpp', fixed: true }
+    case 'track-hld':
+      return { label: 'pseudo-code only', id: 'plaintext', fixed: true }
+    default:
+      return { label: preferred, id: PREFERRED_IDS[preferred] || preferred.toLowerCase(), fixed: false }
+  }
+}
+
+/** Short label for buttons ("TSX", "SQL", "Java"). */
+export function shortLanguageLabel(profile: CodeProfile): string {
+  if (profile.id === 'sql') return 'SQL'
+  if (profile.id === 'bash') return 'shell and YAML'
+  if (profile.id === 'plaintext') return 'diagrams'
+  if (profile.label.includes('TSX')) return 'TSX'
+  if (profile.label.includes('Node')) return 'TypeScript'
+  if (profile.label.startsWith('JavaScript')) return 'JavaScript'
+  if (profile.label.startsWith('pseudo')) return 'pseudo-code'
+  return profile.label
+}
 
 export interface ExplainInput {
   mode: ExplainMode
@@ -20,13 +90,8 @@ export interface ExplainInput {
   parentTitle?: string
   trackTitle?: string
   parts: string[]
+  /** Wording from trackCodeProfile().label. */
   language: string
-}
-
-export function explainModeForTrack(trackId?: string): ExplainMode {
-  if (trackId === 'track-hld') return 'hld'
-  if (trackId === 'track-lld') return 'lld'
-  return 'concept'
 }
 
 const MERMAID_RULES = [
@@ -34,10 +99,31 @@ const MERMAID_RULES = [
   'Mermaid rules: node ids are single words (letters, digits, underscore); every label goes in square brackets with double quotes, e.g. API["API gateway"]; at most 25 nodes; declare sequenceDiagram participants first; no HTML, no notes, no comments, no styling.',
 ]
 
+const COMMON = ['Write GitHub-flavoured Markdown with real line breaks. Short paragraphs, bullets on their own lines. No preamble or closing remarks.']
+
+function lessonSections(input: ExplainInput, extras: { after: string; sections: string[] }[], codeSection: string[]): string[] {
+  const base: string[][] = [
+    [`## What is ${input.title}?`, '(2–3 plain-language sentences that define it, then one everyday analogy in **bold** on its own line.)'],
+    ['## Why it matters', '(Where it shows up in real products and in interviews. 3 bullets.)'],
+    ['## Real-world example', '(One concrete story from a product people know, showing the concept in action. 1 short paragraph.)'],
+    ['## How it works, step by step', '(A numbered list from the simplest case to the general case.)'],
+    codeSection,
+    ['## Common mistakes', '(Bullets: mistake → why it happens → fix.)'],
+    ['## Interview questions', '(3 questions, each followed by a one-line model answer.)'],
+    ['## Quick recap', '(3 bullets a learner can revise from in one minute.)'],
+  ]
+  const out: string[] = []
+  for (const section of base) {
+    out.push(...section)
+    for (const extra of extras) if (section.some((line) => line.startsWith(extra.after))) out.push(...extra.sections)
+  }
+  return out
+}
+
 export function buildExplainPrompt(input: ExplainInput): { system: string; user: string; noteTitle: string } {
   const subject = input.parentTitle ? `${input.title} (part of ${input.parentTitle})` : input.title
   const parts = input.parts.length ? input.parts.join(', ') : 'core concept, examples, pitfalls'
-  const common = ['Write GitHub-flavoured Markdown with real line breaks. Short paragraphs, bullets on their own lines. No preamble or closing remarks.']
+  const user = (kind: string) => `${kind}: "${subject}" from the track "${input.trackTitle || 'software engineering'}". Sub-parts the curriculum lists: ${parts}.`
 
   if (input.mode === 'hld') {
     const design = input.parentTitle || input.title
@@ -49,7 +135,7 @@ export function buildExplainPrompt(input: ExplainInput): { system: string; user:
         ...MERMAID_RULES,
         'Tables are allowed for estimates, data model and APIs. No full programs; short pseudo-code only where it clarifies.',
         'Use exactly these H2 sections in this order:',
-        `## Problem and scope`,
+        '## Problem and scope',
         '(Functional requirements as 5–7 bullets, non-functional requirements as bullets with target numbers: latency, availability, consistency, durability, scale. Then "Out of scope" bullets.)',
         '## Back-of-envelope estimation',
         '(A table: users, daily active users, read and write QPS, storage per year, bandwidth. Show the arithmetic in one line per row. State assumptions.)',
@@ -61,7 +147,7 @@ export function buildExplainPrompt(input: ExplainInput): { system: string; user:
         '(A table of entities with their key fields and the store each lives in, then 2–3 bullets on keys, indexes and partitioning.)',
         '## API design',
         '(4–6 endpoints: method, path, key parameters, response, and a note on idempotency or pagination where relevant.)',
-        `## Key flow`,
+        '## Key flow',
         '(Name the most important write path in the heading text after a colon, e.g. "## Key flow: upload and sync". One ```mermaid sequenceDiagram of that flow, then bullets explaining each step and failure handling.)',
         `## Deep dive: ${input.title}`,
         `(The part of the design the interviewer will push on. ${input.parentTitle ? `Explain ${input.title} inside the ${design} design in depth: algorithm, data structures, sizes, edge cases.` : 'Pick the two hardest sub-parts and go deep: algorithm, data structures, sizes, edge cases.'})`,
@@ -73,15 +159,15 @@ export function buildExplainPrompt(input: ExplainInput): { system: string; user:
         '(A timeline: minutes 0–5 requirements, 5–10 estimates, … through to trade-offs and questions.)',
         '## Quick recap',
         '(5 bullets a candidate can revise from in two minutes.)',
-        ...common,
+        ...COMMON,
       ].join('\n'),
-      user: `Design topic: "${subject}" from the track "${input.trackTitle || 'High-Level System Design'}". Sub-parts the curriculum lists: ${parts}. Target: a product-company system design round.`,
+      user: `${user('Design topic')} Target: a product-company system design round.`,
     }
   }
 
   if (input.mode === 'lld') {
     return {
-      noteTitle: `AI object design: ${input.title} (${input.language})`,
+      noteTitle: `AI object design: ${input.title} (${input.language.split(',')[0].trim()})`,
       system: [
         'You are a staff engineer coaching a candidate for a low-level design (object-oriented design) interview at a product company.',
         `All code must be in ${input.language}. Never switch languages.`,
@@ -99,7 +185,7 @@ export function buildExplainPrompt(input: ExplainInput): { system: string; user:
         '## Design patterns applied',
         '(Bullets: pattern → where it is used → why it fits; also one pattern that would be over-engineering here.)',
         `## Code skeleton in ${input.language}`,
-        `(One fenced code block with the language tag: interfaces and classes with fields and method signatures, and the single most important method fully implemented with comments.)`,
+        '(One fenced code block with the language tag: interfaces and classes with fields and method signatures, and the single most important method fully implemented with comments.)',
         '## Edge cases and concurrency',
         '(Bullets: invalid inputs, race conditions, invariants, how each is handled.)',
         '## Extensibility and trade-offs',
@@ -110,39 +196,83 @@ export function buildExplainPrompt(input: ExplainInput): { system: string; user:
         '(A timeline from requirements to code.)',
         '## Quick recap',
         '(5 bullets a candidate can revise from in two minutes.)',
-        ...common,
+        ...COMMON,
       ].join('\n'),
-      user: `Design problem: "${subject}" from the track "${input.trackTitle || 'Low-Level System Design'}". Sub-parts the curriculum lists: ${parts}. Target: a product-company LLD round.`,
+      user: `${user('Design problem')} Target: a product-company LLD round.`,
     }
   }
 
+  // Lesson-shaped tracks: same skeleton, track-specific language, extra sections and rules.
+  const profiles: Record<Exclude<ExplainMode, 'hld' | 'lld'>, { persona: string; code: string[]; extras: { after: string; sections: string[] }[]; rules: string[]; suffix: string }> = {
+    concept: {
+      persona: 'You are a patient senior engineer teaching a junior developer who is preparing for interviews.',
+      code: [`## Example in ${input.language.split(',')[0].trim()}`, '(One fenced code block with the language tag and comments, then a 3–4 line walkthrough.)'],
+      extras: [],
+      rules: ['No tables.'],
+      suffix: input.language,
+    },
+    react: {
+      persona: 'You are a senior frontend engineer teaching React and Next.js for product-company interviews.',
+      code: ['## Example component', '(One fenced ```tsx block: a small, complete component or hook using the concept, with comments, then a 3–4 line walkthrough.)'],
+      extras: [
+        { after: '## How it works', sections: ['## How React handles it under the hood', '(Rendering, reconciliation, or the Next.js server/client boundary as it applies. 3–5 bullets.)'] },
+        { after: '## Example component', sections: ['## Performance and pitfalls', '(Re-renders, stale closures, hook rules, hydration or caching issues relevant here, each with the fix.)'] },
+      ],
+      rules: ['All code is TypeScript with React (TSX). Use function components and hooks; App Router conventions for Next.js. No class components.', 'No tables.'],
+      suffix: 'TSX',
+    },
+    node: {
+      persona: 'You are a senior backend engineer teaching Node.js and API design for product-company interviews.',
+      code: ['## Example in TypeScript (Node.js)', '(One fenced ```ts block: a small, complete example, e.g. an Express or Fastify handler or a module, with comments, then a 3–4 line walkthrough.)'],
+      extras: [
+        { after: '## How it works', sections: ['## Request flow', '(One ```mermaid sequenceDiagram showing the path of a request through the pieces involved, then 2–3 bullets.)'] },
+        { after: '## Example in TypeScript', sections: ['## Production concerns', '(Error handling, validation, security, observability and scaling notes specific to this topic. Bullets.)'] },
+      ],
+      rules: [...MERMAID_RULES, 'All code is TypeScript running on Node.js. No tables.'],
+      suffix: 'TypeScript',
+    },
+    sql: {
+      persona: 'You are a senior database engineer teaching SQL and PostgreSQL for product-company interviews.',
+      code: ['## Schema and sample data', '(One fenced ```sql block with a small CREATE TABLE and INSERTs, 3–6 rows.)', '## Queries and results', '(2–3 fenced ```sql queries that demonstrate the concept, each followed by its result as a small Markdown table and one sentence on what to notice.)'],
+      extras: [{ after: '## Queries and results', sections: ['## Performance and indexing', '(What the planner does, which index helps, and how to check with EXPLAIN. Bullets.)'] }],
+      rules: ['All code is SQL in the PostgreSQL dialect; mention MySQL differences in one line where they matter. Tables are allowed for query results.'],
+      suffix: 'SQL',
+    },
+    devops: {
+      persona: 'You are a senior platform engineer teaching DevOps, CI/CD, containers and security for product-company interviews.',
+      code: ['## Hands-on: commands and configuration', '(Fenced blocks with the right language tag: ```bash for commands, ```yaml for pipelines or Compose, ```dockerfile for Dockerfiles. Each block followed by 1–2 lines on what it does and the expected output.)'],
+      extras: [
+        { after: '## How it works', sections: ['## Workflow diagram', '(One ```mermaid flowchart LR of the pipeline, deployment or request path involved, then 2 bullets.)'] },
+        { after: '## Hands-on', sections: ['## Troubleshooting and failure modes', '(What breaks in practice, how to diagnose it, and the fix. Bullets.)', '## Security considerations', '(Least privilege, secrets, image hygiene or network exposure as relevant. Bullets.)'] },
+      ],
+      rules: [...MERMAID_RULES, 'Use real tool names and flags. No tables.'],
+      suffix: 'shell and YAML',
+    },
+    cs: {
+      persona: 'You are a computer science professor who explains operating systems, networks, databases and architecture with concrete mental models, for product-company interviews.',
+      code: ['## Worked trace', '(Trace one concrete scenario step by step with actual values, e.g. a TCP handshake, a page fault, a scheduling round. Numbered list. Pseudo-code or a short C-style snippet only if it clarifies.)'],
+      extras: [
+        { after: '## How it works', sections: ['## Mental model diagram', '(One ```mermaid diagram: flowchart or sequenceDiagram or stateDiagram-v2, whichever fits, then 2 bullets.)'] },
+        { after: '## Worked trace', sections: ['## Numbers to remember', '(Bullets: the latencies, sizes, limits or defaults an interviewer expects you to know, with units.)'] },
+      ],
+      rules: [...MERMAID_RULES, 'Prefer diagrams and traces over code. No tables.'],
+      suffix: 'CS',
+    },
+  }
+  const profile = profiles[input.mode as Exclude<ExplainMode, 'hld' | 'lld'>] || profiles.concept
+  const sections = lessonSections(input, profile.extras, profile.code)
   return {
-    noteTitle: `AI explanation: ${input.title} (${input.language})`,
+    noteTitle: `AI explanation: ${input.title} (${profile.suffix.split(',')[0].trim()})`,
     system: [
-      'You are a patient senior engineer teaching a junior developer who is preparing for interviews.',
-      `All code must be in ${input.language}. Never switch languages.`,
+      profile.persona,
+      `Code language: ${input.language}. Never switch languages.`,
       'Start from zero: assume the reader has never heard the term. Prefer plain words over jargon; define any jargon the first time it appears.',
       'Use exactly these H2 sections in this order:',
-      `## What is ${input.title}?`,
-      '(2–3 plain-language sentences that define it, then one everyday analogy in **bold** on its own line.)',
-      '## Why it matters',
-      '(Where it shows up in real software and interviews. 3 bullets.)',
-      '## Real-world example',
-      '(One concrete story from a product people know, e.g. a food-delivery app or a payment system, showing the concept in action. 1 short paragraph.)',
-      '## How it works, step by step',
-      '(A numbered list from the simplest case to the general case.)',
-      `## Example in ${input.language}`,
-      '(One fenced code block with the language tag and comments, then a 3–4 line walkthrough.)',
-      '## Common mistakes',
-      '(Bullets: mistake → why it happens → fix.)',
-      '## Interview questions',
-      '(3 questions, each followed by a one-line model answer.)',
-      '## Quick recap',
-      '(3 bullets a learner can revise from in one minute.)',
-      'No tables.',
-      ...common,
+      ...sections,
+      ...profile.rules,
+      ...COMMON,
     ].join('\n'),
-    user: `Topic: "${subject}" from the track "${input.trackTitle || 'software engineering'}". Sub-parts to cover: ${parts}.`,
+    user: user('Topic'),
   }
 }
 
