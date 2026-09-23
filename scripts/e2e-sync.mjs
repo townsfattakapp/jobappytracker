@@ -5,6 +5,7 @@ import { chromium } from 'playwright'
 import assert from 'node:assert/strict'
 import dotenv from 'dotenv'
 import pg from 'pg'
+import { grantPass, waitForSession } from './lib/pass.mjs'
 dotenv.config({ path: '.env.local', quiet: true })
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
 const browser = await chromium.launch()
@@ -18,6 +19,13 @@ const open = async (create) => {
   await page.getByLabel('Email', { exact: true }).fill(email)
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: create ? 'Create account' : 'Sign in', exact: true }).click()
+  await waitForSession(page)
+  if (create) {
+    // No trial: give the fresh account a pass before using the app.
+    await grantPass(pool, email)
+    await page.reload({ waitUntil: 'networkidle' })
+    await waitForSession(page)
+  }
   await page.getByRole('button', { name: 'DSA Practice', exact: true }).first().waitFor({ timeout: 20000 })
   return page
 }

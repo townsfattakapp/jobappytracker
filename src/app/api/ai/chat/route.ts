@@ -38,7 +38,7 @@ export async function GET() {
   const [entitlement, userKey] = await Promise.all([getEntitlement(session.user.id), getUserAiKeySummary(session.user.id)])
   const hasKey = Boolean(userKey) || serverConfigured
   const available = entitlement.access && hasKey
-  const reason = !entitlement.access ? 'Your free trial has ended. Subscribe to keep using AI.' : !hasKey ? NO_KEY_MESSAGE : null
+  const reason = !entitlement.access ? 'Choose a plan to use AI features.' : !hasKey ? NO_KEY_MESSAGE : null
   return NextResponse.json({ signedIn: true, access: entitlement.access, status: entitlement.status, available, serverConfigured, userKey, reason })
 }
 

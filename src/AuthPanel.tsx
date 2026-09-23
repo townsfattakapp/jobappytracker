@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { signIn, signUp, type AppUser } from './lib/cloudSync'
+import { EmailNotVerifiedError, resendVerificationEmail, signIn, signInWithGoogle, signUp, type AppUser } from './lib/cloudSync'
 import { MIN_PASSWORD_LENGTH } from './lib/authErrors'
 
 interface AuthPanelProps {
@@ -26,6 +26,33 @@ function readLastEmail(): string {
   }
 }
 
+interface AuthOptions {
+  google: boolean
+  emailConfirmation: boolean
+}
+
+let optionsCache: Promise<AuthOptions> | null = null
+
+function loadAuthOptions(): Promise<AuthOptions> {
+  if (!optionsCache) {
+    optionsCache = fetch('/api/auth/options', { cache: 'no-store' })
+      .then((res) => (res.ok ? (res.json() as Promise<AuthOptions>) : { google: false, emailConfirmation: false }))
+      .catch(() => ({ google: false, emailConfirmation: false }))
+  }
+  return optionsCache
+}
+
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  )
+}
+
 export default function AuthPanel({
   user,
   syncing,
@@ -48,8 +75,25 @@ export default function AuthPanel({
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
+  const [googleBusy, setGoogleBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
+  const [options, setOptions] = useState<AuthOptions | null>(null)
+  /** Email waiting for confirmation; switches the form to the "check your inbox" state. */
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null)
+  const [unverified, setUnverified] = useState(false)
+  const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent'>('idle')
+
+  useEffect(() => {
+    if (!isOpen && !inline) return
+    let cancelled = false
+    void loadAuthOptions().then((next) => {
+      if (!cancelled) setOptions(next)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, inline])
 
   useEffect(() => {
     if (!isOpen || inline) return
@@ -60,9 +104,18 @@ export default function AuthPanel({
     return () => window.removeEventListener('keydown', onKey)
   }, [isOpen, inline])
 
+  const rememberEmail = (value: string) => {
+    try {
+      localStorage.setItem(LAST_EMAIL_KEY, value)
+    } catch {
+      // ignore
+    }
+  }
+
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
+    setUnverified(false)
     const cleanEmail = email.trim().toLowerCase()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       setError('Enter a valid email address.')
@@ -74,20 +127,32 @@ export default function AuthPanel({
     }
     setBusy(true)
     try {
-      const next =
-        mode === 'signup'
-          ? await signUp(cleanEmail, password, name.trim() || undefined)
-          : await signIn(cleanEmail, password)
-      try {
-        localStorage.setItem(LAST_EMAIL_KEY, cleanEmail)
-      } catch {
-        // ignore
+      if (mode === 'signup') {
+        const result = await signUp(cleanEmail, password, name.trim() || undefined)
+        rememberEmail(cleanEmail)
+        if (result.verificationSent || !result.user) {
+          setPendingEmail(cleanEmail)
+          setPassword('')
+          setResendState('idle')
+          return
+        }
+        onSignedIn(result.user)
+        setOpen(false)
+        setPassword('')
+        onToast('Account created — syncing…')
+        return
       }
+      const next = await signIn(cleanEmail, password)
+      rememberEmail(cleanEmail)
       onSignedIn(next)
       setOpen(false)
       setPassword('')
-      onToast(mode === 'signup' ? 'Account created — syncing…' : 'Signed in — syncing…')
+      onToast('Signed in — syncing…')
     } catch (err) {
+      if (err instanceof EmailNotVerifiedError) {
+        setUnverified(true)
+        setResendState('idle')
+      }
       const message = err instanceof Error ? err.message : 'Sign-in failed. Try again.'
       setError(message)
     } finally {
@@ -95,7 +160,66 @@ export default function AuthPanel({
     }
   }
 
-  const formContent = (
+  const resend = async (target: string) => {
+    setResendState('sending')
+    try {
+      await resendVerificationEmail(target)
+      setResendState('sent')
+      onToast('Confirmation email sent')
+    } catch (err) {
+      setResendState('idle')
+      setError(err instanceof Error ? err.message : 'Could not resend the email')
+    }
+  }
+
+  const google = async () => {
+    setError(null)
+    setGoogleBusy(true)
+    try {
+      await signInWithGoogle()
+    } catch {
+      setGoogleBusy(false)
+      setError('Google sign-in could not start. Try again.')
+    }
+  }
+
+  const inboxContent = pendingEmail ? (
+    <div className="w-full flex flex-col items-stretch text-center">
+      <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-3xl" aria-hidden="true">
+        ✉️
+      </div>
+      <h2 id="auth-title" className="font-display text-2xl text-foreground">
+        Check your inbox
+      </h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        We sent a confirmation link to <span className="font-semibold text-foreground">{pendingEmail}</span>. Open it to activate your account, then sign in.
+      </p>
+      <p className="mt-3 text-xs text-muted-foreground">The link works for 24 hours. Check spam if it has not arrived in a minute.</p>
+      {error ? (
+        <p className="mt-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <div className="mt-5 flex flex-col gap-2">
+        <button type="button" className="btn btn-primary w-full" disabled={resendState !== 'idle'} onClick={() => void resend(pendingEmail)}>
+          {resendState === 'sending' ? 'Sending…' : resendState === 'sent' ? 'Email sent again' : 'Resend email'}
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost w-full"
+          onClick={() => {
+            setPendingEmail(null)
+            setMode('signin')
+            setError(null)
+          }}
+        >
+          I have confirmed — sign in
+        </button>
+      </div>
+    </div>
+  ) : null
+
+  const formContent = inboxContent ?? (
     <div className="w-full flex flex-col items-stretch">
       {!inline && (
         <>
@@ -108,7 +232,19 @@ export default function AuthPanel({
         </>
       )}
 
-      <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-muted/60 p-1" role="tablist" aria-label="Sign in or create account">
+      {options?.google && (
+        <>
+          <button type="button" className="auth-google mt-3" onClick={() => void google()} disabled={googleBusy || busy}>
+            <GoogleIcon />
+            <span>{googleBusy ? 'Opening Google…' : 'Continue with Google'}</span>
+          </button>
+          <div className="auth-divider" role="separator">
+            <span>or with email</span>
+          </div>
+        </>
+      )}
+
+      <div className={`${options?.google ? 'mt-1' : 'mt-3'} grid grid-cols-2 gap-1 rounded-xl bg-muted/60 p-1`} role="tablist" aria-label="Sign in or create account">
         {(['signin', 'signup'] as const).map((m) => (
           <button
             key={m}
@@ -121,6 +257,7 @@ export default function AuthPanel({
             onClick={() => {
               setMode(m)
               setError(null)
+              setUnverified(false)
             }}
           >
             {m === 'signin' ? 'Sign in' : 'Create account'}
@@ -191,9 +328,14 @@ export default function AuthPanel({
         </div>
 
         {error ? (
-          <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive" role="alert">
-            {error}
-          </p>
+          <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive" role="alert">
+            <p>{error}</p>
+            {unverified && (
+              <button type="button" className="mt-1 underline font-semibold" disabled={resendState !== 'idle'} onClick={() => void resend(email.trim().toLowerCase())}>
+                {resendState === 'sending' ? 'Sending…' : resendState === 'sent' ? 'Sent — check your inbox' : 'Resend confirmation email'}
+              </button>
+            )}
+          </div>
         ) : null}
 
         <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
@@ -202,14 +344,16 @@ export default function AuthPanel({
               Cancel
             </button>
           )}
-          <button type="submit" className="btn btn-primary w-full sm:w-auto" disabled={busy}>
+          <button type="submit" className="btn btn-primary w-full sm:w-auto" disabled={busy || googleBusy}>
             {busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
           </button>
         </div>
       </form>
 
       <p className="mt-4 text-center text-xs text-muted-foreground">
-        Passwords are hashed on the server. There is no password reset yet, so keep it somewhere safe.
+        {mode === 'signup' && options?.emailConfirmation
+          ? 'We will email you a confirmation link before the account is active.'
+          : 'Passwords are hashed on the server. There is no password reset yet, so keep it somewhere safe.'}
       </p>
     </div>
   )

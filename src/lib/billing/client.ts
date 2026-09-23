@@ -1,11 +1,13 @@
 import type { Entitlement } from './entitlement'
+import type { Plan } from './plan'
 import { invalidateAiStatus } from '../aiGatewayClient'
 
 export interface BillingState {
   signedIn: boolean
   configured: boolean
   keyId: string | null
-  plan: { name: string; priceInr: number; period: string; trialDays: number }
+  product: string
+  plans: Plan[]
   entitlement: Entitlement | null
 }
 
@@ -48,15 +50,17 @@ function loadCheckout(): Promise<void> {
   return checkoutScript
 }
 
+export const PAYMENT_CANCELLED = 'Payment cancelled'
+
 /**
- * Starts a subscription: creates it on the server, opens Razorpay Checkout,
- * verifies the signature, and resolves with the new entitlement. Rejects when
- * the learner closes the window.
+ * Buys a pass: creates the order, opens Razorpay Checkout, verifies the
+ * signature and resolves with the new entitlement. Rejects with
+ * PAYMENT_CANCELLED when the learner closes the window.
  */
-export async function startSubscription(): Promise<Entitlement> {
-  const res = await fetch('/api/billing/subscribe', { method: 'POST' })
-  const data = (await res.json().catch(() => ({}))) as { error?: string; subscriptionId?: string; keyId?: string; name?: string; description?: string; email?: string; userName?: string }
-  if (!res.ok || !data.subscriptionId || !data.keyId) throw new Error(data.error || 'Could not start the subscription')
+export async function purchasePlan(planId: Plan['id']): Promise<Entitlement> {
+  const res = await fetch('/api/billing/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ planId }) })
+  const data = (await res.json().catch(() => ({}))) as { error?: string; orderId?: string; amount?: number; currency?: string; keyId?: string; name?: string; description?: string; email?: string; userName?: string }
+  if (!res.ok || !data.orderId || !data.keyId) throw new Error(data.error || 'Could not start the payment')
   await loadCheckout()
   const Razorpay = window.Razorpay
   if (!Razorpay) throw new Error('Payment window unavailable')
@@ -64,20 +68,18 @@ export async function startSubscription(): Promise<Entitlement> {
   return new Promise<Entitlement>((resolve, reject) => {
     const checkout = new Razorpay({
       key: data.keyId,
-      subscription_id: data.subscriptionId,
+      order_id: data.orderId,
+      amount: data.amount,
+      currency: data.currency || 'INR',
       name: data.name || 'Prep Pro',
       description: data.description,
       image: '/favicon.svg',
       prefill: { email: data.email || '', name: data.userName || '' },
       theme: { color: '#c13584' },
-      modal: { ondismiss: () => reject(new Error('Payment cancelled')) },
-      handler: async (response: { razorpay_payment_id: string; razorpay_subscription_id: string; razorpay_signature: string }) => {
+      modal: { ondismiss: () => reject(new Error(PAYMENT_CANCELLED)) },
+      handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
         try {
-          const verify = await fetch('/api/billing/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(response),
-          })
+          const verify = await fetch('/api/billing/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(response) })
           const body = (await verify.json().catch(() => ({}))) as { error?: string; entitlement?: Entitlement }
           if (!verify.ok || !body.entitlement) throw new Error(body.error || 'Payment could not be verified')
           invalidateAiStatus()
@@ -94,15 +96,6 @@ export async function startSubscription(): Promise<Entitlement> {
     })
     checkout.open()
   })
-}
-
-export async function cancelSubscription(): Promise<Entitlement> {
-  const res = await fetch('/api/billing/cancel', { method: 'POST' })
-  const data = (await res.json().catch(() => ({}))) as { error?: string; entitlement?: Entitlement }
-  if (!res.ok || !data.entitlement) throw new Error(data.error || 'Could not cancel the subscription')
-  invalidateAiStatus()
-  window.dispatchEvent(new Event(BILLING_CHANGED_EVENT))
-  return data.entitlement
 }
 
 export function formatDate(iso: string | null | undefined): string {

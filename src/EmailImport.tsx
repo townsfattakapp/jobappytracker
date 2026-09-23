@@ -223,7 +223,7 @@ export default function EmailImport({
           </label>
 
           <p className="text-xs text-muted-foreground rounded-xl border border-border bg-muted/40 px-3 py-2">
-            <span className="font-semibold text-foreground">AI analysis</span> uses the OpenAI or Groq key saved in Settings and works while your account is on a trial or subscription.
+            <span className="font-semibold text-foreground">AI analysis</span> uses the OpenAI or Groq key saved in Settings and works while your account has an active pass.
           </p>
 
           <div className="flex flex-wrap gap-2">

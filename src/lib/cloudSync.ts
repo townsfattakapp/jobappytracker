@@ -24,7 +24,7 @@ import {
   serverSaveCloudState,
 } from "../app/actions/cloud";
 // next-auth client
-import { authErrorMessage } from "./authErrors";
+import { authErrorMessage, EMAIL_NOT_VERIFIED, VERIFY_EMAIL_SENT } from "./authErrors";
 import {
   signIn as nextAuthSignIn,
   signOut as nextAuthSignOut,
@@ -69,11 +69,17 @@ export async function getCurrentUser(): Promise<AppUser | null> {
   return null;
 }
 
+export interface SignUpResult {
+  user: AppUser | null
+  /** True when a confirmation email was sent and there is no session yet. */
+  verificationSent: boolean
+}
+
 export async function signUp(
   email: string,
   password: string,
   name?: string,
-): Promise<AppUser> {
+): Promise<SignUpResult> {
   const res = await nextAuthSignIn("credentials", {
     redirect: false,
     email: email.trim().toLowerCase(),
@@ -81,10 +87,19 @@ export async function signUp(
     name: name || "",
     mode: "signup",
   });
-  if (!res || res.error) throw new Error(authErrorMessage(res?.code || res?.error));
+  const code = res?.code || res?.error;
+  if (code === VERIFY_EMAIL_SENT) return { user: null, verificationSent: true };
+  if (!res || res.error) throw new Error(authErrorMessage(code));
   const user = await getCurrentUser();
   if (!user) throw new Error("Sign up failed");
-  return user;
+  return { user, verificationSent: false };
+}
+
+export class EmailNotVerifiedError extends Error {
+  constructor() {
+    super(authErrorMessage(EMAIL_NOT_VERIFIED));
+    this.name = "EmailNotVerifiedError";
+  }
 }
 
 export async function signIn(
@@ -97,10 +112,27 @@ export async function signIn(
     password,
     mode: "signin",
   });
-  if (!res || res.error) throw new Error(authErrorMessage(res?.code || res?.error));
+  const code = res?.code || res?.error;
+  if (code === EMAIL_NOT_VERIFIED) throw new EmailNotVerifiedError();
+  if (!res || res.error) throw new Error(authErrorMessage(code));
   const user = await getCurrentUser();
   if (!user) throw new Error("Sign in failed");
   return user;
+}
+
+/** Starts the Google OAuth redirect; the browser leaves the page. */
+export async function signInWithGoogle(): Promise<void> {
+  await nextAuthSignIn("google", { callbackUrl: "/app" });
+}
+
+export async function resendVerificationEmail(email: string): Promise<void> {
+  const res = await fetch("/api/auth/resend-verification", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: email.trim().toLowerCase() }),
+  });
+  const body = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new Error(body.error || "Could not resend the email");
 }
 
 export async function signOut(): Promise<void> {

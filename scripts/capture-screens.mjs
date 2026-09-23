@@ -4,6 +4,7 @@ import { chromium } from 'playwright'
 import fs from 'node:fs'
 import dotenv from 'dotenv'
 import pg from 'pg'
+import { grantPass } from './lib/pass.mjs'
 dotenv.config({ path: '.env.local', quiet: true })
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
 fs.mkdirSync('public/screens', { recursive: true })
@@ -20,7 +21,7 @@ const shot = async (name) => {
     if (!document.getElementById('shot-css')) {
       const css = document.createElement('style')
       css.id = 'shot-css'
-      css.textContent = 'nextjs-portal, [data-nextjs-toast], [data-next-badge-root], #__next-build-watcher { display: none !important; } .toast, [role="status"] { display: none !important; } .tutor-status.is-off, .tutor [class*="border-amber-500"] { display: none !important; }'
+      css.textContent = 'nextjs-portal, [data-nextjs-toast], [data-next-badge-root], #__next-build-watcher { display: none !important; } .toast, [role="status"] { display: none !important; } .tutor-status.is-off, .tutor [class*="border-amber-500"], main [class*="bg-amber-500/10"] { display: none !important; }'
       document.head.appendChild(css)
     }
     for (const el of document.querySelectorAll('p, span, div')) {
@@ -107,6 +108,10 @@ await page.getByLabel('Email', { exact: true }).fill(email)
 await page.getByLabel('Password', { exact: true }).fill('Screens-Only-2026!')
 await page.getByRole('button', { name: 'Create account', exact: true }).click()
 await waitForSession(page)
+// No trial: the temporary account gets a pass so screenshots show the paid product.
+await grantPass(pool, email, { planId: 'year', days: 365 })
+await page.reload({ waitUntil: 'networkidle' })
+await waitForSession(page)
 
 // Goal wizard → track picker → generate a real plan
 await page.getByRole('button', { name: 'Today', exact: true }).first().click()
@@ -187,6 +192,15 @@ await page.getByRole('heading', { name: /Google Drive design/ }).waitFor()
 await page.getByRole('button', { name: /^Diagrams/ }).click()
 await page.waitForTimeout(1800)
 await shot('hld')
+
+// Mock interview setup
+await page.getByRole('button', { name: 'Mock Interviews', exact: true }).first().click()
+await page.getByRole('heading', { name: 'Set up your round' }).waitFor()
+await page.getByRole('button', { name: /System design \(HLD\)/ }).click()
+await page.getByRole('button', { name: /Meera/ }).click()
+await page.evaluate(() => window.scrollTo(0, 0))
+await page.waitForTimeout(500)
+await shot('mock')
 
 // Code runner
 await page.getByRole('button', { name: 'DSA Practice', exact: true }).first().click()
