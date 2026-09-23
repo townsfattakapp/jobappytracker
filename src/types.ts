@@ -500,6 +500,13 @@ export interface LabAttemptDetail {
   mentorTranscript?: any
 }
 
+export interface InterviewDimension {
+  name: string
+  /** 1 to 5 */
+  score: number
+  comment: string
+}
+
 export interface MockInterviewSummary {
   id: string
   date: string
@@ -512,6 +519,36 @@ export interface MockInterviewSummary {
   recommendedRevisionTopics: string[]
   rating?: 1 | 2 | 3 | 4 | 5
   feedback?: string
+  // --- Scorecard fields (AI interviews) ---
+  roundId?: string
+  personaId?: string
+  plannedMinutes?: number
+  overallScore?: number
+  verdict?: 'Strong hire' | 'Hire' | 'Lean hire' | 'Lean no hire' | 'No hire'
+  summary?: string
+  dimensions?: InterviewDimension[]
+  modelAnswers?: { question: string; answer: string }[]
+  nextSteps?: string[]
+  hintsUsed?: number
+  questionsAsked?: number
+  /** Present when the interview ended without a scorecard (AI failure or empty session). */
+  incomplete?: boolean
+}
+
+export interface InterviewTurn {
+  role: 'interviewer' | 'candidate'
+  content: string
+  code?: string
+  language?: string
+  diagram?: string
+  /** Candidate turns: how the message was produced. */
+  kind?: 'answer' | 'hint' | 'code' | 'diagram'
+  /** Interviewer turns: conversation stage and private note for the scorecard. */
+  stage?: 'intro' | 'question' | 'follow_up' | 'closing' | 'done'
+  question?: number
+  note?: string
+  /** Milliseconds since the session started. */
+  at?: number
 }
 
 export interface InterviewSessionTranscript {
@@ -519,7 +556,12 @@ export interface InterviewSessionTranscript {
   sessionId?: string
   role?: 'user' | 'interviewer'
   content?: string
-  transcript?: { role: 'interviewer' | 'candidate'; content: string; code?: string }[]
+  transcript?: InterviewTurn[]
+  roundId?: string
+  level?: string
+  personaId?: string
+  plannedMinutes?: number
+  startedAt?: string
 }
 
 export interface LeetCodeConfig {

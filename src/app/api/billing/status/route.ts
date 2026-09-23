@@ -2,16 +2,16 @@ import { NextResponse } from 'next/server'
 import { auth } from '../../../../lib/auth'
 import { getEntitlement } from '../../../../lib/server/entitlement'
 import { isRazorpayConfigured, razorpayConfig } from '../../../../lib/server/razorpay'
-import { PLAN } from '../../../../lib/billing/plan'
+import { PLANS, PRODUCT_NAME } from '../../../../lib/billing/plan'
 
 export const dynamic = 'force-dynamic'
 
-/** Current plan state for the signed-in user plus what the checkout needs. */
+/** Plans, checkout configuration and the signed-in account's access. */
 export async function GET() {
   const session = await auth()
   const configured = isRazorpayConfigured()
-  const plan = { name: PLAN.name, priceInr: PLAN.priceInr, period: PLAN.period, trialDays: PLAN.trialDays }
-  if (!session?.user?.id) return NextResponse.json({ signedIn: false, configured, plan, entitlement: null })
-  const entitlement = await getEntitlement(session.user.id)
-  return NextResponse.json({ signedIn: true, configured, keyId: configured ? razorpayConfig().keyId : null, plan, entitlement })
+  const base = { configured, keyId: configured ? razorpayConfig().keyId : null, product: PRODUCT_NAME, plans: PLANS }
+  if (!session?.user?.id) return NextResponse.json({ ...base, signedIn: false, entitlement: null })
+  const entitlement = await getEntitlement(session.user.id, session.user.email)
+  return NextResponse.json({ ...base, signedIn: true, entitlement })
 }

@@ -25,6 +25,7 @@ import LabWorkspace from './LabWorkspace.tsx'
 import LabTicketDetail from './LabTicketDetail.tsx'
 import MockInterviewWorkspace from './MockInterviewWorkspace.tsx'
 import InterviewSession from './InterviewSession.tsx'
+import { roundForTrack, type InterviewSetup } from './lib/interview/config'
 import LearningTracksWorkspace from './LearningTracksWorkspace.tsx'
 import SystemDesignWorkspace from './SystemDesignWorkspace.tsx'
 import SystemDesignExerciseDetail from './SystemDesignExerciseDetail.tsx'
@@ -188,7 +189,8 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null)
   const [selectedProblemId, setSelectedProblemId] = useState<string | null>(null)
   const [selectedLabId, setSelectedLabId] = useState<string | null>(null)
-  const [activeInterview, setActiveInterview] = useState<{ category: string; difficulty: string } | null>(null)
+  const [activeInterview, setActiveInterview] = useState<InterviewSetup | null>(null)
+  const [openReportId, setOpenReportId] = useState<string | null>(null)
   const [selectedSystemDesignId, setSelectedSystemDesignId] = useState<string | null>(null)
   const toastTimer = useRef<number | null>(null)
   const storageWarned = useRef(false)
@@ -351,7 +353,7 @@ export default function App() {
     }
   }, [])
 
-  // Plan and trial state for the signed-in account; refreshed after checkout or a 402 from the API.
+  // Pass state for the signed-in account; refreshed after checkout or a 402 from the API.
   useEffect(() => {
     if (!authReady) return
     if (!user) {
@@ -510,6 +512,29 @@ export default function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
+    const verified = params.get('verified')
+    const authError = params.get('error')
+    if (verified || authError) {
+      if (verified === '1') showToast('Email confirmed. Sign in to get started.')
+      else if (verified === 'expired') showToast('That confirmation link has expired. Sign in to request a new one.')
+      else if (verified) showToast('That confirmation link is not valid any more.')
+      else if (authError === 'OAuthAccountNotLinked') showToast('This email already has a password account. Sign in with your password first.')
+      else if (authError) showToast('Google sign-in did not complete. Try again.')
+      const email = params.get('email')
+      if (email) {
+        try {
+          localStorage.setItem('jobappy-last-email', email.toLowerCase())
+        } catch {
+          // ignore
+        }
+      }
+      setAuthModalOpen(true)
+      params.delete('verified')
+      params.delete('error')
+      params.delete('email')
+      const rest = params.toString()
+      window.history.replaceState({}, document.title, window.location.pathname + (rest ? `?${rest}` : ''))
+    }
     if (params.get('import') === 'true') {
       setPrefill({
         company: params.get('company') || '',
@@ -761,13 +786,13 @@ export default function App() {
       <main className="flex-1 min-w-0 md:ml-64 pb-24 md:pb-0 relative">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background -z-10 pointer-events-none"></div>
         <div className="app-shell pt-5 sm:pt-8">
-          {user && billing?.entitlement?.status === 'trial' && billing.entitlement.daysLeft <= 3 && (
+          {user && billing?.entitlement?.access && !billing.entitlement.complimentary && billing.entitlement.daysLeft <= 7 && (
             <div className="trial-banner">
               <span>
-                <strong>{billing.entitlement.daysLeft === 0 ? 'Your free trial ends today.' : `${billing.entitlement.daysLeft} day${billing.entitlement.daysLeft === 1 ? '' : 's'} left in your free trial.`}</strong> Keep your plan, notes and progress for ₹199/month.
+                <strong>{billing.entitlement.daysLeft === 1 ? 'Your pass ends tomorrow.' : `Your pass ends in ${billing.entitlement.daysLeft} days.`}</strong> Extend it now and the new days are added to the end.
               </span>
               <button type="button" className="btn btn-primary btn-sm" onClick={() => setView('settings')}>
-                Subscribe
+                Extend pass
               </button>
             </div>
           )}
@@ -1012,7 +1037,7 @@ export default function App() {
                       setSelectedLabId(task.linkedActivityId)
                       setView('labs')
                     } else if (task.activity === 'Take Mock Interview') {
-                      setActiveInterview({ category: info?.track.title || 'Technical', difficulty: 'Medium' })
+                      setActiveInterview({ roundId: roundForTrack(info?.track.title), level: 'Medium', minutes: 30, personaId: 'standard', voice: true, candidateName: user?.name || undefined })
                       setView('mock')
                     } else if (task.curriculumTaskId && task.curriculumTaskId.startsWith('q-')) {
                       setSelectedTopicId(task.curriculumTaskId)
@@ -1134,21 +1159,23 @@ export default function App() {
             ) : view === 'mock' ? (
               activeInterview ? (
                 <InterviewSession
-                  category={activeInterview.category}
-                  difficulty={activeInterview.difficulty}
+                  setup={activeInterview}
                   onEndSession={(summary) => {
                     setMockInterviewSummaries((prev) => [summary, ...prev])
                     setActiveInterview(null)
-                    showToast('Interview saved to your history')
+                    setOpenReportId(summary.id)
+                    showToast(summary.incomplete ? 'Interview saved without a scorecard' : 'Scorecard ready')
                   }}
                   onCancel={() => setActiveInterview(null)}
+                  onOpenSettings={() => setView('settings')}
                 />
               ) : (
                 <MockInterviewWorkspace
                   summaries={mockInterviewSummaries}
-                  onStartSession={(category, difficulty) => {
-                    setActiveInterview({ category, difficulty })
-                  }}
+                  onStartSession={(setup) => setActiveInterview({ ...setup, candidateName: user?.name || undefined })}
+                  onOpenSettings={() => setView('settings')}
+                  openReportId={openReportId}
+                  onReportClosed={() => setOpenReportId(null)}
                 />
               )
             ) : view === 'topicWorkspace' && selectedTopicId ? (
@@ -1338,7 +1365,7 @@ export default function App() {
         <Paywall
           billing={billing}
           email={user.email}
-          onSubscribed={(entitlement) => {
+          onPurchased={(entitlement) => {
             setBilling((b) => (b ? { ...b, entitlement } : b))
             showToast('Welcome to Prep Pro')
           }}

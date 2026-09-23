@@ -232,7 +232,7 @@ async function runPiston(
 // --- Route -----------------------------------------------------------------
 
 export async function POST(req: Request) {
-  // The sandbox is a paid feature: signed-in accounts on a trial or subscription.
+  // The sandbox is a paid feature: signed-in accounts with an active pass.
   const gate = await requireAccess();
   if (gate instanceof NextResponse) return gate;
   let body: { language?: unknown; code?: unknown; stdin?: unknown };

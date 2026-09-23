@@ -4,13 +4,13 @@ export type AIMessage = { role: 'system' | 'user' | 'assistant'; content: string
  * Client for the AI gateway. Keys never live in the browser any more: the
  * learner saves an OpenAI or Groq key to their account (Settings) and the
  * server uses it for every request. AI is available to signed-in accounts on
- * a trial or subscription that have a key (their own, or the deployment's).
+ * an active pass that have a key (their own, or the deployment's).
  */
 
 export interface AiStatus {
   signedIn: boolean
   access: boolean
-  status?: 'trial' | 'active' | 'cancelling' | 'past_due' | 'expired'
+  status?: 'active' | 'expired'
   available: boolean
   serverConfigured: boolean
   userKey: { provider: 'groq' | 'openai'; hint: string } | null

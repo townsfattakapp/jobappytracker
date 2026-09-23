@@ -24,17 +24,23 @@ Without `DATABASE_URL` the app still runs in local-only mode; sign-in and cloud 
 | --- | --- | --- |
 | `DATABASE_URL` | server | PostgreSQL connection string (include `sslmode=require` for hosted databases). |
 | `AUTH_SECRET` | server | Signs session tokens. Generate with `openssl rand -base64 32`. `NEXTAUTH_SECRET` is also accepted. |
-| `GROQ_API_KEY` / `OPENAI_API_KEY` | server, optional | Shared AI keys. Only signed-in users can use them; anyone can instead add a personal key in Settings, which stays in their browser. |
+| `GROQ_API_KEY` / `OPENAI_API_KEY` | server, optional | Optional shared AI keys used when a learner has not saved their own key in Settings. |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | public, optional | Google OAuth *web* client ID with the Gmail API enabled and your origin under authorized JavaScript origins. Enables Gmail sync. |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | server, optional | Google sign-in. Add `https://<domain>/api/auth/callback/google` as an authorised redirect URI. |
+| `RESEND_API_KEY` or `SMTP_URL`, plus `EMAIL_FROM` | server, optional | Sends email-confirmation links for password sign-ups. Without a mailer, sign-ups are verified immediately. |
+| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET` | server | Payments for passes (see below). |
+| `BILLING_ALLOWLIST` | server, optional | Comma-separated emails that always have access. |
+| `NEXT_PUBLIC_SITE_URL` | public | Origin used in emails and metadata, e.g. `https://prep.evolw.in`. |
 
-## Billing, trials and AI keys
+## Billing, passes and AI keys
 
-- **Plan**: one subscription, Prep Pro at ₹199/month through Razorpay Subscriptions, after a 7-day free trial that starts at sign-up (`TRIAL_DAYS` to change). The marketing site at `/` explains it; the product lives at `/app`.
-- **Entitlement** (`src/lib/billing/entitlement.ts`): trial → active → cancelling (access until the paid period ends) → expired. Past-due subscriptions keep access until `currentEnd` while Razorpay retries. Paid API routes (`/api/ai/chat`, `/api/run`) return 402 without access; the app shows the paywall. Guest mode (local only) has no AI or code runner.
-- **Razorpay setup**: create API keys in the dashboard, run `npm run razorpay:plan` once to create the monthly plan and set `RAZORPAY_PLAN_ID`, then add a webhook for `https://<domain>/api/billing/webhook` with the `subscription.*` events and put its secret in `RAZORPAY_WEBHOOK_SECRET`. Checkout runs in the browser; `/api/billing/verify` checks the signature and grants access immediately, and the webhook keeps the row in sync afterwards. Test keys work end to end with Razorpay's test cards and UPI.
+- **Passes**: three one-time payments through Razorpay Orders: 90 days ₹199 (list ₹499), 180 days ₹424 (list ₹699), 1 year ₹799 (list ₹1999). There is no trial and nothing auto-renews; buying again adds the days to the end of the current pass (`src/lib/billing/plan.ts`). The marketing site at `/` explains it; the product lives at `/app`.
+- **Entitlement** (`src/lib/billing/entitlement.ts`): access while the latest paid pass has not ended, or when the email is in `BILLING_ALLOWLIST` (operators, testers). Paid API routes (`/api/ai/chat`, `/api/run`) return 402 without access; the app shows the plan picker. Guest mode (local only) has no AI or code runner.
+- **Razorpay setup**: create API keys in the dashboard and set `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET`, then add a webhook for `https://<domain>/api/billing/webhook` with the `payment.captured` and `order.paid` events and put its secret in `RAZORPAY_WEBHOOK_SECRET`. Checkout runs in the browser; `/api/billing/verify` checks the order signature and grants the pass immediately, and the webhook grants it again idempotently if the browser never came back. Test keys work end to end with Razorpay's test cards and UPI.
 - **AI keys**: each learner saves their own OpenAI or Groq key in Settings. It is validated against the provider, encrypted with AES-256-GCM (`AI_KEY_ENCRYPTION_SECRET`, falling back to `AUTH_SECRET`) and stored in `user_ai_keys`. The gateway uses it for that learner's requests; `GROQ_API_KEY`/`OPENAI_API_KEY` on the server remain an optional shared fallback.
-- **Screenshots** on the landing page come from `npm run screens`, which drives the running app with seeded data and writes `public/screens/*.jpg`.
-- Tests: `npm run test:billing` (entitlement rules, signature checks) and `npm run test:e2e:billing` (trial, paywall, 402s, AI key validation, landing redirect).
+- **Mock interviews** (`src/lib/interview/`): eleven rounds (DSA, HLD, LLD, behavioural, Java, JavaScript/TypeScript, React, Node, SQL, CS fundamentals, DevOps), three levels, 20/30/45-minute clock, three interviewer personas, spoken questions (speech synthesis) and dictated answers (speech recognition) where the browser supports them, the Monaco editor or a Mermaid whiteboard beside the conversation, hints on request, and a hiring-committee scorecard (dimensions, verdict, model answers, topics to revise). Transcripts are stored with the learning history; scorecards sync with the account.
+- **Screenshots** on the landing page come from `npm run screens`, which drives the running app with a temporary paid account and writes `public/screens/*.jpg`.
+- Tests: `npm run test:billing` (pass rules, plan maths, signatures, interview prompts), `npm run test:verification` (confirmation emails and tokens against the dev database, mailer stubbed) and `npm run test:e2e:billing` (no-trial paywall, 402s, granted pass, AI key validation, mock-interview setup, confirmation endpoints, landing copy). E2E scripts grant test accounts a pass with `scripts/lib/pass.mjs`.
 
 ## Curriculum content
 
@@ -59,7 +65,7 @@ npm run curriculum:check   # every content entry matches a real category and top
 
 ## Accounts and data
 
-- Accounts use email + password. Passwords are hashed with scrypt on the server. There is no password reset flow yet.
+- Accounts use email + password (scrypt on the server) or Google. Password sign-ups get a confirmation email when a mailer is configured; the link at `/api/auth/verify-email` marks the account verified and sign-in is refused until then (`/api/auth/resend-verification` sends a fresh link, one a minute). Google sign-ins are verified by Google and link to an existing password account with the same email. There is no password reset flow yet.
 - Each user's data is one JSONB document in `career_state` with an optimistic revision counter. When two devices save concurrently, the client merges the cloud copy into its own (collections unioned by id, the later edit of a record wins, task progress is never lost) and retries; the manual "use cloud copy" fallback remains for the rare case a merge keeps failing. `npm run test:merge` covers the merge rules.
 - Code attempts, design write-ups, interview transcripts and note attachments (files up to 1 MB each, 12 MB per account) are stored in IndexedDB and included in the cloud snapshot, so a second device gets them on sign-in. Larger files stay on the device that uploaded them.
 - The preferred code language syncs with the account. Theme, personal AI keys, tutor chats and unsaved drafts stay on the device.

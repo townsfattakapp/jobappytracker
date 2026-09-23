@@ -629,3 +629,19 @@
     transform: none;
   }
 }
+
+.lp-section-sub {
+  margin: 0.75rem auto 0;
+  max-width: 560px;
+  color: var(--lp-muted, hsl(var(--muted-foreground)));
+  font-size: 1.02rem;
+}
+#pricing .plan-grid {
+  margin: 0 auto 2.5rem;
+  max-width: 980px;
+}
+.lp-price-card h3 {
+  font-size: 1.05rem;
+  font-weight: 800;
+  margin-bottom: 0.9rem;
+}

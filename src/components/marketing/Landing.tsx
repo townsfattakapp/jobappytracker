@@ -3,7 +3,8 @@
 import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState } from 'react'
 import BrandLogo, { BrandMark } from '../BrandLogo'
-import { PLAN } from '../../lib/billing/plan'
+import { PLAN_FEATURES, PLANS } from '../../lib/billing/plan'
+import PlanCards from '../PlanCards'
 import './landing.css'
 
 const HeroScene = dynamic(() => import('../HeroScene'), { ssr: false, loading: () => null })
@@ -90,39 +91,49 @@ const FEATURES = [
     shot: { src: '/screens/hld.jpg', alt: 'A system design workspace with an architecture diagram' },
   },
   {
+    eyebrow: 'Mock interviews',
+    title: 'An interviewer who talks back, and a scorecard that tells the truth.',
+    body: 'Pick a round, a level and a length. The interviewer speaks the questions, listens to your answers, pushes on gaps, reads the code you share and wraps up when the clock runs low. Then you get a hiring-committee scorecard: dimensions, verdict, model answers and what to revise.',
+    shot: { src: '/screens/mock.jpg', alt: 'Setting up a mock interview round' },
+    flip: true,
+  },
+  {
     eyebrow: 'Revision',
     title: 'Flashcards that come back at the right time.',
     body: 'Cards are made from what you actually studied and scheduled with spaced repetition. Today shows what is due; a session takes minutes with keyboard shortcuts.',
     shot: { src: '/screens/flashcards.jpg', alt: 'A flashcard study session' },
-    flip: true,
   },
   {
     eyebrow: 'Tutor',
     title: 'A tutor that has read your notes.',
     body: 'Ask anything about the topic you are on. For DSA it gives hints in five levels instead of the answer; for design it reviews your architecture. Drag it, resize it, keep it open while you work.',
     shot: { src: '/screens/tutor.jpg', alt: 'The AI tutor beside a topic' },
+    flip: true,
   },
   {
     eyebrow: 'Job hunt',
     title: 'Applications, follow-ups and interviews, in the same tab.',
     body: 'Track every application on a board or a table, import recruiter emails, sync Gmail, and keep prep notes next to the company they are for. Your study plan and your pipeline finally share a calendar.',
     shot: { src: '/screens/dashboard.jpg', alt: 'The job tracker dashboard' },
-    flip: true,
   },
 ]
 
 const FAQ = [
   {
     q: 'Why do I need my own OpenAI or Groq key?',
-    a: 'Because it keeps the subscription at ₹199 and puts you in control. Groq has a free tier that covers normal daily use; OpenAI usage for a heavy week is usually a few rupees. Your key is encrypted at rest and only ever sent to the provider you chose.',
+    a: 'Because it keeps a 90-day pass at ₹199 and puts you in control. Groq has a free tier that covers normal daily use; OpenAI usage for a heavy week is usually a few rupees. Your key is encrypted at rest and only ever sent to the provider you chose.',
   },
   {
-    q: 'What happens after the seven-day trial?',
-    a: 'Nothing is deleted. Your plan, notes and attempts stay in your account; subscribing picks up exactly where you left off. Without a subscription the learning workspaces, AI and the code runner pause.',
+    q: 'Is there a subscription or auto-renewal?',
+    a: 'No. You buy a pass for 90 days, 180 days or a year with one payment. Nothing renews by itself, and buying another pass simply adds its days to the end of the current one.',
   },
   {
-    q: 'Can I cancel any time?',
-    a: 'Yes, from Settings, in one click. You keep access to the end of the month you paid for and are not charged again.',
+    q: 'What happens when my pass ends?',
+    a: 'Nothing is deleted. Your plan, notes, attempts and mock-interview reports stay in your account. The learning workspaces, AI and the code runner pause until you pick a new pass.',
+  },
+  {
+    q: 'How do mock interviews work?',
+    a: 'Pick a round such as DSA coding, system design, React or behavioural, a difficulty and a duration. An AI interviewer asks questions out loud, listens to your answers, pushes back on gaps, and gives you a scorecard with model answers and topics to revise.',
   },
   {
     q: 'Which languages and tracks are covered?',
@@ -165,7 +176,7 @@ export default function Landing() {
               Sign in
             </a>
             <a href="/app" className="btn btn-primary btn-sm">
-              Start free trial
+              Get started
             </a>
           </div>
         </div>
@@ -176,24 +187,24 @@ export default function Landing() {
           <div className="lp-hero-glow" aria-hidden="true" />
           <div className="lp-container lp-hero-grid">
             <div className="lp-hero-copy">
-              <p className="lp-eyebrow">Interview prep for product-company roles</p>
+              <p className="lp-eyebrow">Interview prep for product-based-company roles and more</p>
               <h1>
                 Stop collecting resources.
                 <br />
                 <span className="text-gradient">Start finishing them.</span>
               </h1>
               <p className="lp-lede">
-                Prep turns ten engineering tracks into a day-by-day plan, explains every topic in the language you code in, and keeps your job hunt in the same place. Seven days free, then ₹{PLAN.priceInr} a month.
+                Prep turns ten engineering tracks into a day-by-day plan, explains every topic in the language you code in, and keeps your job hunt in the same place, with AI mock interviews that feel like the real round. Passes from ₹{PLANS[0].priceInr} for {PLANS[0].name}.
               </p>
               <div className="lp-cta-row">
                 <a href="/app" className="btn btn-primary lp-cta">
-                  Start your free trial
+                  Get started
                 </a>
                 <a href="#how" className="btn btn-ghost lp-cta">
                   See how it works
                 </a>
               </div>
-              <p className="lp-fineprint">No card needed for the trial · Bring your own OpenAI or Groq key · Cancel any time</p>
+              <p className="lp-fineprint">One payment, no auto-renew · Bring your own OpenAI or Groq key · Syncs to every device</p>
             </div>
             <div className="lp-hero-visual">
               <div className="lp-hero-scene">
@@ -309,35 +320,27 @@ export default function Landing() {
           <div className="lp-container">
             <div className="lp-section-head" data-reveal>
               <p className="lp-eyebrow">Pricing</p>
-              <h2>One plan. Less than a coffee a week.</h2>
+              <h2>Pick a pass. Pay once.</h2>
+              <p className="lp-section-sub">Every pass includes everything. No subscription, no auto-renewal, no card kept on file.</p>
+            </div>
+            <div data-reveal>
+              <PlanCards href="/app" ctaLabel={(plan) => `Get ${plan.name} for ₹${plan.priceInr}`} />
             </div>
             <div className="lp-pricing" data-reveal>
               <div className="lp-price-card">
-                <div className="lp-price-top">
-                  <div>
-                    <p className="lp-eyebrow">{PLAN.name}</p>
-                    <p className="lp-price">
-                      <span className="lp-price-amount text-gradient">₹{PLAN.priceInr}</span>
-                      <span className="lp-price-period">/ month</span>
-                    </p>
-                  </div>
-                  <span className="lp-pill">{PLAN.trialDays}-day free trial</span>
-                </div>
+                <h3>Every pass includes</h3>
                 <ul className="lp-checks">
-                  {PLAN.features.map((f) => (
+                  {PLAN_FEATURES.map((f) => (
                     <li key={f}>{f}</li>
                   ))}
                 </ul>
-                <a href="/app" className="btn btn-primary lp-cta w-full">
-                  Start your free trial
-                </a>
-                <p className="lp-fineprint">Billed monthly through Razorpay. UPI, cards and net banking. Cancel any time from Settings.</p>
+                <p className="lp-fineprint">Paid securely through Razorpay with UPI, cards or net banking. Buying another pass while one is active adds the days to the end.</p>
               </div>
               <div className="lp-price-aside">
-                <h3>What the trial includes</h3>
-                <p>Everything. Build your plan, open any workspace, run code, use the tutor with your own key, sync to your phone. If it is not part of your routine after a week, walk away with nothing owed.</p>
                 <h3>Who it is for</h3>
                 <p>Engineers with one to eight years of experience preparing for product-company rounds, and final-year students who want a plan instead of a playlist.</p>
+                <h3>Why passes instead of a subscription</h3>
+                <p>Interview prep has a finish line. Buy the stretch you need, sit the interviews, and never think about cancelling.</p>
               </div>
             </div>
           </div>
@@ -372,9 +375,9 @@ export default function Landing() {
             <BrandMark size={56} />
             <h2>Your next interview is closer than the end of your bookmarks folder.</h2>
             <a href="/app" className="btn btn-primary lp-cta">
-              Start your free trial
+              Get started
             </a>
-            <p className="lp-fineprint">Seven days free · ₹{PLAN.priceInr}/month after · Cancel any time</p>
+            <p className="lp-fineprint">Passes from ₹{PLANS[0].priceInr} · One payment · No auto-renew</p>
           </div>
         </section>
       </main>
