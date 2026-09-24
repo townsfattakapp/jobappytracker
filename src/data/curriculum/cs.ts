@@ -18,6 +18,84 @@ export const trackcsCurriculum: CurriculumTrack = {
               id: 'mod-uwtyf3eum',
               title: 'Concepts & Implementation',
               topics: [
+                  {
+                    id: 'top-amenzhymu',
+                    title: `What is Computer Science?`,
+                    subtopics: [
+                      {
+                      id: 'sub-djonr9nec',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-6ofmnic90', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-3csmft3kj', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-27gvszed4',
+      title: `What exactly is Computer Science?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `It is a fundamental concept/tool in modern software engineering.`,
+      detailedExplanation: `It is a fundamental concept/tool in modern software engineering.`,
+      interviewAnswer: `It is a fundamental concept/tool in modern software engineering.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-wvd2qssz8',
+                    title: `Why use Computer Science?`,
+                    subtopics: [
+                      {
+                      id: 'sub-poyep3mn7',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-77ie7vye9', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-rjxje0na2', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-rrnl9lixm',
+      title: `Where is Computer Science used?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `In almost every modern tech stack and enterprise system.`,
+      detailedExplanation: `In almost every modern tech stack and enterprise system.`,
+      interviewAnswer: `In almost every modern tech stack and enterprise system.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-4t0a4acw5',
+                    title: `History and Ecosystem`,
+                    subtopics: [
+                      {
+                      id: 'sub-9qf1xy8b3',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-3xd6qiv78', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-51x57siyi', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-rf4538v52',
+      title: `How has it evolved?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `It has become more standardized, efficient, and easier to use over time.`,
+      detailedExplanation: `It has become more standardized, efficient, and easier to use over time.`,
+      interviewAnswer: `It has become more standardized, efficient, and easier to use over time.`
+  }
+                      ]
+                      }
+                    ]
+                  },
                 {
                   id: 'top-du2pm1hgl',
                   title: `Processes`,

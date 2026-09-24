@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   serverExternalPackages: ['pg'],
+  output: 'standalone',
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }]
   },

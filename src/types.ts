@@ -301,12 +301,75 @@ export interface CurriculumLevel {
   categories: CurriculumCategory[];
 }
 
+export type CurriculumFamily =
+  | 'Software Engineering Interviews'
+  | 'Programming Languages'
+  | 'Backend Frameworks'
+  | 'AI & Generative AI'
+  | 'Data Science'
+  | 'Data Analytics & BI'
+  | 'Data Engineering'
+  | 'Mobile Development'
+  | 'Frontend & Web'
+  | 'Cloud, DevOps & Platform'
+  | 'Cybersecurity'
+  | 'Computer Science'
+  | 'Personal';
+
+export type CurriculumTrackKind = 'language' | 'framework' | 'domain' | 'tooling' | 'interview' | 'projects' | 'custom';
+
+/** How the AI explains topics of a track and which language its code uses. */
+export type CurriculumExplainMode = 'concept' | 'react' | 'node' | 'sql' | 'devops' | 'cs' | 'hld' | 'lld' | 'data' | 'tool' | 'math' | 'security';
+
+export interface CurriculumCodeProfile {
+  /** Human wording used in prompts and button labels, e.g. "Python" or "SQL (PostgreSQL dialect)". */
+  label: string;
+  /** Highlighter / editor id for generated snippets. */
+  id: string;
+  /** True when the track dictates the language and the learner's preference is ignored. */
+  fixed: boolean;
+}
+
+export type CurriculumStatus = 'draft' | 'review' | 'published' | 'archived';
+
 export interface CurriculumTrack {
   id: string;
   title: string;
   description: string;
+  /** Track ids that should be studied first. */
   prerequisites: string[];
   levels: CurriculumLevel[];
+  // --- Metadata (optional; built-in tracks set it, personal tracks may not) ---
+  family?: CurriculumFamily;
+  kind?: CurriculumTrackKind;
+  tags?: string[];
+  /** Programming languages the track is taught in. */
+  languages?: string[];
+  explainMode?: CurriculumExplainMode;
+  code?: CurriculumCodeProfile;
+  /** Which linked activities make sense for this track. */
+  supports?: { coding?: boolean; leetcode?: boolean; design?: boolean; labs?: boolean; project?: boolean; practice?: boolean };
+  level?: 'Beginner' | 'Intermediate' | 'Advanced' | 'All Levels';
+  icon?: string;
+  /** Where the track comes from: shipped with the app, published by a curriculum admin, or created by this learner. */
+  source?: 'builtin' | 'shared' | 'personal';
+  status?: CurriculumStatus;
+  version?: number;
+  ownerId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CareerPath {
+  id: string;
+  title: string;
+  family: CurriculumFamily;
+  description: string;
+  /** Suggested tracks in study order; the learner can add, remove and reorder. */
+  tracks: { trackId: string; priority: GoalTrack['priority']; note?: string }[];
+  languages?: string[];
+  roles?: string[];
+  icon?: string;
 }
 
 export interface CurriculumProgress {
@@ -316,7 +379,16 @@ export interface CurriculumProgress {
 export interface GoalTrack {
   trackId: string
   priority: 'High' | 'Medium' | 'Low'
+  /** Explicit topic selection. Undefined means every topic of the track. */
+  topicIds?: string[]
+  /** Topics the learner removed from this goal. */
+  excludedTopicIds?: string[]
+  /** Study order among the goal's tracks (lower first). */
+  order?: number
 }
+
+export type GoalOutcome = 'career' | 'language' | 'framework' | 'interview' | 'project' | 'custom'
+export type ExperienceLevel = 'Beginner' | 'Intermediate' | 'Advanced'
 
 export interface LearningTrack {
   id: string
@@ -371,14 +443,29 @@ export interface Goal {
   targetRole: string
   companyType: string
   startDate: string
+  /** Planning horizon in days. For ongoing goals this is a rolling window, not a deadline. */
   durationDays: number
   hoursPerDay: number
+  /** Weekdays (0 = Sunday) with nothing scheduled. Empty means every day is a study day. */
   restDays: number[]
   tracks: GoalTrack[]
   status: 'Active' | 'Paused' | 'Completed' | 'Archived'
   goalType: 'Fixed' | 'Ongoing'
   createdAt: string
   updatedAt: string
+  // --- Personalisation (all optional; older goals have none) ---
+  name?: string
+  description?: string
+  outcome?: GoalOutcome
+  careerPathId?: string
+  experienceLevel?: ExperienceLevel
+  /** Preferred programming languages for examples and practice. */
+  languages?: string[]
+  /** Optional deadline (YYYY-MM-DD). */
+  targetDate?: string | null
+  /** Topics the learner already knows; the roadmap skips them. */
+  knownTopicIds?: string[]
+  milestones?: { id: string; title: string; date: string }[]
 }
 
 export interface DsaProblem {
@@ -596,6 +683,8 @@ export interface Storage {
   systemDesignExercises: SystemDesignExercise[]
   systemDesignAttemptSummaries: SystemDesignAttemptSummary[]
   knowledgeWorkspaces: KnowledgeWorkspace[]
+  /** Learning tracks and topics this learner created (never public unless proposed and published). */
+  customTracks?: CurriculumTrack[]
 }
 
 const STORAGE_KEY = 'job-app-tracker-v2'
@@ -611,7 +700,7 @@ export function emptyStorage(): Storage {
     dsaProblems: [], dsaAttemptSummaries: [], revisionItems: [],
     engineeringLabs: [], labAttemptSummaries: [], mockInterviewSummaries: [],
     leetCodeConfig: emptyLeetCodeConfig(),
-    systemDesignExercises: [], systemDesignAttemptSummaries: [], knowledgeWorkspaces: [],
+    systemDesignExercises: [], systemDesignAttemptSummaries: [], knowledgeWorkspaces: [], customTracks: [],
   }
 }
 
@@ -676,6 +765,7 @@ export function loadStorage(): Storage {
           systemDesignExercises: parsed.systemDesignExercises || [],
           systemDesignAttemptSummaries: parsed.systemDesignAttemptSummaries || [],
           knowledgeWorkspaces: parsed.knowledgeWorkspaces || [],
+          customTracks: Array.isArray(parsed.customTracks) ? parsed.customTracks : [],
         }
       }
     }

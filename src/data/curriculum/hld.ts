@@ -18,6 +18,84 @@ export const trackhldCurriculum: CurriculumTrack = {
               id: 'mod-ra4wcy3xk',
               title: 'Concepts & Implementation',
               topics: [
+                  {
+                    id: 'top-zdo0scej2',
+                    title: `What is System Design?`,
+                    subtopics: [
+                      {
+                      id: 'sub-o7or8o82c',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-7mwcpc27u', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-cpilwyoen', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-ht19u0zay',
+      title: `What exactly is System Design?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `It is a fundamental concept/tool in modern software engineering.`,
+      detailedExplanation: `It is a fundamental concept/tool in modern software engineering.`,
+      interviewAnswer: `It is a fundamental concept/tool in modern software engineering.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-b60fbdsir',
+                    title: `Why use System Design?`,
+                    subtopics: [
+                      {
+                      id: 'sub-1jyvnnxuh',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-gwu2eco5p', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-06nvtus0s', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-bd9bghfpf',
+      title: `Where is System Design used?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `In almost every modern tech stack and enterprise system.`,
+      detailedExplanation: `In almost every modern tech stack and enterprise system.`,
+      interviewAnswer: `In almost every modern tech stack and enterprise system.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-5lnfng6v6',
+                    title: `History and Ecosystem`,
+                    subtopics: [
+                      {
+                      id: 'sub-hbr9dfnpc',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-78omc3si2', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-pmx8gm3no', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-ogbl81lug',
+      title: `How has it evolved?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `It has become more standardized, efficient, and easier to use over time.`,
+      detailedExplanation: `It has become more standardized, efficient, and easier to use over time.`,
+      interviewAnswer: `It has become more standardized, efficient, and easier to use over time.`
+  }
+                      ]
+                      }
+                    ]
+                  },
                 {
                   id: 'top-fa0zf6mo7',
                   title: `Requirements and capacity estimation`,

@@ -18,6 +18,84 @@ export const trackreactCurriculum: CurriculumTrack = {
               id: 'mod-ux0f29mom',
               title: 'Concepts & Implementation',
               topics: [
+                  {
+                    id: 'top-oeo40vwwp',
+                    title: `What is React?`,
+                    subtopics: [
+                      {
+                      id: 'sub-5dnovykbj',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-ebimxkwwx', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-4mj3asj57', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-wp8bxf490',
+      title: `What exactly is React?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `It is a fundamental concept/tool in modern software engineering.`,
+      detailedExplanation: `It is a fundamental concept/tool in modern software engineering.`,
+      interviewAnswer: `It is a fundamental concept/tool in modern software engineering.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-ym2qo8wr8',
+                    title: `Why use React?`,
+                    subtopics: [
+                      {
+                      id: 'sub-8737ywgr3',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-75i4zzlhj', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-mouzczvov', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-w88pg8q3a',
+      title: `Where is React used?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `In almost every modern tech stack and enterprise system.`,
+      detailedExplanation: `In almost every modern tech stack and enterprise system.`,
+      interviewAnswer: `In almost every modern tech stack and enterprise system.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-9gf8ett6j',
+                    title: `History and Ecosystem`,
+                    subtopics: [
+                      {
+                      id: 'sub-zagzr9vri',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-tpvt5uo4x', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-u31uxa381', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-4t7w87o7y',
+      title: `How has it evolved?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `It has become more standardized, efficient, and easier to use over time.`,
+      detailedExplanation: `It has become more standardized, efficient, and easier to use over time.`,
+      interviewAnswer: `It has become more standardized, efficient, and easier to use over time.`
+  }
+                      ]
+                      }
+                    ]
+                  },
                 {
                   id: 'top-gwmzdfbyw',
                   title: `HTML`,

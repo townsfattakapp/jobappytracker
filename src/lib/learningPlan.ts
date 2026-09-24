@@ -5,7 +5,7 @@ import type {
   KnowledgeWorkspace,
   RevisionItem,
 } from "../types";
-import { allCurriculums } from "../data/curriculum";
+import { getCurriculum, type TopicRef } from "./curriculum/registry";
 export const dateKey = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 export const dayDate = (value?: string | null) => (value ?? "").slice(0, 10);
@@ -14,38 +14,51 @@ export const addDays = (value: string, n: number) => {
   d.setDate(d.getDate() + n);
   return dateKey(d);
 };
-export const topics = allCurriculums.flatMap((track) =>
-  track.levels.flatMap((level) =>
-    level.categories.flatMap((category) =>
-      category.modules.flatMap((module) =>
-        module.topics.map((topic) => ({
-          track,
-          level,
-          category,
-          module,
-          topic,
-        })),
-      ),
-    ),
-  ),
-);
+
+/** Every topic across built-in, shared and personal tracks, in curriculum order. */
+export function allTopics(): TopicRef[] {
+  return getCurriculum().topics;
+}
+
+/** Looks a topic or concept id up across every track. */
+export function findTopicRef(id: string | undefined | null): TopicRef | undefined {
+  return id ? getCurriculum().byId.get(id) : undefined;
+}
+
+/** Activities a learner can attach to any topic. Availability per track comes from `activityApplies`. */
 export const activities = [
   "Learn Concept",
   "Read Detailed Lesson",
   "Study Worked Examples",
+  "Write Personal Notes",
   "Practice Coding",
   "Solve DSA / LeetCode Problems",
-  "Write Personal Notes",
   "Create Code Examples",
   "Draw Diagram / Flowchart",
   "Complete Quiz",
   "Complete HLD / LLD Exercise",
   "Complete Engineering Lab",
+  "Complete Project Task",
   "Work on Project",
   "Take Mock Interview",
   "Revise Topic",
   "Create Custom Activity",
 ];
+
+/** Whether an activity makes sense for a track, from its metadata rather than its title. */
+export function activityApplies(activity: string, ref: TopicRef | undefined, extras: { hasQuiz?: boolean; hasLesson?: boolean } = {}): boolean {
+  const supports = ref?.track.supports || {};
+  const kind = ref?.track.kind;
+  if (activity === "Complete Quiz") return Boolean(extras.hasQuiz);
+  if (activity === "Read Detailed Lesson") return Boolean(extras.hasLesson);
+  if (activity === "Solve DSA / LeetCode Problems") return Boolean(supports.leetcode);
+  if (activity === "Complete HLD / LLD Exercise") return Boolean(supports.design);
+  if (activity === "Complete Engineering Lab") return Boolean(supports.labs);
+  if (activity === "Practice Coding" || activity === "Create Code Examples") return supports.coding !== false && Boolean(supports.coding || supports.practice || kind === "language" || kind === "framework" || !ref);
+  if (activity === "Complete Project Task" || activity === "Work on Project") return Boolean(supports.project || kind === "projects" || !ref);
+  return true;
+}
+
 export function makeDay(goal: Goal, date: string): RoadmapDay {
   return {
     id: `${goal.id}:${date}`,
@@ -78,6 +91,17 @@ export function dayStatus(goal: Goal, day: RoadmapDay) {
     return "Partial";
   return "Planned";
 }
+
+/** Topic ids a goal includes for a track (explicit selection minus exclusions and known topics). */
+function goalIncludes(goal: Goal, ref: TopicRef): boolean {
+  const selection = goal.tracks.find((t) => t.trackId === ref.track.id);
+  if (!selection) return false;
+  if (selection.topicIds && !selection.topicIds.includes(ref.topic.id)) return false;
+  if (selection.excludedTopicIds?.includes(ref.topic.id)) return false;
+  if (goal.knownTopicIds?.includes(ref.topic.id)) return false;
+  return true;
+}
+
 export function proposeDay(
   goal: Goal,
   day: RoadmapDay,
@@ -85,6 +109,7 @@ export function proposeDay(
   workspaces: KnowledgeWorkspace[],
   revisions: RevisionItem[] = [],
 ): StudyTask[] {
+  const { tracks, topics } = getCurriculum();
   let remaining = Math.max(
     0,
     goal.hoursPerDay * 60 -
@@ -94,16 +119,15 @@ export function proposeDay(
   const scheduled = roadmap
     .filter((d) => d.goalId === goal.id)
     .flatMap((d) => d.tasks);
+  // Practice revisions (DSA problems, design exercises) attach to whichever goal track supports them.
+  const trackFor = (entityType: RevisionItem["entityType"]) =>
+    goal.tracks
+      .map((t) => tracks.find((x) => x.id === t.trackId))
+      .find((t) => t && (entityType === "DSA" ? t.supports?.leetcode : entityType === "SystemDesign" ? t.supports?.design : false));
   for (const revision of revisions) {
-    const trackId =
-      revision.entityType === "DSA"
-        ? "track-dsa"
-        : revision.entityType === "SystemDesign"
-          ? "track-hld"
-          : undefined;
+    const track = trackFor(revision.entityType);
     if (
-      !trackId ||
-      !goal.tracks.some((t) => t.trackId === trackId) ||
+      !track ||
       dayDate(revision.dueDate) > dayDate(day.date) ||
       remaining < 15
     )
@@ -125,23 +149,15 @@ export function proposeDay(
       type: revision.entityType === "DSA" ? "DSA" : "SystemDesign",
       activity: "Revise Topic",
       linkedActivityId: revision.entityId,
+      trackId: track.id,
       status: "Pending",
       priority: "High",
       estDurationMinutes: minutes,
       actualDurationMinutes: 0,
     });
   }
-  const ranked = topics
-    .filter((x) => goal.tracks.some((t) => t.trackId === x.track.id))
-    .sort(
-      (a, b) =>
-        ({ High: 0, Medium: 1, Low: 2 })[
-          goal.tracks.find((t) => t.trackId === a.track.id)!.priority
-        ] -
-        { High: 0, Medium: 1, Low: 2 }[
-          goal.tracks.find((t) => t.trackId === b.track.id)!.priority
-        ],
-    );
+  const priorityOf = (x: TopicRef) => ({ High: 0, Medium: 1, Low: 2 })[goal.tracks.find((t) => t.trackId === x.track.id)!.priority];
+  const ranked = topics.filter((x) => goalIncludes(goal, x)).sort((a, b) => priorityOf(a) - priorityOf(b));
   ranked.sort(
     (a, b) =>
       (a.topic.prerequisites?.length || 0) -
@@ -191,8 +207,8 @@ export function proposeDay(
       )
     )
       continue;
-    const prerequisites = x.track.prerequisites.filter((id) =>
-      allCurriculums.some((t) => t.id === id),
+    const prerequisites = (x.track.prerequisites || []).filter((id) =>
+      goal.tracks.some((t) => t.trackId === id),
     );
     if (
       prerequisites.some((id) =>

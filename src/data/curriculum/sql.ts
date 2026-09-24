@@ -18,6 +18,84 @@ export const tracksqlCurriculum: CurriculumTrack = {
               id: 'mod-dqv9380ti',
               title: 'Concepts & Implementation',
               topics: [
+                  {
+                    id: 'top-oiipo9skf',
+                    title: `What is SQL?`,
+                    subtopics: [
+                      {
+                      id: 'sub-775rrrtuu',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-ikh6r2z8l', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-ms9n0wrhs', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-8hnp7kbba',
+      title: `What exactly is SQL?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `It is a fundamental concept/tool in modern software engineering.`,
+      detailedExplanation: `It is a fundamental concept/tool in modern software engineering.`,
+      interviewAnswer: `It is a fundamental concept/tool in modern software engineering.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-nom24p4oi',
+                    title: `Why use SQL?`,
+                    subtopics: [
+                      {
+                      id: 'sub-313bkbijy',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-bpdnbtmkx', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-ef5h1oqwt', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-7asjj3hiq',
+      title: `Where is SQL used?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `In almost every modern tech stack and enterprise system.`,
+      detailedExplanation: `In almost every modern tech stack and enterprise system.`,
+      interviewAnswer: `In almost every modern tech stack and enterprise system.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-v8l9crqem',
+                    title: `History and Ecosystem`,
+                    subtopics: [
+                      {
+                      id: 'sub-ddjtfopew',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-amj3437qp', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-xut7y78m8', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-etuxbk8ej',
+      title: `How has it evolved?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `It has become more standardized, efficient, and easier to use over time.`,
+      detailedExplanation: `It has become more standardized, efficient, and easier to use over time.`,
+      interviewAnswer: `It has become more standardized, efficient, and easier to use over time.`
+  }
+                      ]
+                      }
+                    ]
+                  },
                 {
                   id: 'top-m09gk2qcp',
                   title: `Relational database fundamentals`,

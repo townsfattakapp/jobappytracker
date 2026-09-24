@@ -1,4 +1,4 @@
-import type { TopicDiagram } from '../types'
+import type { CurriculumCodeProfile, CurriculumExplainMode, CurriculumTrack, TopicDiagram } from '../types'
 
 /**
  * Prompt templates for the "Explain this topic with AI" note, chosen per track.
@@ -12,69 +12,32 @@ import type { TopicDiagram } from '../types'
  * - LLD: an object design with class and sequence diagrams and a code skeleton.
  */
 
-export type ExplainMode = 'concept' | 'react' | 'node' | 'sql' | 'devops' | 'cs' | 'hld' | 'lld'
+export type ExplainMode = CurriculumExplainMode
 
-export interface CodeProfile {
-  /** Human wording used in prompts and button labels. */
-  label: string
-  /** Highlighter / editor id for generated snippets. */
-  id: string
-  /** True when the track dictates the language and the picker is hidden. */
-  fixed: boolean
-}
+export type CodeProfile = CurriculumCodeProfile
 
 const PREFERRED_IDS: Record<string, string> = { Java: 'java', JavaScript: 'javascript', TypeScript: 'typescript', Python: 'python', 'C++': 'cpp', Go: 'go' }
 
-export function explainModeForTrack(trackId?: string): ExplainMode {
-  switch (trackId) {
-    case 'track-hld':
-      return 'hld'
-    case 'track-lld':
-      return 'lld'
-    case 'track-react':
-      return 'react'
-    case 'track-node':
-      return 'node'
-    case 'track-sql':
-      return 'sql'
-    case 'track-devops':
-      return 'devops'
-    case 'track-cs':
-      return 'cs'
-    default:
-      return 'concept'
-  }
+/** How the AI explains a track's topics: from the track's metadata, defaulting to a from-zero lesson. */
+export function explainModeForTrack(track?: Pick<CurriculumTrack, 'explainMode'> | null): ExplainMode {
+  return track?.explainMode || 'concept'
 }
 
 /** Which language the AI should write in for a track, given the learner's preference. */
-export function trackCodeProfile(trackId: string | undefined, preferred: string): CodeProfile {
-  switch (trackId) {
-    case 'track-java':
-      return { label: 'Java', id: 'java', fixed: true }
-    case 'track-js':
-      return { label: 'JavaScript, or TypeScript when the topic is TypeScript', id: 'typescript', fixed: true }
-    case 'track-react':
-      return { label: 'TypeScript with React (TSX)', id: 'typescript', fixed: true }
-    case 'track-node':
-      return { label: 'TypeScript on Node.js', id: 'typescript', fixed: true }
-    case 'track-sql':
-      return { label: 'SQL (PostgreSQL dialect)', id: 'sql', fixed: true }
-    case 'track-devops':
-      return { label: 'shell, YAML or Dockerfile, whichever fits', id: 'bash', fixed: true }
-    case 'track-cs':
-      return { label: 'pseudo-code, or short C-style snippets only where they help', id: 'cpp', fixed: true }
-    case 'track-hld':
-      return { label: 'pseudo-code only', id: 'plaintext', fixed: true }
-    default:
-      return { label: preferred, id: PREFERRED_IDS[preferred] || preferred.toLowerCase(), fixed: false }
-  }
+export function trackCodeProfile(track: Pick<CurriculumTrack, 'code'> | null | undefined, preferred: string): CodeProfile {
+  if (track?.code) return track.code
+  return { label: preferred, id: PREFERRED_IDS[preferred] || preferred.toLowerCase(), fixed: false }
 }
 
 /** Short label for buttons ("TSX", "SQL", "Java"). */
 export function shortLanguageLabel(profile: CodeProfile): string {
   if (profile.id === 'sql') return 'SQL'
   if (profile.id === 'bash') return 'shell and YAML'
-  if (profile.id === 'plaintext') return 'diagrams'
+  if (profile.id === 'plaintext') return profile.label.startsWith('pseudo') ? 'diagrams' : profile.label.split(',')[0].trim()
+  if (profile.id === 'python' && profile.label.includes('numpy')) return 'Python'
+  if (profile.id === 'r') return 'R'
+  if (profile.id === 'dax') return 'DAX and M'
+  if (profile.id === 'excel') return 'formulas'
   if (profile.label.includes('TSX')) return 'TSX'
   if (profile.label.includes('Node')) return 'TypeScript'
   if (profile.label.startsWith('JavaScript')) return 'JavaScript'
@@ -260,6 +223,45 @@ export function buildExplainPrompt(input: ExplainInput): { system: string; user:
       ],
       rules: [...MERMAID_RULES, 'Prefer diagrams and traces over code. No tables.'],
       suffix: 'CS',
+    },
+    data: {
+      persona: 'You are a senior machine-learning engineer teaching data, ML and AI engineering with runnable Python, for product-company roles.',
+      code: ['## Example in Python', '(One fenced ```python block using the libraries a practitioner would use (numpy, pandas, scikit-learn, torch, or the relevant SDK) on a tiny inline dataset, with comments and the printed output as a comment, then a 3–4 line walkthrough.)'],
+      extras: [
+        { after: '## How it works', sections: ['## The maths, briefly', '(The one formula or intuition that matters, written in plain text, and what each symbol means. Skip if the topic has no maths.)'] },
+        { after: '## Example in Python', sections: ['## How to evaluate it', '(Which metric or check tells you it worked, what a bad result looks like, and one production concern: data leakage, drift, cost or latency. Bullets.)'] },
+      ],
+      rules: [...MERMAID_RULES, 'All code is Python 3. Prefer small inline data over file downloads. No tables except for tiny result grids.'],
+      suffix: 'Python',
+    },
+    tool: {
+      persona: 'You are a senior analyst teaching business intelligence and analytics tools with hands-on, click-by-click guidance.',
+      code: ['## Hands-on walkthrough', '(Numbered steps in the tool: where to click, what to type. Formulas, DAX, M, or SQL go in fenced blocks with the matching tag. Show a small sample table before and after.)'],
+      extras: [
+        { after: '## Hands-on walkthrough', sections: ['## Reading the result', '(What the output means for the business question, and one common misreading.)', '## Gotchas', '(Tool-specific traps: data types, relationships, filter context, refresh, performance. Bullets.)'] },
+      ],
+      rules: ['Tables are allowed for sample data. Name menu items and dialogs exactly as the tool does.'],
+      suffix: 'hands-on',
+    },
+    math: {
+      persona: 'You are a mathematics teacher who explains the maths behind machine learning to programmers, with intuition first and notation second.',
+      code: ['## Worked example', '(A small numeric example worked by hand step by step, then the same computed in 5–15 lines of ```python with numpy so the learner can check it.)'],
+      extras: [
+        { after: '## How it works', sections: ['## Notation and definitions', '(Each symbol on its own bullet in plain text, e.g. w · x means the dot product.)'] },
+        { after: '## Worked example', sections: ['## Where it shows up in ML', '(2–3 bullets naming the algorithm or layer that uses this and how.)'] },
+      ],
+      rules: ['Write formulas in plain text or simple ASCII (no LaTeX). Keep numbers small. No tables.'],
+      suffix: 'maths',
+    },
+    security: {
+      persona: 'You are a security engineer teaching defensive security and secure engineering. Everything you show is for authorised, defensive use.',
+      code: ['## Hands-on: detect, test and fix', '(Fenced blocks: a vulnerable snippet or misconfiguration, how to detect it (tool command or query), and the fixed version. Use the language tags that fit: ```bash, ```python, ```yaml, ```sql, ```javascript.)'],
+      extras: [
+        { after: '## How it works', sections: ['## Attack surface and threat model', '(Who attacks it, how, and what they gain. One ```mermaid flowchart of the attack path or the defence layers.)'] },
+        { after: '## Hands-on', sections: ['## Controls and monitoring', '(Preventive, detective and corrective controls, and the log or alert that catches it. Bullets.)'] },
+      ],
+      rules: [...MERMAID_RULES, 'Stay defensive: no operational exploit payloads against third parties; use safe lab targets (OWASP Juice Shop, DVWA, local containers). No tables.'],
+      suffix: 'security',
     },
   }
   const profile = profiles[input.mode as Exclude<ExplainMode, 'hld' | 'lld'>] || profiles.concept

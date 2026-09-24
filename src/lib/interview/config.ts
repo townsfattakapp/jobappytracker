@@ -1,7 +1,7 @@
 import type { AIMessage } from '../aiGatewayClient'
 import type { InterviewDimension, InterviewTurn, MockInterviewSummary } from '../../types'
 
-export type RoundGroup = 'Coding' | 'Design' | 'Behavioural' | 'Technical'
+export type RoundGroup = 'Coding' | 'Design' | 'Behavioural' | 'Technical' | 'Curriculum' | string
 
 export interface InterviewRound {
   id: string

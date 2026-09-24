@@ -6,6 +6,7 @@ import type { Entitlement } from './lib/billing/entitlement'
 import { isGmailConfigured } from './lib/gmail'
 import type { AppUser } from './lib/cloudSync'
 import { CODE_LANGUAGES, useCodeLanguage, type CodeLanguage } from './lib/preferences'
+import CurriculumStudio from './components/CurriculumStudio'
 
 interface SettingsWorkspaceProps {
   user: AppUser | null
@@ -239,6 +240,15 @@ export default function SettingsWorkspace({
           </button>
         </div>
       </section>
+
+      {user && (
+        <section className="surface rounded-2xl p-6 border border-border space-y-4">
+          <h2 className="text-xl font-bold border-b border-border pb-2">Admin Tools</h2>
+          <div className="pt-2">
+            <CurriculumStudio />
+          </div>
+        </section>
+      )}
     </div>
   )
 }

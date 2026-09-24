@@ -14,10 +14,10 @@ import {
   makeDay,
   proposeDay,
   restDay,
-  topics,
+  allTopics,
 } from "./lib/learningPlan";
 import { buildTopicTasks, topicStepDefs } from "./lib/roadmapGenerator";
-import { allCurriculums } from "./data/curriculum";
+import { useCurriculum } from "./lib/curriculum/registry";
 import type { PickerContext } from "./components/LearningTaskPicker";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -35,8 +35,8 @@ function groupByTopic(tasks: StudyTask[]): TopicGroup[] {
   const groups = new Map<string, TopicGroup>();
   for (const task of tasks) {
     const info = task.topicId
-      ? topics.find((x) => x.topic.id === task.topicId)
-      : topics.find((x) => x.topic.subtopics.some((s) => s.tasks.some((t) => t.id === task.curriculumTaskId)));
+      ? allTopics().find((x) => x.topic.id === task.topicId)
+      : allTopics().find((x) => x.topic.subtopics.some((s) => s.tasks.some((t) => t.id === task.curriculumTaskId)));
     const key = info ? `topic:${info.topic.id}` : `task:${task.id}`;
     const existing = groups.get(key);
     if (existing) {
@@ -174,6 +174,8 @@ export default function LearningDayWorkspace({
   onDate,
   onDeleteGoal,
   onOpenRevision,
+  onEditCurriculum,
+  onReplan,
 }: {
   goals: Goal[];
   onGoals: (goals: Goal[]) => void;
@@ -191,6 +193,10 @@ export default function LearningDayWorkspace({
   selectedDate: string;
   onDate: (date: string) => void;
   onDeleteGoal?: (goalId: string) => void;
+  /** Opens the curriculum builder for this goal. */
+  onEditCurriculum?: (goalId: string) => void;
+  /** Schedules every unplanned topic of the goal into free days from today. */
+  onReplan?: (goalId: string) => void;
   /** Opens a topic's Revision tab (used by the flashcards-due banner). */
   onOpenRevision?: (topicId: string) => void;
 }) {
@@ -198,6 +204,7 @@ export default function LearningDayWorkspace({
     goals.find((g) => g.id === goalId) ||
     goals.find((g) => g.status === "Active") ||
     goals[0];
+  const { tracks: allCurriculums, topics } = useCurriculum();
   const [view, setView] = useState("Week"),
     [preview, setPreview] = useState<StudyTask[] | null>(null),
     [message, setMessage] = useState("");
@@ -499,6 +506,29 @@ export default function LearningDayWorkspace({
                   </select>
                 </label>
               ))}
+            </div>
+          )}
+          {(onEditCurriculum || onReplan) && (
+            <div className="rounded-xl border border-border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">Curriculum and plan</p>
+                <p className="text-sm text-muted-foreground">
+                  {goal.tracks.length} track{goal.tracks.length === 1 ? "" : "s"}
+                  {goal.knownTopicIds?.length ? ` · ${goal.knownTopicIds.length} topics marked as known` : ""}. Add or remove tracks and topics, then re-plan only the days that are still free.
+                </p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                {onEditCurriculum && (
+                  <button type="button" className="btn btn-primary btn-sm" onClick={() => onEditCurriculum(goal.id)}>
+                    Build my curriculum
+                  </button>
+                )}
+                {onReplan && (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => onReplan(goal.id)}>
+                    Re-plan unplanned topics
+                  </button>
+                )}
+              </div>
             </div>
           )}
           {onDeleteGoal && (

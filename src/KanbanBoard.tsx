@@ -62,7 +62,7 @@ export default function KanbanBoard({
               {column.apps.map((app) => (
                 <article
                   key={app.id}
-                  className="kanban-card rounded-xl border border-border bg-[hsl(var(--card))] p-3 sm:p-3.5"
+                  className="kanban-card rounded-xl border border-border/60 bg-[hsl(var(--card))] p-3 sm:p-3.5 transition-all duration-300 hover:shadow-medium hover:-translate-y-1 hover:border-primary/30"
                 >
                   <button
                     type="button"

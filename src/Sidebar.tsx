@@ -22,7 +22,7 @@ export const NAV_SECTIONS: { category: string; items: { id: ViewMode; label: str
     items: [
       { id: 'today', label: 'Today', icon: '☀️' },
       { id: 'roadmap', label: 'Goals & Roadmap', icon: '🗺️' },
-      { id: 'tracks', label: 'Learning Tracks', icon: '📚' },
+      { id: 'tracks', label: 'Explore', icon: '🧭' },
     ],
   },
   {
@@ -69,37 +69,37 @@ export default function Sidebar({ view, setView, theme, setTheme, user, syncing,
   const active = navParent(view)
 
   return (
-    <aside className="w-64 h-screen shrink-0 border-r border-border/50 bg-card/60 backdrop-blur-xl flex-col justify-between p-4 fixed left-0 top-0 z-40 hidden md:flex overflow-y-auto custom-scrollbar">
+    <aside className="w-[280px] h-screen shrink-0 border-r border-border/40 bg-card/80 backdrop-blur-2xl flex-col justify-between p-5 fixed left-0 top-0 z-40 hidden md:flex overflow-y-auto custom-scrollbar shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
       <div>
         <button
           type="button"
           onClick={() => setView('today')}
-          className="flex items-center gap-2 px-2 mb-8 mt-2 text-left"
+          className="flex items-center gap-3 px-3 mb-10 mt-2 text-left hover:opacity-80 transition-opacity"
           aria-label="Go to Today"
         >
-          <BrandLogo size={34} />
+          <BrandLogo size={36} />
         </button>
 
-        <nav className="flex flex-col gap-6" aria-label="Primary">
+        <nav className="flex flex-col gap-8" aria-label="Primary">
           {NAV_SECTIONS.map((section) => (
             <div key={section.category}>
-              <h3 className="px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/80 mb-2">
+              <h3 className="px-3 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60 mb-3">
                 {section.category}
               </h3>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1.5">
                 {section.items.map((item) => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => setView(item.id)}
                     aria-current={active === item.id ? 'page' : undefined}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                       active === item.id
                         ? 'nav-active'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
                     }`}
                   >
-                    <span className="w-5 text-center text-base leading-none" aria-hidden="true">
+                    <span className="w-5 text-center text-lg leading-none" aria-hidden="true">
                       {item.icon}
                     </span>
                     {item.label}
@@ -111,12 +111,12 @@ export default function Sidebar({ view, setView, theme, setTheme, user, syncing,
         </nav>
       </div>
 
-      <div className="flex flex-col gap-3 mt-8">
-        <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-4 mt-8">
+        <div className="flex flex-col gap-1.5">
           <button
             type="button"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-all duration-200"
           >
             <span className="w-5 text-center" aria-hidden="true">
               {theme === 'dark' ? '☀️' : '🌙'}
@@ -126,10 +126,10 @@ export default function Sidebar({ view, setView, theme, setTheme, user, syncing,
           <button
             type="button"
             aria-current={view === 'settings' ? 'page' : undefined}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
               view === 'settings'
                 ? 'nav-active'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
             }`}
             onClick={() => setView('settings')}
           >

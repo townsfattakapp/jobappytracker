@@ -1,14 +1,14 @@
-import LearningDayWorkspace from './LearningDayWorkspace'
+const LearningDayWorkspace = dynamic(() => import('./LearningDayWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Learning Day Workspace...</div> })
 import LearningTaskPicker, { type PickerContext } from './components/LearningTaskPicker'
-import { dateKey, dayDate, makeDay, topics } from './lib/learningPlan'
+import { dateKey, dayDate, makeDay, allTopics } from './lib/learningPlan'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
-import JobForm from './JobForm.tsx'
-import KanbanBoard from './KanbanBoard.tsx'
-import TableView from './TableView.tsx'
-import Dashboard from './Dashboard.tsx'
-import SearchFilter from './SearchFilter.tsx'
-import EmailImport from './EmailImport.tsx'
+const JobForm = dynamic(() => import('./JobForm'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Job Form...</div> })
+const KanbanBoard = dynamic(() => import('./KanbanBoard'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Kanban Board...</div> })
+const TableView = dynamic(() => import('./TableView'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Table View...</div> })
+const Dashboard = dynamic(() => import('./Dashboard'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Dashboard...</div> })
+const SearchFilter = dynamic(() => import('./SearchFilter'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Search Filter...</div> })
+const EmailImport = dynamic(() => import('./EmailImport'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Email Import...</div> })
 import BookmarkletModal from './BookmarkletModal.tsx'
 import dynamic from 'next/dynamic'
 import AppFooter from './components/AppFooter'
@@ -17,21 +17,21 @@ import BrandLogo, { BrandMark } from './components/BrandLogo'
 const HeroScene = dynamic(() => import('./components/HeroScene'), { ssr: false, loading: () => null })
 import PrepKit from './PrepKit.tsx'
 import AuthPanel from './AuthPanel.tsx'
-import GmailSyncPanel from './GmailSyncPanel.tsx'
-import GoalManager from './GoalManager.tsx'
-import DsaWorkspace from './DsaWorkspace.tsx'
-import ProblemDetail from './ProblemDetail.tsx'
-import LabWorkspace from './LabWorkspace.tsx'
-import LabTicketDetail from './LabTicketDetail.tsx'
-import MockInterviewWorkspace from './MockInterviewWorkspace.tsx'
-import InterviewSession from './InterviewSession.tsx'
+const GmailSyncPanel = dynamic(() => import('./GmailSyncPanel'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Gmail Sync Panel...</div> })
+const GoalManager = dynamic(() => import('./GoalManager'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Goal Manager...</div> })
+const DsaWorkspace = dynamic(() => import('./DsaWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Dsa Workspace...</div> })
+const ProblemDetail = dynamic(() => import('./ProblemDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Problem Detail...</div> })
+const LabWorkspace = dynamic(() => import('./LabWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Lab Workspace...</div> })
+const LabTicketDetail = dynamic(() => import('./LabTicketDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Lab Ticket Detail...</div> })
+const MockInterviewWorkspace = dynamic(() => import('./MockInterviewWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Mock Interview Workspace...</div> })
+const InterviewSession = dynamic(() => import('./InterviewSession'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Interview Session...</div> })
 import { roundForTrack, type InterviewSetup } from './lib/interview/config'
-import LearningTracksWorkspace from './LearningTracksWorkspace.tsx'
-import SystemDesignWorkspace from './SystemDesignWorkspace.tsx'
-import SystemDesignExerciseDetail from './SystemDesignExerciseDetail.tsx'
-import KnowledgeWorkspaceDetail from './KnowledgeWorkspaceDetail.tsx'
-import InterviewQuestionWorkspace from './InterviewQuestionWorkspace.tsx'
-import SettingsWorkspace from './SettingsWorkspace.tsx'
+const LearningTracksWorkspace = dynamic(() => import('./LearningTracksWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Learning Tracks Workspace...</div> })
+const SystemDesignWorkspace = dynamic(() => import('./SystemDesignWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading System Design Workspace...</div> })
+const SystemDesignExerciseDetail = dynamic(() => import('./SystemDesignExerciseDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading System Design Exercise Detail...</div> })
+const KnowledgeWorkspaceDetail = dynamic(() => import('./KnowledgeWorkspaceDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Knowledge Workspace Detail...</div> })
+const InterviewQuestionWorkspace = dynamic(() => import('./InterviewQuestionWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Interview Question Workspace...</div> })
+const SettingsWorkspace = dynamic(() => import('./SettingsWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Settings Workspace...</div> })
 import Sidebar, { type ViewMode } from './Sidebar.tsx'
 import MobileNav from './MobileNav.tsx'
 import {
@@ -55,6 +55,7 @@ import {
   type DsaAttemptSummary,
   type RevisionItem,
   type MockInterviewSummary,
+  type CurriculumTrack,
   type EngineeringLab,
   type LabAttemptSummary,
   type LeetCodeConfig,
@@ -69,11 +70,12 @@ import { engineeringLabsSeed } from './data/engineeringLabsSeed'
 import { systemDesignSeed } from './data/systemDesignSeed'
 import { CLOUD_MERGED_EVENT, getCurrentUser, loadCloudState, saveCloudState, signOut, type AppUser } from './lib/cloudSync'
 import Paywall from './components/Paywall'
+import GoalCurriculumEditor from './components/GoalCurriculumEditor'
 import { BILLING_CHANGED_EVENT, fetchBillingState, type BillingState } from './lib/billing/client'
 import { BILLING_REQUIRED_EVENT } from './lib/aiGatewayClient'
 import { CODE_LANGUAGES, CODE_LANGUAGE_EVENT, getCodeLanguage, setCodeLanguage } from './lib/preferences'
-import { allCurriculums } from './data/curriculum'
-import { scheduleTrackIntoRoadmap } from './lib/roadmapGenerator'
+import { setPersonalTracks } from './lib/curriculum/registry'
+import { fillRoadmap, scheduleTrackIntoRoadmap } from './lib/roadmapGenerator'
 
 const GUEST_MODE_KEY = 'jobappy-guest-mode'
 const STORAGE_OWNER_KEY = 'jobappy-storage-owner'
@@ -146,6 +148,8 @@ export default function App() {
   const [planDate, setPlanDate] = useState(dateKey())
   const [syncEpoch, setSyncEpoch] = useState(0)
   const [creatingGoal, setCreatingGoal] = useState(false)
+  const [creatingFromPath, setCreatingFromPath] = useState<string | undefined>(undefined)
+  const [editingCurriculumGoalId, setEditingCurriculumGoalId] = useState<string | null>(null)
   const [learningActivity, setLearningActivity] = useState('')
   const [activityTab, setActivityTab] = useState<'Concepts' | 'Examples' | 'Diagrams' | 'Practice' | 'Mistakes' | 'Revision'>('Concepts')
   const [learningReturn, setLearningReturn] = useState<ViewMode>('today')
@@ -158,12 +162,15 @@ export default function App() {
   const [labAttemptSummaries, setLabAttemptSummaries] = useState<LabAttemptSummary[]>(() => stored.labAttemptSummaries || [])
   const [mockInterviewSummaries, setMockInterviewSummaries] = useState<MockInterviewSummary[]>(() => stored.mockInterviewSummaries || [])
   const [leetCodeConfig, setLeetCodeConfig] = useState<LeetCodeConfig>(() => stored.leetCodeConfig || emptyLeetCodeConfig())
-  const learningTracks = allCurriculums
   const [systemDesignExercises, setSystemDesignExercises] = useState<SystemDesignExercise[]>(() =>
     mergeSeed(stored.systemDesignExercises || [], systemDesignSeed),
   )
   const [systemDesignAttemptSummaries, setSystemDesignAttemptSummaries] = useState<SystemDesignAttemptSummary[]>(() => stored.systemDesignAttemptSummaries || [])
   const [knowledgeWorkspaces, setKnowledgeWorkspaces] = useState<KnowledgeWorkspace[]>(() => stored.knowledgeWorkspaces || [])
+  const [customTracks, setCustomTracks] = useState<CurriculumTrack[]>(() => stored.customTracks || [])
+  useEffect(() => {
+    setPersonalTracks(customTracks)
+  }, [customTracks])
   const [preferences, setPreferences] = useState<UserPreferences>(() => ({ codeLanguage: getCodeLanguage(), ...(stored.preferences || {}) }))
 
   const [user, setUser] = useState<AppUser | null>(null)
@@ -222,6 +229,10 @@ export default function App() {
     return () => window.removeEventListener('online', retry)
   }, [])
 
+  useEffect(() => {
+    import('./lib/curriculum/shared').then(m => m.loadSharedTracks())
+  }, [])
+
   const snapshot = useMemo<Storage>(
     () => ({
       applications,
@@ -240,6 +251,7 @@ export default function App() {
       systemDesignExercises,
       systemDesignAttemptSummaries,
       knowledgeWorkspaces,
+      customTracks,
       preferences,
     }),
     [
@@ -258,6 +270,7 @@ export default function App() {
       systemDesignExercises,
       systemDesignAttemptSummaries,
       knowledgeWorkspaces,
+      customTracks,
       preferences,
     ],
   )
@@ -337,6 +350,7 @@ export default function App() {
     setSystemDesignExercises(mergeSeed(cloud.systemDesignExercises || [], systemDesignSeed))
     setSystemDesignAttemptSummaries(cloud.systemDesignAttemptSummaries || [])
     setKnowledgeWorkspaces(cloud.knowledgeWorkspaces || [])
+    setCustomTracks(cloud.customTracks || [])
     const cloudLanguage = cloud.preferences?.codeLanguage
     if (cloudLanguage && (CODE_LANGUAGES as readonly string[]).includes(cloudLanguage)) {
       setPreferences({ ...(cloud.preferences || {}), codeLanguage: cloudLanguage })
@@ -783,7 +797,7 @@ export default function App() {
         onSignOut={handleSignOut}
       />
 
-      <main className="flex-1 min-w-0 md:ml-64 pb-24 md:pb-0 relative">
+      <main className="flex-1 min-w-0 md:ml-[280px] pb-24 md:pb-0 relative">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background -z-10 pointer-events-none"></div>
         <div className="app-shell pt-5 sm:pt-8">
           {user && billing?.entitlement?.access && !billing.entitlement.complimentary && billing.entitlement.daysLeft <= 7 && (
@@ -873,6 +887,37 @@ export default function App() {
             </div>
           )}
 
+          {editingCurriculumGoalId && goals.some((g) => g.id === editingCurriculumGoalId) && (
+            <GoalCurriculumEditor
+              goal={goals.find((g) => g.id === editingCurriculumGoalId)!}
+              customTracks={customTracks}
+              onCustomTracksChange={setCustomTracks}
+              onClose={() => setEditingCurriculumGoalId(null)}
+              onOpenTopic={(topicId) => {
+                setEditingCurriculumGoalId(null)
+                setLearningReturn('roadmap')
+                setSelectedTopicId(topicId)
+                setActivityTab('Concepts')
+                setLearningActivity('')
+                setView('topicWorkspace')
+              }}
+              onSave={(goal, replan) => {
+                const nextGoals = goals.map((g) => (g.id === goal.id ? goal : g))
+                let nextRoadmap = roadmap
+                let added = 0
+                if (replan) {
+                  const result = fillRoadmap(goal, roadmap, dateKey())
+                  nextRoadmap = result.roadmap
+                  added = result.added
+                }
+                persistCareer({ ...snapshotRef.current, goals: nextGoals, roadmap: nextRoadmap })
+                setGoals(nextGoals)
+                setRoadmap(nextRoadmap)
+                setEditingCurriculumGoalId(null)
+                showToast(replan ? (added ? `Curriculum saved. ${added} tasks scheduled into free days.` : 'Curriculum saved. Nothing new to schedule.') : 'Curriculum saved')
+              }}
+            />
+          )}
           {picker && (
             <LearningTaskPicker
               problems={dsaProblems}
@@ -942,18 +987,53 @@ export default function App() {
               creatingGoal || (view === 'roadmap' && !goals.length) ? (
                 <GoalManager
                   goal={null}
-                  learningTracks={learningTracks}
-                  onCancel={goals.length ? () => setCreatingGoal(false) : undefined}
-                  onSaveGoal={(goal, days) => {
-                    setGoals((prev) => (prev.some((g) => g.id === goal.id) ? prev : [...prev, goal]))
-                    setRoadmap((prev) => [
-                      ...prev,
-                      ...days.filter((d) => !prev.some((old) => old.goalId === d.goalId && dayDate(old.date) === dayDate(d.date))),
-                    ])
+                  initialPathId={creatingFromPath}
+                  customTracks={customTracks}
+                  onCustomTracksChange={setCustomTracks}
+                  onCancel={goals.length ? () => {
+                    setCreatingGoal(false)
+                    setCreatingFromPath(undefined)
+                  } : undefined}
+                  onOpenTopic={(topicId) => {
+                    setLearningReturn('roadmap')
+                    setSelectedTopicId(topicId)
+                    setActivityTab('Concepts')
+                    setLearningActivity('')
+                    setView('topicWorkspace')
+                  }}
+                  onSaveGoal={(goal, days, next) => {
+                    setGoals((prev) => (prev.some((g) => g.id === goal.id) ? prev.map((g) => (g.id === goal.id ? goal : g)) : [...prev, goal]))
+                    if (days.length) {
+                      setRoadmap((prev) => [
+                        ...prev,
+                        ...days.filter((d) => !prev.some((old) => old.goalId === d.goalId && dayDate(old.date) === dayDate(d.date))),
+                      ])
+                    }
                     setPlanGoalId(goal.id)
                     setPlanDate(dayDate(goal.startDate))
                     setCreatingGoal(false)
-                    showToast('Goal created. Your roadmap is ready.')
+                    setCreatingFromPath(undefined)
+                    if (next === 'start') {
+                      const first = goal.tracks
+                        .slice()
+                        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                        .map((t) => {
+                          const include = t.topicIds ? new Set(t.topicIds) : null
+                          const exclude = new Set([...(t.excludedTopicIds || []), ...(goal.knownTopicIds || [])])
+                          return allTopics().find((x) => x.track.id === t.trackId && (!include || include.has(x.topic.id)) && !exclude.has(x.topic.id))
+                        })
+                        .find(Boolean)
+                      if (first) {
+                        setLearningReturn('roadmap')
+                        setSelectedTopicId(first.topic.id)
+                        setActivityTab('Concepts')
+                        setLearningActivity('')
+                        setView('topicWorkspace')
+                        showToast('Goal created. Starting with your first topic.')
+                        return
+                      }
+                    }
+                    showToast(next === 'roadmap' ? 'Goal created. Your roadmap is ready.' : 'Goal created. Add tasks from any day or topic.')
                   }}
                 />
               ) : (
@@ -982,6 +1062,15 @@ export default function App() {
                     setLearningActivity('')
                     setView('topicWorkspace')
                   }}
+                  onEditCurriculum={(goalId) => setEditingCurriculumGoalId(goalId)}
+                  onReplan={(goalId) => {
+                    const goal = goals.find((g) => g.id === goalId)
+                    if (!goal) return
+                    const { roadmap: next, added } = fillRoadmap(goal, roadmap, dateKey())
+                    persistCareer({ ...snapshotRef.current, roadmap: next })
+                    setRoadmap(next)
+                    showToast(added ? `${added} tasks scheduled into free days` : 'Nothing left to plan: every topic is already scheduled or the goal has no free time')
+                  }}
                   onDeleteGoal={(goalId) => {
                     const remainingGoals = goals.filter((g) => g.id !== goalId)
                     const remainingDays = roadmap.filter((d) => d.goalId !== goalId)
@@ -994,7 +1083,7 @@ export default function App() {
                   onStart={(task) => {
                     setLearningReturn(view)
                     setLearningActivity(task.activity || '')
-                    const info = topics.find(
+                    const info = allTopics().find(
                       (x) =>
                         x.topic.id === task.topicId ||
                         x.topic.subtopics.some(
@@ -1176,6 +1265,7 @@ export default function App() {
                   onOpenSettings={() => setView('settings')}
                   openReportId={openReportId}
                   onReportClosed={() => setOpenReportId(null)}
+                  onDeleteInterview={(id) => setMockInterviewSummaries((prev) => prev.filter((s) => s.id !== id))}
                 />
               )
             ) : view === 'topicWorkspace' && selectedTopicId ? (
@@ -1210,6 +1300,12 @@ export default function App() {
                 onSchedule={(context) => requireGoal(context)}
                 goals={goals}
                 onGoals={setGoals}
+                onUsePath={(path) => {
+                  setCreatingFromPath(path.id)
+                  setCreatingGoal(true)
+                  setView('roadmap')
+                }}
+                onEditCurriculum={(goalId) => setEditingCurriculumGoalId(goalId)}
                 onTrackAdded={(goalId, trackId) => {
                   const goal = goals.find((g) => g.id === goalId)
                   if (!goal) return

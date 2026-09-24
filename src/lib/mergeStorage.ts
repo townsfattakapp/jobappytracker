@@ -96,6 +96,7 @@ export function mergeStorage(local: Storage, cloud: Storage): Storage {
     systemDesignExercises: mergeById(local.systemDesignExercises, cloud.systemDesignExercises),
     systemDesignAttemptSummaries: mergeById(local.systemDesignAttemptSummaries, cloud.systemDesignAttemptSummaries),
     knowledgeWorkspaces: mergeWorkspaces(local.knowledgeWorkspaces, cloud.knowledgeWorkspaces),
+    customTracks: mergeById(local.customTracks || [], cloud.customTracks || []),
     gmailSync: laterStamp(local.gmailSync?.lastSyncAt, cloud.gmailSync?.lastSyncAt) ? local.gmailSync : cloud.gmailSync || local.gmailSync,
     leetCodeConfig: laterStamp(local.leetCodeConfig?.lastSync, cloud.leetCodeConfig?.lastSync) ? local.leetCodeConfig : cloud.leetCodeConfig || local.leetCodeConfig,
     preferences: { ...(cloud.preferences || {}), ...(local.preferences || {}) },

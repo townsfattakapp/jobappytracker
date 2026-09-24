@@ -117,17 +117,20 @@ await waitForSession(page)
 await page.getByRole('button', { name: 'Today', exact: true }).first().click()
 await page.getByText('Create a goal to start learning', { exact: true }).waitFor()
 await page.getByRole('button', { name: 'Create your goal', exact: true }).click()
+// Step 1: Outcome
+await page.getByRole('button', { name: 'Next step', exact: true }).click()
+// Step 2: Templates
+await page.getByRole('button', { name: /Software Engineer Interview Preparation/ }).click()
+await page.getByRole('button', { name: 'Next step', exact: true }).click()
+// Step 3: Personalize
 await page.getByLabel('Target role', { exact: true }).fill('Backend Engineer at a product company')
-await page.getByRole('button', { name: 'Next Step', exact: true }).click()
-await page.getByLabel('Duration (days)', { exact: true }).fill('90')
 await page.getByLabel('Study hours per active day', { exact: true }).fill('2')
-await page.getByRole('button', { name: 'Next Step', exact: true }).click()
-await page.getByRole('button', { name: 'Select DSA and Competitive Programming', exact: true }).click()
-await page.getByRole('button', { name: 'Select High-Level System Design (HLD)', exact: true }).click()
-await page.getByRole('button', { name: 'Select Core Java, OOP and Collections', exact: true }).click()
+await page.getByRole('button', { name: 'Next step', exact: true }).click()
+// Step 4: Review
 await shot('goal')
-await page.getByRole('button', { name: 'Preview plan', exact: true }).click()
-await page.getByRole('button', { name: 'Generate Roadmap', exact: true }).click()
+await page.getByRole('button', { name: 'Looks good', exact: true }).click()
+// Step 5: Create
+await page.getByRole('button', { name: 'Generate personalized roadmap' }).click()
 await page.waitForTimeout(800)
 await page.getByRole('button', { name: 'Today', exact: true }).first().click()
 await page.waitForTimeout(600)

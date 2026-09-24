@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import dotenv from "dotenv";
 import pg from "pg";
 import { grantPass, waitForSession } from "./lib/pass.mjs";
-dotenv.config({ path: ".env.local", quiet: true });
+dotenv.config({ path: [".env.development.local", ".env.local"], quiet: true });
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const browser = await chromium.launch();
 const email = `learning-e2e-${Date.now()}@example.invalid`;
@@ -12,6 +12,7 @@ try {
   const context = await browser.newContext();
   const page = await context.newPage();
   await page.goto("http://localhost:3000/app");
+  await page.getByRole("tab", { name: "Create account", exact: true }).click();
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Create account", exact: true }).click();
@@ -26,18 +27,23 @@ try {
   await page
     .getByRole("button", { name: "Create your goal", exact: true })
     .click();
+  // Step 1
+  await page.getByRole("button", { name: "Next step", exact: true }).click();
+  // Step 2
+  await page
+    .getByRole("button", { name: /Software Engineer Interview Preparation/ })
+    .click();
+  await page.getByRole("button", { name: "Next step", exact: true }).click();
+  // Step 3
   await page
     .getByLabel("Target role", { exact: true })
     .fill("Cloud Learning Engineer");
-  await page.getByRole("button", { name: "Next Step", exact: true }).click();
-  await page.getByLabel("Duration (days)", { exact: true }).fill("14");
-  await page.getByRole("button", { name: "Next Step", exact: true }).click();
+  await page.getByRole("button", { name: "Next step", exact: true }).click();
+  // Step 4
+  await page.getByRole("button", { name: "Looks good", exact: true }).click();
+  // Step 5
   await page
-    .getByRole("button", { name: "Select DSA and Competitive Programming", exact: true })
-    .click();
-  await page.getByRole("button", { name: "Preview plan", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Generate Roadmap", exact: true })
+    .getByRole("button", { name: "Generate personalized roadmap" })
     .click();
   await page.getByRole("button", { name: "+ Add task", exact: true }).click();
   const modal = page.getByRole("dialog");

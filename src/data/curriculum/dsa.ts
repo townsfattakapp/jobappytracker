@@ -18,6 +18,84 @@ export const trackdsaCurriculum: CurriculumTrack = {
               id: 'mod-33heupgyn',
               title: 'Concepts & Implementation',
               topics: [
+                  {
+                    id: 'top-iqlhbcdow',
+                    title: `What is Data Structures and Algorithms?`,
+                    subtopics: [
+                      {
+                      id: 'sub-5pblltarj',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-sgszgu6qx', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-xmbnrxbn6', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-funm0e4mn',
+      title: `What exactly is Data Structures and Algorithms?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `It is a fundamental concept/tool in modern software engineering.`,
+      detailedExplanation: `It is a fundamental concept/tool in modern software engineering.`,
+      interviewAnswer: `It is a fundamental concept/tool in modern software engineering.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-4ngjq9ix0',
+                    title: `Why use Data Structures and Algorithms?`,
+                    subtopics: [
+                      {
+                      id: 'sub-w8yr5o427',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-e0nmsv8y1', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-2ggkf8f9s', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-efcnd6xfu',
+      title: `Where is Data Structures and Algorithms used?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `In almost every modern tech stack and enterprise system.`,
+      detailedExplanation: `In almost every modern tech stack and enterprise system.`,
+      interviewAnswer: `In almost every modern tech stack and enterprise system.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-pwsa1hksp',
+                    title: `History and Ecosystem`,
+                    subtopics: [
+                      {
+                      id: 'sub-thajc0j5g',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-3nu97ea2k', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-v43ub5d6w', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-20d0xhrj2',
+      title: `How has it evolved?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `It has become more standardized, efficient, and easier to use over time.`,
+      detailedExplanation: `It has become more standardized, efficient, and easier to use over time.`,
+      interviewAnswer: `It has become more standardized, efficient, and easier to use over time.`
+  }
+                      ]
+                      }
+                    ]
+                  },
                 {
                   id: 'top-2fofb6p5i',
                   title: `Input/output`,

@@ -18,6 +18,84 @@ export const tracknodeCurriculum: CurriculumTrack = {
               id: 'mod-h3980mdly',
               title: 'Concepts & Implementation',
               topics: [
+                  {
+                    id: 'top-x37l606ti',
+                    title: `What is Node.js?`,
+                    subtopics: [
+                      {
+                      id: 'sub-0i30701kd',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-4pqh2bdrm', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-scj4iuhos', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-603w8rnt0',
+      title: `What exactly is Node.js?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `It is a fundamental concept/tool in modern software engineering.`,
+      detailedExplanation: `It is a fundamental concept/tool in modern software engineering.`,
+      interviewAnswer: `It is a fundamental concept/tool in modern software engineering.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-uagee2am8',
+                    title: `Why use Node.js?`,
+                    subtopics: [
+                      {
+                      id: 'sub-wmw870c0o',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-8u1kht1x6', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-4v8j5162x', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-0o06b3a2n',
+      title: `Where is Node.js used?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `In almost every modern tech stack and enterprise system.`,
+      detailedExplanation: `In almost every modern tech stack and enterprise system.`,
+      interviewAnswer: `In almost every modern tech stack and enterprise system.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-wq9igozqi',
+                    title: `History and Ecosystem`,
+                    subtopics: [
+                      {
+                      id: 'sub-1q118sph7',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-ttednn23s', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-2vct8k4sj', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-imq1o2qd8',
+      title: `How has it evolved?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `It has become more standardized, efficient, and easier to use over time.`,
+      detailedExplanation: `It has become more standardized, efficient, and easier to use over time.`,
+      interviewAnswer: `It has become more standardized, efficient, and easier to use over time.`
+  }
+                      ]
+                      }
+                    ]
+                  },
                 {
                   id: 'top-20nr3aoma',
                   title: `Backend architecture`,

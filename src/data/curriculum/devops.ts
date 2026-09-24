@@ -18,6 +18,84 @@ export const trackdevopsCurriculum: CurriculumTrack = {
               id: 'mod-xij9wr9g4',
               title: 'Concepts & Implementation',
               topics: [
+                  {
+                    id: 'top-da346k9dq',
+                    title: `What is DevOps?`,
+                    subtopics: [
+                      {
+                      id: 'sub-kyv3evj1u',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-w73u4wf22', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-4r8sdi3h6', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-g8222ptt4',
+      title: `What exactly is DevOps?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `It is a fundamental concept/tool in modern software engineering.`,
+      detailedExplanation: `It is a fundamental concept/tool in modern software engineering.`,
+      interviewAnswer: `It is a fundamental concept/tool in modern software engineering.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-xa7ztnmpg',
+                    title: `Why use DevOps?`,
+                    subtopics: [
+                      {
+                      id: 'sub-c3wmqfzj1',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-c0kd2wqc8', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-imbxjq6gs', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-6pxdmpntb',
+      title: `Where is DevOps used?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `In almost every modern tech stack and enterprise system.`,
+      detailedExplanation: `In almost every modern tech stack and enterprise system.`,
+      interviewAnswer: `In almost every modern tech stack and enterprise system.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-fzak3cbzr',
+                    title: `History and Ecosystem`,
+                    subtopics: [
+                      {
+                      id: 'sub-k1w0ywvzv',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-e26btaxvh', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-hw22jurjv', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-sj2g27xux',
+      title: `How has it evolved?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `It has become more standardized, efficient, and easier to use over time.`,
+      detailedExplanation: `It has become more standardized, efficient, and easier to use over time.`,
+      interviewAnswer: `It has become more standardized, efficient, and easier to use over time.`
+  }
+                      ]
+                      }
+                    ]
+                  },
                 {
                   id: 'top-3j41z61gf',
                   title: `Linux basics`,

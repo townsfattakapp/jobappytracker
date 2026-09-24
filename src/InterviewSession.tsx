@@ -8,11 +8,11 @@ import {
   buildScorecardMessages,
   normalizeScorecard,
   personaById,
-  roundById,
   speakableText,
   type InterviewSetup,
   type InterviewerTurn,
 } from './lib/interview/config'
+import { useRoundById } from './lib/interview/hooks'
 import { listen, speak, sttSupported, stopSpeaking, ttsSupported, type Listener } from './lib/interview/speech'
 import { renderMarkdownRich } from './lib/markdown'
 import AlgoEditor from './components/compiler/AlgoEditor'
@@ -55,7 +55,7 @@ function parseInterviewer(raw: string): InterviewerTurn {
 }
 
 export default function InterviewSession({ setup, onEndSession, onCancel, onOpenSettings }: InterviewSessionProps) {
-  const round = useMemo(() => roundById(setup.roundId), [setup.roundId])
+  const round = useRoundById(setup.roundId)
   const persona = useMemo(() => personaById(setup.personaId), [setup.personaId])
   const runnerLanguage = round.coding && round.defaultLanguage && round.defaultLanguage !== 'sql'
   const plannedMs = setup.minutes * 60_000
@@ -78,6 +78,7 @@ export default function InterviewSession({ setup, onEndSession, onCancel, onOpen
   const [remaining, setRemaining] = useState(plannedMs)
   const [banner, setBanner] = useState<string | null>(null)
   const [hintsUsed, setHintsUsed] = useState(0)
+  const [countdown, setCountdown] = useState<number | null>(3)
 
   const startedAt = useRef(Date.now())
   const sessionId = useRef(uuidv4())
@@ -121,8 +122,25 @@ export default function InterviewSession({ setup, onEndSession, onCancel, onOpen
     [setup, remainingMinutes, say],
   )
 
+  // Countdown before kickoff
+  useEffect(() => {
+    if (countdown === null) return
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
+      return () => clearTimeout(timer)
+    }
+    if (countdown === 0) {
+      const timer = setTimeout(() => {
+        setCountdown(null)
+        startedAt.current = Date.now() // reset start time when countdown ends
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [countdown])
+
   // Kick off: check AI, then let the interviewer open the round.
   useEffect(() => {
+    if (countdown !== null) return // Wait for countdown to finish
     if (started.current) return
     started.current = true
     ;(async () => {
@@ -133,7 +151,21 @@ export default function InterviewSession({ setup, onEndSession, onCancel, onOpen
       }
       await askInterviewer([])
     })()
-  }, [])
+  }, [countdown, askInterviewer])
+
+  // Auto-save transcript during the session
+  useEffect(() => {
+    if (turns.length === 0 || finished.current) return
+    saveInterviewSessionTranscript({
+      id: sessionId.current,
+      transcript: turns,
+      roundId: round.id,
+      level: setup.level,
+      personaId: persona.id,
+      plannedMinutes: setup.minutes,
+      startedAt: new Date(startedAt.current).toISOString(),
+    }).catch(() => {})
+  }, [turns, round, setup, persona])
 
   // Countdown with spoken warnings and auto wrap-up.
   useEffect(() => {
@@ -554,6 +586,18 @@ export default function InterviewSession({ setup, onEndSession, onCancel, onOpen
           )}
         </aside>
       </div>
+
+      {countdown !== null && (
+        <div className="iv-overlay" role="alert" aria-live="polite">
+          <div className="iv-overlay-card surface" style={{ transform: `scale(${1 + (3 - countdown) * 0.1})`, transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
+            <h2 className="text-6xl font-black text-primary mb-2">
+              {countdown > 0 ? countdown : 'Go!'}
+            </h2>
+            <p className="font-bold">{persona.name} is ready for you.</p>
+            <p className="text-sm text-muted-foreground mt-1">Take a deep breath.</p>
+          </div>
+        </div>
+      )}
 
       {finishing && (
         <div className="iv-overlay" role="status" aria-live="polite">

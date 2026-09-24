@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { InterviewSessionTranscript, MockInterviewSummary } from '../types'
 import { getInterviewSessionTranscript } from '../db'
-import { personaById, roundById, verdictTone } from '../lib/interview/config'
+import { personaById, verdictTone } from '../lib/interview/config'
+import { useRoundById } from '../lib/interview/hooks'
 import { renderMarkdownRich } from '../lib/markdown'
 
 interface InterviewReportProps {
@@ -37,7 +38,7 @@ export default function InterviewReport({ summary, onClose, onRetake }: Intervie
   const [transcript, setTranscript] = useState<InterviewSessionTranscript | null | undefined>(undefined)
   const [showTranscript, setShowTranscript] = useState(false)
   const [openAnswer, setOpenAnswer] = useState<number | null>(0)
-  const round = roundById(summary.roundId)
+  const round = useRoundById(summary.roundId)
   const persona = personaById(summary.personaId)
 
   useEffect(() => {

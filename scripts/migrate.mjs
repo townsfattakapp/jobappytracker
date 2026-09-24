@@ -1,26 +1,24 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import pg from 'pg';
-import { config } from 'dotenv';
 import path from 'path';
-
-config({ path: '.env.local' });
-
-const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
-
-const db = drizzle(pool);
+import { confirmDevelopmentDatabase, loadDevelopmentDatabaseEnv } from './lib/development-database.mjs';
 
 async function main() {
-  console.log("Starting migration...");
-  await migrate(db, { migrationsFolder: path.join(process.cwd(), 'src/lib/db/migrations') });
-  console.log("Migration complete!");
-  process.exit(0);
+  loadDevelopmentDatabaseEnv();
+  const target = confirmDevelopmentDatabase(process.env, process.argv.slice(2));
+  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 10000 });
+  try {
+    console.log(`Starting confirmed development migration: ${target}`);
+    await migrate(drizzle(pool), { migrationsFolder: path.join(process.cwd(), 'src/lib/db/migrations') });
+    console.log('Development migration complete. No curriculum data was seeded.');
+  } finally {
+    await pool.end();
+  }
 }
 
 main().catch(err => {
-  console.error("Migration failed!", err);
-  process.exit(1);
+  // Connection errors may contain connection details; never dump the URL or config.
+  console.error('Migration failed:', err.code ? `Database error ${err.code}` : err.message);
+  process.exitCode = 1;
 });

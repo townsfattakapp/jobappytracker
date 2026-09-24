@@ -300,7 +300,6 @@ export const subscriptions = pgTable('subscriptions', {
   updatedAt: timestamp('updatedAt').notNull().defaultNow(),
 })
 
-/** The learner's own AI provider key, encrypted at rest; only the last characters are kept in clear for display. */
 export const userAiKeys = pgTable('user_ai_keys', {
   userId: text('userId').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
   provider: text('provider').notNull(),
@@ -308,4 +307,18 @@ export const userAiKeys = pgTable('user_ai_keys', {
   keyHint: text('keyHint').notNull(),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
   updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+})
+
+export const curriculumTracks = pgTable('curriculum_tracks', {
+  id: text('id').primaryKey(),
+  ownerId: text('ownerId').references(() => users.id, { onDelete: 'set null' }),
+  status: text('status').notNull(), // draft, review, published, archived
+  version: integer('version').notNull().default(1),
+  title: text('title').notNull(),
+  family: text('family').notNull(),
+  data: jsonb('data').notNull(),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+  publishedAt: timestamp('publishedAt'),
+  reviewNote: text('reviewNote'),
 })

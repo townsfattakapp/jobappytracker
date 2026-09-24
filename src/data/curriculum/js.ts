@@ -18,9 +18,87 @@ export const trackjsCurriculum: CurriculumTrack = {
               id: 'mod-cmmorqtbq',
               title: 'Concepts & Implementation',
               topics: [
-                {
-                  id: 'top-mnivimi0o',
-                  title: `JavaScript runtime`,
+                  {
+                    id: 'top-3zo7huvlu',
+                    title: `What is JavaScript?`,
+                    subtopics: [
+                      {
+                      id: 'sub-qugn2u67y',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-f950urjh2', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-f4ymxj0q8', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-azgsx7pgf',
+      title: `What makes JS dynamic?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `Types are determined at runtime, not compile time.`,
+      detailedExplanation: `Types are determined at runtime, not compile time.`,
+      interviewAnswer: `Types are determined at runtime, not compile time.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-gfoycwbhz',
+                    title: `Where is JavaScript used?`,
+                    subtopics: [
+                      {
+                      id: 'sub-6mz9qnod6',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-sbqswjsfr', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-7wp4q3n2f', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-li4283zwx',
+      title: `Can JS be used for backend?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `Yes, runtimes like Node.js and Bun allow JS to run outside the browser.`,
+      detailedExplanation: `Yes, runtimes like Node.js and Bun allow JS to run outside the browser.`,
+      interviewAnswer: `Yes, runtimes like Node.js and Bun allow JS to run outside the browser.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-tuyh6qnel',
+                    title: `History and ECMAScript`,
+                    subtopics: [
+                      {
+                      id: 'sub-9ytii6sr3',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-4tb89topd', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-ln3jmm5ca', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-r30l3sg30',
+      title: `What is ECMAScript?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `The official standard and specification that JavaScript implements.`,
+      detailedExplanation: `The official standard and specification that JavaScript implements.`,
+      interviewAnswer: `The official standard and specification that JavaScript implements.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-mnivimi0o',
+                    title: `JavaScript runtime`,
                   subtopics: [
                     {
                     id: 'sub-n9uwxvxlc',

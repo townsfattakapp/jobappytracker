@@ -4,10 +4,11 @@ import type {
   CurriculumTaskDef,
   CurriculumTopic,
   Goal,
+  GoalTrack,
   RoadmapDay,
   StudyTask,
 } from "../types";
-import { allCurriculums } from "../data/curriculum";
+import { getCurriculum } from "./curriculum/registry";
 
 /** Share of each study day reserved for spaced revision of earlier topics. */
 const REVISION_SHARE = 0.2;
@@ -33,43 +34,94 @@ type TrackQueue = {
   consumed: number;
   items: QueueItem[];
   prerequisites: string[];
+  order: number;
 };
 
-function buildQueues(goal: Goal, tracks: CurriculumTrack[]): TrackQueue[] {
+function currentTracks(tracks?: CurriculumTrack[]): CurriculumTrack[] {
+  return tracks && tracks.length ? tracks : getCurriculum().tracks;
+}
+
+/** Topics of a track that a goal actually includes: explicit selection minus exclusions and known topics. */
+export function selectedTopics(goal: Pick<Goal, "knownTopicIds">, selection: GoalTrack, track: CurriculumTrack): CurriculumTopic[] {
+  const include = selection.topicIds ? new Set(selection.topicIds) : null;
+  const exclude = new Set([...(selection.excludedTopicIds || []), ...(goal.knownTopicIds || [])]);
+  const out: CurriculumTopic[] = [];
+  for (const level of track.levels)
+    for (const category of level.categories)
+      for (const module of category.modules)
+        for (const topic of module.topics) {
+          if (include && !include.has(topic.id)) continue;
+          if (exclude.has(topic.id)) continue;
+          out.push(topic);
+        }
+  return out;
+}
+
+/** Orders topics so every prerequisite (within the selection) comes first, keeping curriculum order otherwise. */
+export function orderByPrerequisites(topics: CurriculumTopic[]): CurriculumTopic[] {
+  const ids = new Set(topics.map((t) => t.id));
+  const placed = new Set<string>();
+  const out: CurriculumTopic[] = [];
+  const visiting = new Set<string>();
+  const byId = new Map(topics.map((t) => [t.id, t]));
+  const visit = (topic: CurriculumTopic) => {
+    if (placed.has(topic.id) || visiting.has(topic.id)) return;
+    visiting.add(topic.id);
+    for (const pre of topic.prerequisites || []) {
+      const p = ids.has(pre) ? byId.get(pre) : undefined;
+      if (p) visit(p);
+    }
+    visiting.delete(topic.id);
+    placed.add(topic.id);
+    out.push(topic);
+  };
+  for (const topic of topics) visit(topic);
+  return out;
+}
+
+function categoryOf(track: CurriculumTrack, topicId: string): string {
+  for (const level of track.levels)
+    for (const category of level.categories)
+      for (const module of category.modules)
+        if (module.topics.some((t) => t.id === topicId)) return category.id;
+  return "";
+}
+
+function buildQueues(goal: Goal, tracks: CurriculumTrack[], skipTaskIds?: Set<string>): TrackQueue[] {
   const selected = new Set(goal.tracks.map((t) => t.trackId));
   return goal.tracks
-    .map((selection) => {
+    .map((selection, index) => {
       const track = tracks.find((t) => t.id === selection.trackId);
       if (!track) return null;
       const items: QueueItem[] = [];
-      for (const level of track.levels)
-        for (const category of level.categories)
-          for (const module of category.modules)
-            for (const topic of module.topics) {
-              const defs = topicStepDefs(topic);
-              defs.forEach(({ sub, def }, index) =>
-                items.push({
-                  trackId: track.id,
-                  categoryId: category.id,
-                  topicId: topic.id,
-                  topicTitle: topic.title,
-                  subtopicId: sub.id,
-                  def,
-                  closesTopic: index === defs.length - 1,
-                  priority: selection.priority,
-                }),
-              );
-            }
+      for (const topic of orderByPrerequisites(selectedTopics(goal, selection, track))) {
+        const categoryId = categoryOf(track, topic.id);
+        const defs = topicStepDefs(topic).filter(({ def }) => !skipTaskIds?.has(def.id));
+        defs.forEach(({ sub, def }, i) =>
+          items.push({
+            trackId: track.id,
+            categoryId,
+            topicId: topic.id,
+            topicTitle: topic.title,
+            subtopicId: sub.id,
+            def,
+            closesTopic: i === defs.length - 1,
+            priority: selection.priority,
+          }),
+        );
+      }
       const queue: TrackQueue = {
         trackId: track.id,
         weight: PRIORITY_WEIGHT[selection.priority] || 2,
         consumed: 0,
         items,
-        prerequisites: track.prerequisites.filter((id) => selected.has(id)),
+        prerequisites: (track.prerequisites || []).filter((id) => selected.has(id)),
+        order: selection.order ?? index,
       };
       return queue;
     })
-    .filter((q): q is TrackQueue => q !== null);
+    .filter((q): q is TrackQueue => q !== null)
+    .sort((a, b) => a.order - b.order);
 }
 
 function taskFrom(item: QueueItem, day: RoadmapDay, minutes: number): StudyTask {
@@ -107,8 +159,13 @@ export function criteriaFor(activity: string, topicTitle: string): string {
   if (a.includes("example")) return `Trace two worked examples step by step; save one to the Examples tab.`;
   if (a.includes("snippet") || a.includes("code")) return `Implement ${topicTitle} from memory in the Practice tab and run it.`;
   if (a.includes("problem")) return `Solve 2–3 problems on ${topicTitle}; log each attempt with what tripped you up.`;
+  if (a.includes("exercise") || a.includes("apply")) return `Complete a hands-on exercise on ${topicTitle} and note what you would do differently.`;
   if (a.includes("revis") || a.includes("review")) return `Re-read your notes and pitfalls for ${topicTitle}; add a flashcard for anything you forgot.`;
   if (a.includes("diagram")) return `Draw a diagram that explains ${topicTitle} without words.`;
+  if (a.includes("design")) return `Produce a design for ${topicTitle}: requirements, components, trade-offs.`;
+  if (a.includes("plan")) return `Write the plan for ${topicTitle}: scope, steps, what done looks like.`;
+  if (a.includes("build")) return `Build the next working slice of ${topicTitle} and commit it.`;
+  if (a.includes("document")) return `Review the work on ${topicTitle}, fix rough edges and write a short README.`;
   if (a.includes("quiz")) return `Answer every quiz question before checking; turn misses into flashcards.`;
   if (a.includes("note")) return `Write personal notes on ${topicTitle} that you could revise from in five minutes.`;
   if (a.includes("mock")) return `Complete the mock interview and record two things to improve.`;
@@ -143,54 +200,42 @@ export function buildTopicTasks(
 }
 
 function isStudyDay(goal: Goal, day: RoadmapDay): boolean {
-  return !goal.restDays.includes(new Date(`${dayDate(day.date)}T12:00:00`).getDay());
+  return !(goal.restDays || []).includes(new Date(`${dayDate(day.date)}T12:00:00`).getDay());
 }
 
-/**
- * Builds a full roadmap from the goal's tracks:
- * - follows each topic's curriculum tasks in order (learn → examples → code → problems)
- * - interleaves tracks by priority weight, honouring track prerequisites
- * - fills at most `hoursPerDay`, keeping a slice of each day for spaced revision (+3, +7, +14 days)
- * - marks weekly rest days so the calendar shows them
- */
-export function generateRoadmap(
+/** Fills study days with queued steps and spaced revisions. Shared by full generation and re-planning. */
+function schedule(
   goal: Goal,
-  tracks: CurriculumTrack[] = allCurriculums,
-): RoadmapDay[] {
-  const days: RoadmapDay[] = [];
-  for (let i = 0; i < goal.durationDays; i++) {
-    const day = makeDay(goal, addDays(goal.startDate, i));
-    if (!isStudyDay(goal, day)) {
-      day.isRestDay = true;
-      day.notes = "Rest Day";
-    }
-    days.push(day);
-  }
+  days: RoadmapDay[],
+  used: number[],
+  queues: TrackQueue[],
+  opts: { markRestDays: boolean; startIndex?: number },
+): number {
   const budget = Math.max(15, Math.round(goal.hoursPerDay * 60));
   const learnBudget = Math.max(15, Math.round(budget * (1 - REVISION_SHARE)));
-  const used = days.map(() => 0);
-  const queues = buildQueues(goal, tracks.length ? tracks : allCurriculums);
   const pendingRevisions: { dayIndex: number; item: QueueItem }[] = [];
+  let added = 0;
+  if (opts.markRestDays)
+    for (const day of days)
+      if (!isStudyDay(goal, day)) {
+        day.isRestDay = true;
+        day.notes = day.notes || "Rest Day";
+      }
 
   const finished = (trackId: string) => {
     const q = queues.find((x) => x.trackId === trackId);
     return !q || q.items.length === 0;
   };
   const nextQueue = (): TrackQueue | null => {
-    const eligible = queues.filter(
-      (q) => q.items.length && q.prerequisites.every(finished),
-    );
+    const eligible = queues.filter((q) => q.items.length && q.prerequisites.every(finished));
     const pool = eligible.length ? eligible : queues.filter((q) => q.items.length);
     if (!pool.length) return null;
-    return pool.reduce((best, q) =>
-      q.consumed / q.weight < best.consumed / best.weight ? q : best,
-    );
+    return pool.reduce((best, q) => (q.consumed / q.weight < best.consumed / best.weight ? q : best));
   };
 
-  let dayIndex = 0;
+  let dayIndex = opts.startIndex ?? 0;
   let currentTopic: { trackId: string; topicId: string } | null = null;
   while (dayIndex < days.length) {
-    // Keep a topic's tasks together instead of bouncing between tracks mid-topic.
     let queue: TrackQueue | null = null;
     if (currentTopic) {
       const q = queues.find((x) => x.trackId === currentTopic!.trackId);
@@ -200,40 +245,25 @@ export function generateRoadmap(
     if (!queue) break;
     const item = queue.items[0];
     const minutes = Math.min(item.def.estDurationMinutes || 30, budget);
-
-    // Find the first study day with room for this task.
-    while (
-      dayIndex < days.length &&
-      (days[dayIndex].isRestDay || used[dayIndex] + minutes > learnBudget)
-    ) {
-      dayIndex++;
-    }
+    while (dayIndex < days.length && (days[dayIndex].isRestDay || used[dayIndex] + minutes > learnBudget)) dayIndex++;
     if (dayIndex >= days.length) break;
-
     const day = days[dayIndex];
     day.tasks.push(taskFrom(item, day, minutes));
     used[dayIndex] += minutes;
     queue.consumed += minutes;
     queue.items.shift();
+    added += 1;
     currentTopic = { trackId: item.trackId, topicId: item.topicId };
     if (item.closesTopic) {
       currentTopic = null;
-      for (const offset of REVISION_OFFSETS_DAYS) {
-        pendingRevisions.push({ dayIndex: dayIndex + offset, item });
-      }
+      for (const offset of REVISION_OFFSETS_DAYS) pendingRevisions.push({ dayIndex: dayIndex + offset, item });
     }
   }
 
-  // Spaced revision: place each review on its target day or the next study day with room.
   pendingRevisions.sort((a, b) => a.dayIndex - b.dayIndex);
   for (const revision of pendingRevisions) {
     let target = revision.dayIndex;
-    while (
-      target < days.length &&
-      (days[target].isRestDay || used[target] + REVISION_MINUTES > budget)
-    ) {
-      target++;
-    }
+    while (target < days.length && (days[target].isRestDay || used[target] + REVISION_MINUTES > budget)) target++;
     if (target >= days.length) continue;
     const day = days[target];
     day.tasks.push({
@@ -252,9 +282,80 @@ export function generateRoadmap(
       completionCriteria: criteriaFor("Revise Topic", revision.item.topicTitle),
     });
     used[target] += REVISION_MINUTES;
+    added += 1;
   }
+  return added;
+}
 
+/**
+ * Builds a full roadmap from the goal's curriculum selection:
+ * - follows each included topic's steps in order (learn → examples → practice), prerequisites first
+ * - interleaves tracks by priority weight, honouring track prerequisites and track order
+ * - fills at most `hoursPerDay`, keeping a slice of each day for spaced revision (+3, +7, +14 days)
+ * - only the goal's chosen rest days are rest days; empty study days stay empty (never auto-marked)
+ */
+export function generateRoadmap(goal: Goal, tracks?: CurriculumTrack[]): RoadmapDay[] {
+  const all = currentTracks(tracks);
+  const days: RoadmapDay[] = [];
+  for (let i = 0; i < goal.durationDays; i++) days.push(makeDay(goal, addDays(goal.startDate, i)));
+  const used = days.map(() => 0);
+  schedule(goal, days, used, buildQueues(goal, all), { markRestDays: true });
   return days;
+}
+
+/**
+ * Re-plans only what is unplanned: schedules every curriculum step of the goal's
+ * selection that is not already on the roadmap (completed, in progress, skipped
+ * or manually scheduled tasks are all kept where they are), from `fromDate`
+ * onward, into the time each day still has free. Nothing existing is moved.
+ */
+export function fillRoadmap(
+  goal: Goal,
+  roadmap: RoadmapDay[],
+  fromDate: string,
+  tracks?: CurriculumTrack[],
+): { roadmap: RoadmapDay[]; added: number } {
+  const all = currentTracks(tracks);
+  const goalEnd = addDays(goal.startDate, goal.durationDays - 1);
+  const start = fromDate > goal.startDate ? fromDate : goal.startDate;
+  const remainingDays = Math.round((Date.parse(goalEnd) - Date.parse(start)) / 86400000) + 1;
+  if (remainingDays <= 0) return { roadmap, added: 0 };
+
+  const existing = roadmap.filter((d) => d.goalId === goal.id);
+  const already = new Set<string>();
+  for (const day of existing) for (const task of day.tasks) if (task.curriculumTaskId && task.status !== "Skipped") already.add(task.curriculumTaskId);
+
+  const byDate = new Map<string, RoadmapDay>();
+  for (const day of existing) byDate.set(dayDate(day.date), day);
+  const window: RoadmapDay[] = [];
+  for (let i = 0; i < remainingDays; i++) {
+    const date = addDays(start, i);
+    const day = byDate.get(date);
+    window.push(day ? { ...day, tasks: [...day.tasks] } : makeDay(goal, date));
+  }
+  const used = window.map((d) => d.tasks.reduce((n, t) => n + t.estDurationMinutes, 0));
+  for (const day of window) if (day.isRestDay === undefined && !isStudyDay(goal, day)) day.isRestDay = true;
+  const added = schedule(goal, window, used, buildQueues(goal, all, already), { markRestDays: false });
+
+  const untouched = roadmap.filter((d) => d.goalId !== goal.id || !window.some((w) => dayDate(w.date) === dayDate(d.date)));
+  const merged = [...untouched, ...window.filter((d) => d.tasks.length || byDate.has(dayDate(d.date)) || d.isRestDay)];
+  merged.sort((a, b) => dayDate(a.date).localeCompare(dayDate(b.date)));
+  return { roadmap: merged, added };
+}
+
+/**
+ * Schedules one newly added track into an existing roadmap from today onward,
+ * filling only the time each day still has free. Existing tasks are never moved.
+ */
+export function scheduleTrackIntoRoadmap(
+  goal: Goal,
+  roadmap: RoadmapDay[],
+  trackId: string,
+  fromDate: string,
+  tracks?: CurriculumTrack[],
+): { roadmap: RoadmapDay[]; added: number } {
+  const selection = goal.tracks.find((t) => t.trackId === trackId) || { trackId, priority: "Medium" as const };
+  return fillRoadmap({ ...goal, tracks: [selection] }, roadmap, fromDate, tracks);
 }
 
 export type TrackEstimate = {
@@ -264,19 +365,31 @@ export type TrackEstimate = {
   minutes: number;
 };
 
-/** Effort per track from the curriculum's own task estimates. */
-export function estimateTrack(track: CurriculumTrack): TrackEstimate {
-  let topics = 0;
+/** Effort per track from the curriculum's own task estimates (optionally for a goal's selection only). */
+export function estimateTrack(track: CurriculumTrack, selection?: GoalTrack, goal?: Pick<Goal, "knownTopicIds">): TrackEstimate {
+  const topics = selection ? selectedTopics(goal || {}, selection, track) : track.levels.flatMap((l) => l.categories.flatMap((c) => c.modules.flatMap((m) => m.topics)));
   let minutes = 0;
-  for (const level of track.levels)
-    for (const category of level.categories)
-      for (const module of category.modules)
-        for (const topic of module.topics) {
-          topics += 1;
-          for (const sub of topic.subtopics)
-            for (const def of sub.tasks) minutes += def.estDurationMinutes || 30;
-        }
-  return { trackId: track.id, title: track.title, topics, minutes };
+  for (const topic of topics) for (const sub of topic.subtopics) for (const def of sub.tasks) minutes += def.estDurationMinutes || 30;
+  return { trackId: track.id, title: track.title, topics: topics.length, minutes };
+}
+
+/** Days needed to finish the selection at the goal's pace (learning time only, revision excluded). */
+export function estimateDays(goal: Pick<Goal, "hoursPerDay" | "restDays" | "knownTopicIds" | "tracks">, tracks?: CurriculumTrack[]): { minutes: number; topics: number; days: number } {
+  const all = currentTracks(tracks);
+  let minutes = 0;
+  let topics = 0;
+  for (const selection of goal.tracks) {
+    const track = all.find((t) => t.id === selection.trackId);
+    if (!track) continue;
+    const est = estimateTrack(track, selection, goal);
+    minutes += est.minutes;
+    topics += est.topics;
+  }
+  const studyDaysPerWeek = 7 - (goal.restDays || []).length;
+  const perDay = Math.max(15, goal.hoursPerDay * 60 * (1 - REVISION_SHARE));
+  const studyDays = Math.ceil(minutes / perDay);
+  const days = studyDaysPerWeek > 0 ? Math.ceil((studyDays * 7) / studyDaysPerWeek) : Infinity;
+  return { minutes, topics, days };
 }
 
 export type RoadmapSummary = {
@@ -292,15 +405,13 @@ export type RoadmapSummary = {
   emptyStudyDays: number;
 };
 
-export function summarizeRoadmap(
-  goal: Goal,
-  days: RoadmapDay[],
-  tracks: CurriculumTrack[] = allCurriculums,
-): RoadmapSummary {
-  const selected = goal.tracks
-    .map((t) => tracks.find((x) => x.id === t.trackId))
-    .filter((t): t is CurriculumTrack => Boolean(t));
-  const topicsTotal = selected.reduce((n, t) => n + estimateTrack(t).topics, 0);
+export function summarizeRoadmap(goal: Goal, days: RoadmapDay[], tracks?: CurriculumTrack[]): RoadmapSummary {
+  const all = currentTracks(tracks);
+  let topicsTotal = 0;
+  for (const selection of goal.tracks) {
+    const track = all.find((x) => x.id === selection.trackId);
+    if (track) topicsTotal += estimateTrack(track, selection, goal).topics;
+  }
   const covered = new Set<string>();
   let learnMinutes = 0;
   let reviseMinutes = 0;
@@ -327,69 +438,5 @@ export function summarizeRoadmap(
       }
     }
   }
-  return {
-    studyDays,
-    restDays,
-    tasks,
-    learnMinutes,
-    reviseMinutes,
-    topicsCovered: covered.size,
-    topicsTotal,
-    lastLearningDay,
-    emptyStudyDays,
-  };
-}
-
-/**
- * Schedules one newly added track into an existing roadmap from today onward,
- * filling only the time each day still has free. Existing tasks are never moved.
- */
-export function scheduleTrackIntoRoadmap(
-  goal: Goal,
-  roadmap: RoadmapDay[],
-  trackId: string,
-  fromDate: string,
-  tracks: CurriculumTrack[] = allCurriculums,
-): { roadmap: RoadmapDay[]; added: number } {
-  const goalEnd = addDays(goal.startDate, goal.durationDays - 1);
-  const start = fromDate > goal.startDate ? fromDate : goal.startDate;
-  const remainingDays =
-    Math.round((Date.parse(goalEnd) - Date.parse(start)) / 86400000) + 1;
-  if (remainingDays <= 0) return { roadmap, added: 0 };
-
-  const selection = goal.tracks.find((t) => t.trackId === trackId) || {
-    trackId,
-    priority: "Medium" as const,
-  };
-  const generated = generateRoadmap(
-    { ...goal, startDate: start, durationDays: remainingDays, tracks: [selection] },
-    tracks,
-  );
-  const budget = Math.max(15, Math.round(goal.hoursPerDay * 60));
-  const byDate = new Map<string, RoadmapDay>();
-  for (const day of roadmap) if (day.goalId === goal.id) byDate.set(dayDate(day.date), day);
-  const next = roadmap.filter((d) => d.goalId !== goal.id);
-  const days = generated.map((g) => {
-    const existing = byDate.get(dayDate(g.date));
-    return existing ? { ...existing, tasks: [...existing.tasks] } : { ...g, tasks: [] };
-  });
-  // Keep days of this goal that fall outside the generated window untouched.
-  for (const [date, day] of byDate) if (!days.some((d) => dayDate(d.date) === date)) days.push(day);
-  days.sort((a, b) => dayDate(a.date).localeCompare(dayDate(b.date)));
-
-  let added = 0;
-  let cursor = 0;
-  const used = days.map((d) => d.tasks.reduce((n, t) => n + t.estDurationMinutes, 0));
-  for (const g of generated) {
-    for (const task of g.tasks) {
-      let i = Math.max(cursor, days.findIndex((d) => dayDate(d.date) === dayDate(g.date)));
-      while (i < days.length && (days[i].isRestDay || used[i] + task.estDurationMinutes > budget)) i++;
-      if (i >= days.length) break;
-      days[i].tasks.push({ ...task, id: crypto.randomUUID(), dayId: days[i].id });
-      used[i] += task.estDurationMinutes;
-      cursor = i;
-      added += 1;
-    }
-  }
-  return { roadmap: [...next, ...days], added };
+  return { studyDays, restDays, tasks, learnMinutes, reviseMinutes, topicsCovered: covered.size, topicsTotal, lastLearningDay, emptyStudyDays };
 }

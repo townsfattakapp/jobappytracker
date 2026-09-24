@@ -18,6 +18,84 @@ export const trackjavaCurriculum: CurriculumTrack = {
               id: 'mod-ng717sk8e',
               title: 'Concepts & Implementation',
               topics: [
+                  {
+                    id: 'top-mumieec3m',
+                    title: `What is Java?`,
+                    subtopics: [
+                      {
+                      id: 'sub-43pn4obfc',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-61hg0qbbf', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-3fzwacf2l', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-abi4zh5zb',
+      title: `What exactly is Java?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `It is a fundamental concept/tool in modern software engineering.`,
+      detailedExplanation: `It is a fundamental concept/tool in modern software engineering.`,
+      interviewAnswer: `It is a fundamental concept/tool in modern software engineering.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-ccs77tlsj',
+                    title: `Why use Java?`,
+                    subtopics: [
+                      {
+                      id: 'sub-hummmg8z4',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-mwz3ecd2g', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-ncaxshiiv', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-0mfk6xhsg',
+      title: `Where is Java used?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `In almost every modern tech stack and enterprise system.`,
+      detailedExplanation: `In almost every modern tech stack and enterprise system.`,
+      interviewAnswer: `In almost every modern tech stack and enterprise system.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-45hw2jw5e',
+                    title: `History and Ecosystem`,
+                    subtopics: [
+                      {
+                      id: 'sub-0k26qry9g',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-84khhju1n', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-ihqv32h7m', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-nl4q0t8sf',
+      title: `How has it evolved?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `It has become more standardized, efficient, and easier to use over time.`,
+      detailedExplanation: `It has become more standardized, efficient, and easier to use over time.`,
+      interviewAnswer: `It has become more standardized, efficient, and easier to use over time.`
+  }
+                      ]
+                      }
+                    ]
+                  },
                 {
                   id: 'top-agq8s2r88',
                   title: `Java installation`,

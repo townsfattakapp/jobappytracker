@@ -10,7 +10,7 @@ import {
   type CurriculumTopic,
   type CurriculumSubtopic,
 } from "./types";
-import { allCurriculums } from "./data/curriculum";
+import { useCurriculum } from "./lib/curriculum/registry";
 import RichTextEditor from "./components/RichTextEditor.tsx";
 import MermaidEditor from "./components/MermaidEditor.tsx";
 import AITutor from "./components/AITutor.tsx";
@@ -611,46 +611,17 @@ export default function KnowledgeWorkspaceDetail({
     );
   }, [topicId, workspaces]);
 
-  // Find curriculum details for breadcrumbs and title
+  // Find curriculum details for breadcrumbs and title (built-in, shared and personal tracks alike).
+  const curriculum = useCurriculum();
   const curriculumInfo = useMemo(() => {
-    let foundTrack: CurriculumTrack | null = null;
-    let foundTopic: CurriculumTopic | null = null;
-    let foundSubtopic: CurriculumSubtopic | null = null;
-    let foundTitle = topicId;
-
-    for (const track of allCurriculums) {
-      for (const level of track.levels) {
-        for (const cat of level.categories) {
-          for (const mod of cat.modules) {
-            for (const topic of mod.topics) {
-              if (topic.id === topicId) {
-                foundTrack = track;
-                foundTopic = topic;
-                foundTitle = topic.title;
-                break;
-              }
-              for (const sub of topic.subtopics) {
-                if (sub.id === topicId) {
-                  foundTrack = track;
-                  foundTopic = topic;
-                  foundSubtopic = sub;
-                  foundTitle = sub.title;
-                  break;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
+    const ref = curriculum.byId.get(topicId);
     return {
-      track: foundTrack,
-      topic: foundTopic,
-      subtopic: foundSubtopic,
-      title: foundTitle,
+      track: (ref?.track as CurriculumTrack | undefined) || null,
+      topic: (ref?.topic as CurriculumTopic | undefined) || null,
+      subtopic: (ref?.subtopic as CurriculumSubtopic | undefined) || null,
+      title: ref?.subtopic?.title || ref?.topic.title || topicId,
     };
-  }, [topicId]);
+  }, [topicId, curriculum]);
 
   const handleUpdate = (updates: Partial<KnowledgeWorkspace>) => {
     onSaveWorkspace({
@@ -663,8 +634,8 @@ export default function KnowledgeWorkspaceDetail({
   const [explaining, setExplaining] = useState(false);
   const [explainError, setExplainError] = useState<string | null>(null);
   const [codeLanguage, setCodeLanguage] = useCodeLanguage();
-  const explainMode = explainModeForTrack(curriculumInfo.track?.id);
-  const codeProfile = trackCodeProfile(curriculumInfo.track?.id, codeLanguage);
+  const explainMode = explainModeForTrack(curriculumInfo.track);
+  const codeProfile = trackCodeProfile(curriculumInfo.track, codeLanguage);
   const codeLabel = shortLanguageLabel(codeProfile);
   const [explainNotice, setExplainNotice] = useState<string | null>(null);
   const explainWithAi = async () => {

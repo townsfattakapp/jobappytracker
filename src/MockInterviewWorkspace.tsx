@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { aiUnavailableReason } from './lib/aiGatewayClient'
 import type { MockInterviewSummary } from './types'
-import { DURATIONS, LEVELS, PERSONAS, ROUNDS, personaById, roundById, type Duration, type InterviewSetup, type Level, type RoundGroup } from './lib/interview/config'
+import { DURATIONS, LEVELS, PERSONAS, personaById, type Duration, type InterviewSetup, type Level } from './lib/interview/config'
+import { useInterviewRounds, useRoundById } from './lib/interview/hooks'
 import { sttSupported, ttsSupported } from './lib/interview/speech'
 import InterviewReport, { VerdictBadge } from './components/InterviewReport'
+import { deleteInterviewSessionTranscript } from './db'
 
 interface MockInterviewWorkspaceProps {
   summaries: MockInterviewSummary[]
@@ -12,10 +14,10 @@ interface MockInterviewWorkspaceProps {
   /** Opens this report straight away (set after a session ends). */
   openReportId?: string | null
   onReportClosed?: () => void
+  onDeleteInterview?: (id: string) => void
 }
 
 const SETUP_KEY = 'prep-mock-setup'
-const GROUPS: RoundGroup[] = ['Coding', 'Design', 'Technical', 'Behavioural']
 
 function readSetup(): Partial<InterviewSetup> {
   try {
@@ -26,15 +28,50 @@ function readSetup(): Partial<InterviewSetup> {
   }
 }
 
-export default function MockInterviewWorkspace({ summaries, onStartSession, onOpenSettings, openReportId, onReportClosed }: MockInterviewWorkspaceProps) {
+/** Tiny sparkline SVG for score history. */
+function Sparkline({ scores }: { scores: number[] }) {
+  if (scores.length < 2) return null
+  const w = 120
+  const h = 36
+  const pad = 2
+  const min = Math.min(...scores)
+  const max = Math.max(...scores)
+  const range = max - min || 1
+  const points = scores
+    .map((s, i) => {
+      const x = pad + (i / (scores.length - 1)) * (w - pad * 2)
+      const y = h - pad - ((s - min) / range) * (h - pad * 2)
+      return `${x},${y}`
+    })
+    .join(' ')
+  const last = scores[scores.length - 1]
+  const prev = scores[scores.length - 2]
+  const trending = last > prev ? 'up' : last < prev ? 'down' : 'flat'
+  const color = trending === 'up' ? 'hsl(142 70% 45%)' : trending === 'down' ? 'hsl(var(--destructive))' : 'hsl(var(--muted-foreground))'
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="iv-sparkline" aria-label={`Score trend: ${trending}`}>
+      <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={Number(points.split(' ').pop()?.split(',')[0])} cy={Number(points.split(' ').pop()?.split(',')[1])} r="3" fill={color} />
+    </svg>
+  )
+}
+
+type HistoryFilter = 'all' | 'coding' | 'design' | 'technical' | 'behavioural'
+
+export default function MockInterviewWorkspace({ summaries, onStartSession, onOpenSettings, openReportId, onReportClosed, onDeleteInterview }: MockInterviewWorkspaceProps) {
+  const allRounds = useInterviewRounds()
+  const groups = useMemo(() => Array.from(new Set(allRounds.map(r => r.group))), [allRounds])
+
   const saved = useMemo(readSetup, [])
-  const [roundId, setRoundId] = useState(() => roundById(saved.roundId).id)
+  const [roundId, setRoundId] = useState(() => saved.roundId || 'dsa')
   const [level, setLevel] = useState<Level>(() => (LEVELS.some((l) => l.id === saved.level) ? (saved.level as Level) : 'Medium'))
   const [minutes, setMinutes] = useState<Duration>(() => (DURATIONS.includes(saved.minutes as Duration) ? (saved.minutes as Duration) : 30))
   const [personaId, setPersonaId] = useState(() => personaById(saved.personaId).id)
   const [voice, setVoice] = useState(() => saved.voice ?? true)
   const [aiReason, setAiReason] = useState<string | null | undefined>(undefined)
   const [reportId, setReportId] = useState<string | null>(openReportId ?? null)
+  const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all')
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   useEffect(() => {
     if (openReportId) setReportId(openReportId)
@@ -50,7 +87,7 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
     }
   }, [])
 
-  const round = roundById(roundId)
+  const round = useRoundById(roundId)
   const persona = personaById(personaId)
   const report = reportId ? summaries.find((s) => s.id === reportId) || null : null
 
@@ -69,9 +106,57 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
     onReportClosed?.()
   }
 
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteInterviewSessionTranscript(id)
+    } catch {
+      // transcript may not exist, that's fine
+    }
+    onDeleteInterview?.(id)
+    setConfirmDeleteId(null)
+    if (reportId === id) closeReport()
+  }
+
+  // Stats
   const scored = summaries.filter((s) => typeof s.overallScore === 'number' && !s.incomplete)
   const average = scored.length ? Math.round(scored.reduce((sum, s) => sum + (s.overallScore || 0), 0) / scored.length) : null
   const hires = scored.filter((s) => s.verdict === 'Hire' || s.verdict === 'Strong hire').length
+  const bestScore = scored.length ? Math.max(...scored.map((s) => s.overallScore || 0)) : null
+  const recentScores = scored.slice(0, 10).map((s) => s.overallScore || 0).reverse()
+
+  // Per-round stats
+  const roundStats = useMemo(() => {
+    const map = new Map<string, { count: number; totalScore: number; best: number }>()
+    for (const s of scored) {
+      const key = s.roundId || 'unknown'
+      const existing = map.get(key) || { count: 0, totalScore: 0, best: 0 }
+      existing.count++
+      existing.totalScore += s.overallScore || 0
+      existing.best = Math.max(existing.best, s.overallScore || 0)
+      map.set(key, existing)
+    }
+    return map
+  }, [scored])
+
+  const filterCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: summaries.length }
+    for (const g of groups) counts[g.toLowerCase()] = 0
+    for (const s of summaries) {
+      const r = allRounds.find(x => x.id === s.roundId) || allRounds[0]
+      const key = r.group.toLowerCase()
+      if (key in counts) counts[key]++
+    }
+    return counts
+  }, [summaries, groups, allRounds])
+
+  const filteredSummaries = useMemo(() => {
+    if (historyFilter === 'all') return summaries
+    return summaries.filter((s) => {
+      const r = allRounds.find(x => x.id === s.roundId) || allRounds[0]
+      return r.group.toLowerCase() === historyFilter
+    })
+  }, [summaries, historyFilter, allRounds])
+
 
   return (
     <div className="animate-rise flex flex-col gap-8 max-w-6xl mx-auto w-full">
@@ -90,6 +175,37 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
         )}
       </div>
 
+      {/* Progress Stats */}
+      {scored.length > 0 && (
+        <section className="iv-stats-row" aria-label="Interview progress">
+          <div className="iv-stat-card">
+            <span className="iv-stat-value">{summaries.length}</span>
+            <span className="iv-stat-label">Total sessions</span>
+          </div>
+          <div className="iv-stat-card">
+            <span className={`iv-stat-value ${average !== null && average >= 70 ? 'is-good' : average !== null && average >= 50 ? 'is-ok' : 'is-bad'}`}>
+              {average ?? '—'}
+            </span>
+            <span className="iv-stat-label">Average score</span>
+          </div>
+          <div className="iv-stat-card">
+            <span className="iv-stat-value is-good">{bestScore ?? '—'}</span>
+            <span className="iv-stat-label">Best score</span>
+          </div>
+          <div className="iv-stat-card">
+            <span className="iv-stat-value">{hires}</span>
+            <span className="iv-stat-label">Hire verdict{hires === 1 ? '' : 's'}</span>
+          </div>
+          {recentScores.length >= 2 && (
+            <div className="iv-stat-card is-wide">
+              <Sparkline scores={recentScores} />
+              <span className="iv-stat-label">Recent trend</span>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Setup */}
       <section className="iv-setup surface" aria-labelledby="iv-setup-title">
         <div className="iv-setup-main">
           <h2 id="iv-setup-title" className="text-lg font-bold">
@@ -97,16 +213,24 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
           </h2>
 
           <div className="mt-4 space-y-4">
-            {GROUPS.map((group) => (
+            {groups.map((group) => (
               <div key={group}>
                 <p className="label-quiet">{group}</p>
                 <div className="iv-round-grid">
-                  {ROUNDS.filter((r) => r.group === group).map((r) => (
-                    <button key={r.id} type="button" className={`iv-round ${roundId === r.id ? 'is-active' : ''}`} onClick={() => setRoundId(r.id)} aria-pressed={roundId === r.id}>
-                      <span className="font-semibold">{r.label}</span>
-                      <span className="text-xs text-muted-foreground">{r.blurb}</span>
-                    </button>
-                  ))}
+                  {allRounds.filter((r) => r.group === group).map((r) => {
+                    const stat = roundStats.get(r.id)
+                    return (
+                      <button key={r.id} type="button" className={`iv-round ${roundId === r.id ? 'is-active' : ''}`} onClick={() => setRoundId(r.id)} aria-pressed={roundId === r.id}>
+                        <span className="font-semibold">{r.label}</span>
+                        <span className="text-xs text-muted-foreground">{r.blurb}</span>
+                        {stat && (
+                          <span className="text-[10px] font-bold text-primary mt-1">
+                            {stat.count} done · avg {Math.round(stat.totalScore / stat.count)}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             ))}
@@ -192,6 +316,7 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
         </aside>
       </section>
 
+      {/* History */}
       <section className="flex flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 className="text-xl font-semibold text-foreground">Your interviews</h2>
@@ -201,36 +326,105 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
             </p>
           )}
         </div>
+
+        {/* History filters */}
+        {summaries.length > 0 && (
+          <div className="iv-pills" role="radiogroup" aria-label="Filter history">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={historyFilter === 'all'}
+              className={historyFilter === 'all' ? 'is-active' : ''}
+              onClick={() => setHistoryFilter('all')}
+            >
+              All {filterCounts['all'] > 0 ? `(${filterCounts['all']})` : ''}
+            </button>
+            {groups.map((group) => {
+              const key = group.toLowerCase()
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="radio"
+                  aria-checked={historyFilter === key}
+                  className={historyFilter === key ? 'is-active' : ''}
+                  onClick={() => setHistoryFilter(key as HistoryFilter)}
+                  disabled={filterCounts[key] === 0}
+                >
+                  {group} {filterCounts[key] > 0 ? `(${filterCounts[key]})` : ''}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
         {summaries.length === 0 ? (
-          <div className="text-center p-10 text-muted-foreground border border-dashed border-border rounded-xl">No mock interviews yet. Your scorecards will appear here.</div>
+          <div className="iv-empty-state">
+            <div className="iv-empty-icon" aria-hidden="true">🎙️</div>
+            <h3>No mock interviews yet</h3>
+            <p>Choose a round type above, set your difficulty, and start your first AI-powered mock interview. You'll get a detailed scorecard with strengths, improvements, and model answers.</p>
+            <button type="button" className="btn btn-primary btn-sm mt-2" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+              Set up your first interview ↑
+            </button>
+          </div>
+        ) : filteredSummaries.length === 0 ? (
+          <div className="text-center p-8 text-muted-foreground border border-dashed border-border rounded-xl">
+            No {historyFilter} interviews yet.
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {summaries.map((s) => {
-              const r = roundById(s.roundId)
+            {filteredSummaries.map((s) => {
+              const r = allRounds.find(x => x.id === s.roundId) || allRounds[0]
               const p = personaById(s.personaId)
               return (
-                <button key={s.id} type="button" className="iv-history surface text-left" onClick={() => setReportId(s.id)}>
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-foreground truncate">{s.roundId ? r.label : s.category}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(s.date).toLocaleDateString()} · {s.durationMinutes} min · {s.difficulty}
-                        {s.personaId ? ` · ${p.name}` : ''}
-                      </p>
+                <div key={s.id} className="iv-history surface relative group">
+                  <button type="button" className="iv-history-main text-left" onClick={() => setReportId(s.id)}>
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground truncate">{s.roundId ? r.label : s.category}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(s.date).toLocaleDateString()} · {s.durationMinutes} min · {s.difficulty}
+                          {s.personaId ? ` · ${p.name}` : ''}
+                        </p>
+                      </div>
+                      {typeof s.overallScore === 'number' && !s.incomplete ? (
+                        <span className={`iv-score is-${s.overallScore >= 70 ? 'good' : s.overallScore >= 50 ? 'ok' : 'bad'}`}>{s.overallScore}</span>
+                      ) : s.incomplete ? (
+                        <span className="iv-verdict is-muted">No scorecard</span>
+                      ) : null}
                     </div>
-                    {typeof s.overallScore === 'number' && !s.incomplete ? (
-                      <span className={`iv-score is-${s.overallScore >= 70 ? 'good' : s.overallScore >= 50 ? 'ok' : 'bad'}`}>{s.overallScore}</span>
-                    ) : s.incomplete ? (
-                      <span className="iv-verdict is-muted">No scorecard</span>
-                    ) : null}
-                  </div>
-                  <div className="mt-2">
-                    <VerdictBadge verdict={s.verdict} />
-                  </div>
-                  {s.summary && <p className="mt-2 text-xs text-muted-foreground line-clamp-3">{s.summary}</p>}
-                  {!s.summary && s.strengths.length > 0 && <p className="mt-2 text-xs text-muted-foreground line-clamp-3">{s.strengths.join(' · ')}</p>}
-                  <span className="mt-3 text-xs font-semibold text-primary">Open scorecard →</span>
-                </button>
+                    <div className="mt-2">
+                      <VerdictBadge verdict={s.verdict} />
+                    </div>
+                    {s.summary && <p className="mt-2 text-xs text-muted-foreground line-clamp-3">{s.summary}</p>}
+                    {!s.summary && s.strengths.length > 0 && <p className="mt-2 text-xs text-muted-foreground line-clamp-3">{s.strengths.join(' · ')}</p>}
+                    <span className="mt-3 text-xs font-semibold text-primary">Open scorecard →</span>
+                  </button>
+                  {/* Delete button */}
+                  {onDeleteInterview && (
+                    confirmDeleteId === s.id ? (
+                      <div className="iv-history-delete-confirm">
+                        <span className="text-xs font-semibold">Delete?</span>
+                        <button type="button" className="btn btn-sm" style={{ background: 'hsl(var(--destructive))', color: '#fff', fontSize: '0.7rem', padding: '0.2rem 0.5rem' }} onClick={() => void handleDelete(s.id)}>
+                          Yes
+                        </button>
+                        <button type="button" className="btn btn-ghost btn-sm" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }} onClick={() => setConfirmDeleteId(null)}>
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="iv-history-delete"
+                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(s.id) }}
+                        aria-label={`Delete ${r.label} interview`}
+                        title="Delete this interview"
+                      >
+                        ✕
+                      </button>
+                    )
+                  )}
+                </div>
               )
             })}
           </div>
@@ -245,7 +439,7 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
             report.roundId
               ? () => {
                   closeReport()
-                  setRoundId(roundById(report.roundId).id)
+                  setRoundId(report.roundId || 'dsa')
                   if (LEVELS.some((l) => l.id === report.difficulty)) setLevel(report.difficulty as Level)
                   if (report.personaId) setPersonaId(personaById(report.personaId).id)
                   window.scrollTo({ top: 0, behavior: 'smooth' })

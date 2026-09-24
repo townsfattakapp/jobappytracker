@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://jobappy_dev_user:37f6649fb764ffdda757dda9d4b7dd20e1998883edeac17dace2625be2f9e123@db:5432/jobappy_dev
+      - NEXTAUTH_SECRET=f033100c5c2fc932f91fa877f08d6d87178bf7d206f370e59a0fcdba768edba0
+      - NEXTAUTH_URL=http://localhost:3000
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: postgres:17-alpine
+    ports:
+      - "55433:5432"
+    env_file:
+      - .env.docker.local
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

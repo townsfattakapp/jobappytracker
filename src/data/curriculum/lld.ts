@@ -18,6 +18,84 @@ export const tracklldCurriculum: CurriculumTrack = {
               id: 'mod-80wqjyloq',
               title: 'Concepts & Implementation',
               topics: [
+                  {
+                    id: 'top-i9fapfcy3',
+                    title: `What is Low-Level Design?`,
+                    subtopics: [
+                      {
+                      id: 'sub-yq0a4urnm',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-y2h5voota', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-3ou06up8x', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-afg6bxyd9',
+      title: `What exactly is Low-Level Design?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `It is a fundamental concept/tool in modern software engineering.`,
+      detailedExplanation: `It is a fundamental concept/tool in modern software engineering.`,
+      interviewAnswer: `It is a fundamental concept/tool in modern software engineering.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-ehc4p1y5s',
+                    title: `Why use Low-Level Design?`,
+                    subtopics: [
+                      {
+                      id: 'sub-ns0259s3u',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-55rqqa6mx', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-nr95s1fx6', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-yewz94c3a',
+      title: `Where is Low-Level Design used?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `In almost every modern tech stack and enterprise system.`,
+      detailedExplanation: `In almost every modern tech stack and enterprise system.`,
+      interviewAnswer: `In almost every modern tech stack and enterprise system.`
+  }
+                      ]
+                      }
+                    ]
+                  },
+                  {
+                    id: 'top-x228ovlke',
+                    title: `History and Ecosystem`,
+                    subtopics: [
+                      {
+                      id: 'sub-awa8oes48',
+                      title: 'Theory & Fundamentals',
+                      tasks: [
+                        { id: 'tsk-na7imx8ll', title: 'Learn Concept', type: 'Concept', estDurationMinutes: 30 },
+                        { id: 'tsk-hrui00lym', title: 'Review Notes', type: 'Revision', estDurationMinutes: 15 }
+                      ],
+                      questions: [
+  {
+      id: 'q-5e89wqpgj',
+      title: `How has it evolved?`,
+      difficulty: 'Beginner',
+      type: 'Conceptual',
+      estDurationMinutes: 15,
+      beginnerExplanation: `It has become more standardized, efficient, and easier to use over time.`,
+      detailedExplanation: `It has become more standardized, efficient, and easier to use over time.`,
+      interviewAnswer: `It has become more standardized, efficient, and easier to use over time.`
+  }
+                      ]
+                      }
+                    ]
+                  },
                 {
                   id: 'top-91iumffwd',
                   title: `OOP principles`,

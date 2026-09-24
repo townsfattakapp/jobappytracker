@@ -6,7 +6,7 @@ import {
   type CurriculumTrack,
   type CurriculumTopic,
 } from "./types";
-import { allCurriculums } from "./data/curriculum";
+import { getCurriculum } from "./lib/curriculum/registry";
 import RichTextEditor from "./components/RichTextEditor.tsx";
 import { chatWithAI } from "./lib/aiGatewayClient";
 
@@ -34,7 +34,7 @@ export default function InterviewQuestionWorkspace({
     let t: CurriculumTrack | null = null;
     let top: CurriculumTopic | null = null;
 
-    for (const tr of allCurriculums) {
+    for (const tr of getCurriculum().tracks) {
       for (const level of tr.levels) {
         for (const cat of level.categories) {
           for (const mod of cat.modules) {

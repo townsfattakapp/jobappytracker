@@ -32,17 +32,17 @@ export default function HeroScene({ height = 220, className = '' }: HeroScenePro
     const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100)
     camera.position.set(0, 0, 6.2)
 
-    // Knot in brand colours
+    // Knot in premium dark glass/metal
     const knot = new THREE.Mesh(
       new THREE.TorusKnotGeometry(1.15, 0.34, 220, 32, 2, 3),
       new THREE.MeshPhysicalMaterial({
-        color: 0xc13584,
-        metalness: 0.35,
-        roughness: 0.22,
-        clearcoat: 0.6,
-        clearcoatRoughness: 0.3,
-        emissive: 0x3b0a3a,
-        emissiveIntensity: 0.35,
+        color: 0xc084fc,
+        metalness: 0.4,
+        roughness: 0.2,
+        clearcoat: 0.8,
+        clearcoatRoughness: 0.1,
+        emissive: 0x3b0764,
+        emissiveIntensity: 0.8,
       }),
     )
     scene.add(knot)
@@ -50,7 +50,7 @@ export default function HeroScene({ height = 220, className = '' }: HeroScenePro
     // Halo ring
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(2.3, 0.02, 12, 160),
-      new THREE.MeshBasicMaterial({ color: 0xf77737, transparent: true, opacity: 0.45 }),
+      new THREE.MeshBasicMaterial({ color: 0x8b5cf6, transparent: true, opacity: 0.25 }),
     )
     ring.rotation.x = Math.PI / 2.4
     scene.add(ring)
@@ -70,17 +70,17 @@ export default function HeroScene({ height = 220, className = '' }: HeroScenePro
     particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
     const particles = new THREE.Points(
       particleGeometry,
-      new THREE.PointsMaterial({ color: 0xe6683c, size: 0.045, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }),
+      new THREE.PointsMaterial({ color: 0xffffff, size: 0.035, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }),
     )
     scene.add(particles)
 
-    // Lights: purple from the left, orange from the right, soft white key
-    scene.add(new THREE.AmbientLight(0xffffff, 0.35))
-    const purple = new THREE.PointLight(0x833ab4, 40, 20)
+    // Lights: violet from the left, pink from the right, crisp white key
+    scene.add(new THREE.AmbientLight(0xffffff, 0.4))
+    const purple = new THREE.PointLight(0x8b5cf6, 50, 20)
     purple.position.set(-4, 2, 3)
-    const orange = new THREE.PointLight(0xf77737, 40, 20)
+    const orange = new THREE.PointLight(0xec4899, 40, 20)
     orange.position.set(4, -2, 3)
-    const key = new THREE.DirectionalLight(0xffffff, 1.4)
+    const key = new THREE.DirectionalLight(0xffffff, 1.2)
     key.position.set(1, 3, 4)
     scene.add(purple, orange, key)
 
