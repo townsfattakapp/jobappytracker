@@ -11,6 +11,7 @@ export function useInterviewRounds(): InterviewRound[] {
         id: t.id,
         label: t.title,
         group: 'Curriculum',
+        family: t.family || 'Other tracks',
         blurb: t.description || `Test your knowledge on ${t.title}`,
         brief: `Run a technical interview on ${t.title}. Ask deep, conceptual questions about ${t.title} topics. Cover practical scenarios, trade-offs, and best practices. Push for the "why" behind their answers.`,
         dimensions: ['Core concepts', 'Practical application', 'Trade-offs and architecture', 'Problem solving', 'Communication']

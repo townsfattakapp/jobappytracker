@@ -6,6 +6,8 @@ import { useInterviewRounds, useRoundById } from './lib/interview/hooks'
 import { sttSupported, ttsSupported } from './lib/interview/speech'
 import InterviewReport, { VerdictBadge } from './components/InterviewReport'
 import { deleteInterviewSessionTranscript } from './db'
+import { ArrowRight, Check, Code2, Search, Mic, Clock3 } from 'lucide-react'
+import type { InterviewRound } from './lib/interview/config'
 
 interface MockInterviewWorkspaceProps {
   summaries: MockInterviewSummary[]
@@ -56,11 +58,27 @@ function Sparkline({ scores }: { scores: number[] }) {
   )
 }
 
-type HistoryFilter = 'all' | 'coding' | 'design' | 'technical' | 'behavioural'
+function categoryFor(round: InterviewRound): string {
+  if (round.group === 'Curriculum') return 'Learning tracks'
+  if (['javascript', 'react'].includes(round.id)) return 'Frontend'
+  if (['java', 'node', 'sql'].includes(round.id)) return 'Backend & databases'
+  if (['cs', 'devops'].includes(round.id)) return 'CS & infrastructure'
+  return round.group === 'Design' ? 'System design' : round.group
+}
+
+const CATEGORY_DESCRIPTIONS: Record<string, string> = {
+  Coding: 'Solve problems, explain your approach, and write working code.',
+  'System design': 'Practise architecture, trade-offs, and object-oriented design.',
+  Frontend: 'Build confidence in JavaScript, TypeScript, React, and Next.js.',
+  'Backend & databases': 'Explore APIs, Java, data modelling, and SQL.',
+  'CS & infrastructure': 'Prepare for fundamentals, cloud, and operational scenarios.',
+  Behavioural: 'Tell clear stories about teamwork, ownership, and impact.',
+  'Learning tracks': 'Practise a focused interview based on a learning track.',
+}
 
 export default function MockInterviewWorkspace({ summaries, onStartSession, onOpenSettings, openReportId, onReportClosed, onDeleteInterview }: MockInterviewWorkspaceProps) {
   const allRounds = useInterviewRounds()
-  const groups = useMemo(() => Array.from(new Set(allRounds.map(r => r.group))), [allRounds])
+  const groups = useMemo(() => Array.from(new Set(allRounds.map(categoryFor))), [allRounds])
 
   const saved = useMemo(readSetup, [])
   const [roundId, setRoundId] = useState(() => saved.roundId || 'dsa')
@@ -70,7 +88,13 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
   const [voice, setVoice] = useState(() => saved.voice ?? true)
   const [aiReason, setAiReason] = useState<string | null | undefined>(undefined)
   const [reportId, setReportId] = useState<string | null>(openReportId ?? null)
-  const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all')
+  const [historyFilter, setHistoryFilter] = useState('all')
+  const [section, setSection] = useState<'setup' | 'history'>('setup')
+  const [category, setCategory] = useState(() => categoryFor(allRounds.find(r => r.id === saved.roundId) || allRounds[0]))
+  const [query, setQuery] = useState('')
+  const [family, setFamily] = useState('all')
+  const families = useMemo(() => Array.from(new Set(allRounds.filter(r => r.family).map(r => r.family!))).sort(), [allRounds])
+  const visibleRounds = allRounds.filter(r => (category === 'all' || categoryFor(r) === category) && (category !== 'Learning tracks' || family === 'all' || r.family === family) && `${r.label} ${r.blurb} ${r.family || ''}`.toLowerCase().includes(query.trim().toLowerCase()))
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -92,7 +116,7 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
   const report = reportId ? summaries.find((s) => s.id === reportId) || null : null
 
   const start = () => {
-    const setup: InterviewSetup = { roundId, level, minutes, personaId, voice: voice && ttsSupported() }
+    const setup: InterviewSetup = { roundId: round.id, level, minutes, personaId, voice: voice && ttsSupported() }
     try {
       localStorage.setItem(SETUP_KEY, JSON.stringify(setup))
     } catch {
@@ -142,8 +166,8 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
     const counts: Record<string, number> = { all: summaries.length }
     for (const g of groups) counts[g.toLowerCase()] = 0
     for (const s of summaries) {
-      const r = allRounds.find(x => x.id === s.roundId) || allRounds[0]
-      const key = r.group.toLowerCase()
+      const r = allRounds.find(x => x.id === s.roundId)
+      const key = r ? categoryFor(r).toLowerCase() : 'other'
       if (key in counts) counts[key]++
     }
     return counts
@@ -152,17 +176,19 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
   const filteredSummaries = useMemo(() => {
     if (historyFilter === 'all') return summaries
     return summaries.filter((s) => {
-      const r = allRounds.find(x => x.id === s.roundId) || allRounds[0]
-      return r.group.toLowerCase() === historyFilter
+      const r = allRounds.find(x => x.id === s.roundId)
+      return r ? categoryFor(r).toLowerCase() === historyFilter : false
     })
   }, [summaries, historyFilter, allRounds])
 
 
   return (
-    <div className="animate-rise flex flex-col gap-8 max-w-6xl mx-auto w-full">
-      <div className="flex flex-col gap-1">
+    <div className="iv-workspace animate-rise flex flex-col gap-6 max-w-6xl mx-auto w-full">
+      <div className="iv-hero">
+        <span className="iv-eyebrow"><Mic size={14} aria-hidden="true" /> Your interview practice room</span>
         <h1 className="text-2xl font-display font-bold text-foreground">Mock interviews</h1>
-        <p className="text-muted-foreground">A live AI interviewer, a real clock, your editor, and a hiring-committee scorecard at the end.</p>
+        <p className="text-muted-foreground max-w-xl">Practise one round at a time. Think out loud, work through follow-ups, and leave with specific feedback for your next interview.</p>
+        <div className="iv-hero-meta"><span><Clock3 size={14} />20–45 minutes</span><span><Code2 size={14} />Code, design, or conversation</span><span><Check size={14} />Personal scorecard</span></div>
         {aiReason && (
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm">
             <span>{aiReason}</span>
@@ -175,8 +201,13 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
         )}
       </div>
 
+      <nav className="iv-view-switch" aria-label="Interview workspace">
+        <button type="button" aria-pressed={section === 'setup'} onClick={() => setSection('setup')}>Practise a round</button>
+        <button type="button" aria-pressed={section === 'history'} onClick={() => setSection('history')}>History & feedback <span>{summaries.length}</span></button>
+      </nav>
+
       {/* Progress Stats */}
-      {scored.length > 0 && (
+      {section === 'history' && scored.length > 0 && (
         <section className="iv-stats-row" aria-label="Interview progress">
           <div className="iv-stat-card">
             <span className="iv-stat-value">{summaries.length}</span>
@@ -206,23 +237,28 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
       )}
 
       {/* Setup */}
-      <section className="iv-setup surface" aria-labelledby="iv-setup-title">
+      {section === 'setup' && <section className="iv-setup surface" aria-labelledby="iv-setup-title">
         <div className="iv-setup-main">
           <h2 id="iv-setup-title" className="text-lg font-bold">
-            Set up your round
+            <span className="iv-step">1</span> Choose your focus
           </h2>
 
-          <div className="mt-4 space-y-4">
-            {groups.map((group) => (
-              <div key={group}>
-                <p className="label-quiet">{group}</p>
+          <div className="iv-category-list" aria-label="Round categories">
+            {['all', ...groups].map(group => <button type="button" key={group} aria-pressed={category === group} onClick={() => setCategory(group)}>{group === 'all' ? 'All rounds' : group}<span>{group === 'all' ? allRounds.length : allRounds.filter(r => categoryFor(r) === group).length}</span></button>)}
+          </div>
+          <label className="iv-search"><Search size={17} aria-hidden="true" /><input type="search" aria-label="Search interview rounds" placeholder="Search a topic, language, or skill…" value={query} onChange={e => setQuery(e.target.value)} /></label>
+          {category === 'Learning tracks' && <label className="iv-family-filter">Track category<select value={family} onChange={e => setFamily(e.target.value)}><option value="all">All learning tracks</option>{families.map(value => <option key={value} value={value}>{value}</option>)}</select></label>}
+          <div className="iv-catalog-heading"><p>{CATEGORY_DESCRIPTIONS[category] || 'Find the right round for your next interview.'}</p><span aria-live="polite">{visibleRounds.length} rounds</span></div>
+          <div className="iv-catalog">
                 <div className="iv-round-grid">
-                  {allRounds.filter((r) => r.group === group).map((r) => {
+                  {visibleRounds.map((r) => {
                     const stat = roundStats.get(r.id)
                     return (
-                      <button key={r.id} type="button" className={`iv-round ${roundId === r.id ? 'is-active' : ''}`} onClick={() => setRoundId(r.id)} aria-pressed={roundId === r.id}>
+                      <button key={r.id} type="button" className={`iv-round ${round.id === r.id ? 'is-active' : ''}`} onClick={() => setRoundId(r.id)} aria-pressed={round.id === r.id}>
+                        <span className="iv-round-type">{r.family || categoryFor(r)}{round.id === r.id && <Check size={15} aria-label="Selected" />}</span>
                         <span className="font-semibold">{r.label}</span>
                         <span className="text-xs text-muted-foreground">{r.blurb}</span>
+                        <span className="iv-round-format">{r.design ? 'Whiteboard session' : r.coding ? 'Live coding' : 'Guided conversation'}</span>
                         {stat && (
                           <span className="text-[10px] font-bold text-primary mt-1">
                             {stat.count} done · avg {Math.round(stat.totalScore / stat.count)}
@@ -232,10 +268,10 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
                     )
                   })}
                 </div>
-              </div>
-            ))}
+            {visibleRounds.length === 0 && <div className="iv-search-empty"><p>No rounds match your search.</p><button type="button" className="btn btn-ghost btn-sm" onClick={() => { setQuery(''); setCategory('all') }}>Show all rounds</button></div>}
           </div>
 
+          <h2 className="iv-section-heading"><span className="iv-step">2</span> Set the challenge</h2>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             <div>
               <p className="label-quiet">Level</p>
@@ -262,7 +298,7 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
           </div>
 
           <div className="mt-5">
-            <p className="label-quiet">Interviewer</p>
+            <h2 className="iv-section-heading"><span className="iv-step">3</span> Pick your interviewer</h2>
             <div className="iv-persona-grid">
               {PERSONAS.map((p) => (
                 <button key={p.id} type="button" className={`iv-persona ${personaId === p.id ? 'is-active' : ''}`} onClick={() => setPersonaId(p.id)} aria-pressed={personaId === p.id}>
@@ -281,6 +317,8 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
         </div>
 
         <aside className="iv-setup-side">
+          <p className="iv-eyebrow">Your session</p>
+          <h3 className="text-lg font-bold mt-2 mb-4">{round.label}</h3>
           <div className="iv-avatar is-large" aria-hidden="true">
             {persona.name[0]}
           </div>
@@ -309,15 +347,15 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
             <span>Interviewer speaks out loud{ttsSupported() ? '' : ' (not supported here)'}</span>
           </label>
           <p className="text-xs text-muted-foreground">{sttSupported() ? 'You can dictate answers with the microphone button.' : 'Dictation needs Chrome or Edge; typing always works.'}</p>
-          <button type="button" className="btn btn-primary w-full mt-4" onClick={start} disabled={Boolean(aiReason)}>
-            Start interview
+          <button type="button" className="btn btn-primary w-full mt-4" onClick={start} disabled={aiReason !== null}>
+            {aiReason === undefined ? 'Checking availability…' : 'Start interview'} <ArrowRight size={16} aria-hidden="true" />
           </button>
           <p className="text-[11px] text-muted-foreground mt-2">Find a quiet spot, talk through your thinking, and treat it like the real thing.</p>
         </aside>
-      </section>
+      </section>}
 
       {/* History */}
-      <section className="flex flex-col gap-4">
+      {section === 'history' && <section className="flex flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 className="text-xl font-semibold text-foreground">Your interviews</h2>
           {scored.length > 0 && (
@@ -348,7 +386,7 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
                   role="radio"
                   aria-checked={historyFilter === key}
                   className={historyFilter === key ? 'is-active' : ''}
-                  onClick={() => setHistoryFilter(key as HistoryFilter)}
+                  onClick={() => setHistoryFilter(key)}
                   disabled={filterCounts[key] === 0}
                 >
                   {group} {filterCounts[key] > 0 ? `(${filterCounts[key]})` : ''}
@@ -363,7 +401,7 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
             <div className="iv-empty-icon" aria-hidden="true">🎙️</div>
             <h3>No mock interviews yet</h3>
             <p>Choose a round type above, set your difficulty, and start your first AI-powered mock interview. You'll get a detailed scorecard with strengths, improvements, and model answers.</p>
-            <button type="button" className="btn btn-primary btn-sm mt-2" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            <button type="button" className="btn btn-primary btn-sm mt-2" onClick={() => { setSection('setup'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
               Set up your first interview ↑
             </button>
           </div>
@@ -429,7 +467,7 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
             })}
           </div>
         )}
-      </section>
+      </section>}
 
       {report && (
         <InterviewReport
@@ -440,6 +478,10 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
               ? () => {
                   closeReport()
                   setRoundId(report.roundId || 'dsa')
+                  setSection('setup')
+                  setCategory(categoryFor(allRounds.find(r => r.id === report.roundId) || allRounds[0]))
+                  setQuery('')
+                  setFamily('all')
                   if (LEVELS.some((l) => l.id === report.difficulty)) setLevel(report.difficulty as Level)
                   if (report.personaId) setPersonaId(personaById(report.personaId).id)
                   window.scrollTo({ top: 0, behavior: 'smooth' })

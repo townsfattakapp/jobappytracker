@@ -2632,6 +2632,48 @@ a {
 }
 
 /* --- Mock interview: setup --- */
+.iv-hero {
+  padding: 1.5rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 1.25rem;
+  background: radial-gradient(ellipse at top right, hsl(var(--primary) / 0.13), transparent 65%), hsl(var(--card));
+  display: grid;
+  gap: .7rem;
+}
+.iv-eyebrow { display: flex; align-items: center; gap: .5rem; color: hsl(var(--primary)); font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.iv-hero-meta { display: flex; flex-wrap: wrap; gap: .7rem 1.3rem; margin-top: .5rem; color: hsl(var(--muted-foreground)); font-size: .75rem; }
+.iv-hero-meta > span { display: flex; align-items: center; gap: .4rem; }
+.iv-view-switch { display: flex; gap: 1rem; border-bottom: 1px solid hsl(var(--border)); }
+.iv-view-switch button { padding: .7rem .25rem; font-size: .85rem; font-weight: 600; border-bottom: 2px solid transparent; color: hsl(var(--muted-foreground)); }
+.iv-view-switch button[aria-pressed=true] { border-color: hsl(var(--primary)); color: hsl(var(--foreground)); }
+.iv-view-switch button span { font-size: .7rem; padding: .15rem .4rem; border-radius: 1rem; background: hsl(var(--muted)); }
+.iv-step { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; margin-right: .5rem; border-radius: .5rem; background: hsl(var(--primary) / .1); color: hsl(var(--primary)); font-size: .8rem; }
+.iv-section-heading { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid hsl(var(--border)); font-weight: 700; }
+.iv-category-list { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1.25rem 0; }
+.iv-category-list button { display: flex; align-items: center; gap: .4rem; padding: .5rem .7rem; border: 1px solid hsl(var(--border)); border-radius: .65rem; font-size: .75rem; font-weight: 600; }
+.iv-category-list button span { font-size: .65rem; opacity: .65; }
+.iv-category-list button[aria-pressed=true] { border-color: hsl(var(--primary)); background: hsl(var(--primary) / .1); color: hsl(var(--primary)); }
+.iv-search { display: flex; align-items: center; gap: .6rem; border: 1px solid hsl(var(--border)); border-radius: .7rem; padding: .7rem .85rem; color: hsl(var(--muted-foreground)); }
+.iv-search input { width: 100%; min-width: 0; background: transparent; color: hsl(var(--foreground)); border: 0; padding: 0; font-size: .85rem; outline: none; }
+.iv-search:focus-within { outline: 2px solid hsl(var(--primary)); outline-offset: 2px; }
+.iv-family-filter { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-top: .8rem; font-size: .75rem; color: hsl(var(--muted-foreground)); }
+.iv-family-filter select { max-width: 100%; min-width: 0; padding: .5rem; border-radius: .5rem; border: 1px solid hsl(var(--border)); background: hsl(var(--card)); color: hsl(var(--foreground)); }
+.iv-catalog-heading { display: flex; justify-content: space-between; gap: 1rem; font-size: .75rem; color: hsl(var(--muted-foreground)); margin: .85rem 0; }
+.iv-catalog-heading > span { white-space: nowrap; }
+.iv-catalog { max-height: 30rem; overflow-y: auto; padding: .25rem; scrollbar-width: thin; }
+.iv-round-type { display: flex; justify-content: space-between; align-items: center; width: 100%; color: hsl(var(--primary)); font-size: .65rem; font-weight: 700; margin-bottom: .35rem; }
+.iv-round-format { margin-top: auto; padding-top: .7rem; font-size: .65rem; color: hsl(var(--muted-foreground)); }
+.iv-search-empty { padding: 2rem; text-align: center; font-size: .85rem; color: hsl(var(--muted-foreground)); }
+.iv-workspace .iv-pills { flex-wrap: wrap; }
+.iv-workspace .iv-setup-main { min-width: 0; }
+.iv-workspace button:focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 3px; }
+@media (min-width: 1024px) {
+  .iv-workspace .iv-setup-side { position: sticky; top: 1.5rem; align-self: start; }
+}
+@media (max-width: 480px) {
+  .iv-workspace .iv-round-grid, .iv-workspace .iv-persona-grid { grid-template-columns: minmax(0, 1fr); }
+  .iv-hero { padding: 1.1rem; }
+}
 .iv-setup {
   display: grid;
   gap: 1.5rem;

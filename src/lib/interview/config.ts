@@ -7,6 +7,8 @@ export interface InterviewRound {
   id: string
   label: string
   group: RoundGroup
+  /** Learning-track family for browsing the curriculum interview catalogue. */
+  family?: string
   /** One-line description shown on the setup card. */
   blurb: string
   /** What a good interviewer covers; injected into the interviewer brief. */
