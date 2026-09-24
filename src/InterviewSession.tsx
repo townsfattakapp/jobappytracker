@@ -210,6 +210,7 @@ export default function InterviewSession({ setup, onEndSession, onCancel, onOpen
     }
     cancelSpeech.current()
     const base = input
+    setError(null)
     const started = listen({
       onText: (finalText, interimText) => {
         setInput(`${base}${base && !base.endsWith(' ') && finalText ? ' ' : ''}${finalText}`)
