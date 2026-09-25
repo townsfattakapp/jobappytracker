@@ -1,10 +1,16 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import BrandLogo, { BrandMark } from '../BrandLogo'
 import { PLAN_FEATURES, PLANS } from '../../lib/billing/plan'
 import PlanCards from '../PlanCards'
+import {
+  MARKETING_CAREER_PATHS,
+  MARKETING_DOMAINS,
+  MARKETING_STATS,
+  MARKETING_TRACKS,
+} from '../../data/marketingCurriculum'
 import './landing.css'
 
 const HeroScene = dynamic(() => import('../HeroScene'), { ssr: false, loading: () => null })
@@ -53,7 +59,7 @@ const STEPS = [
   {
     n: '01',
     title: 'Tell it where you are going',
-    body: 'Pick a target role, how many hours a day you really have, and the tracks that matter for it. The curriculum picker shows what each track covers and how long it takes at your pace.',
+    body: 'Pick from 20 role blueprints or choose from 157 engineering tracks across 12 disciplines. Tell it how many hours a day you really have, and the curriculum engine maps out your exact daily schedule.',
     shot: { src: '/screens/goal.jpg', alt: 'Choosing learning tracks for a goal' },
   },
   {
@@ -74,7 +80,7 @@ const FEATURES = [
   {
     eyebrow: 'Explanations',
     title: 'Every topic starts from zero, in the language you code in.',
-    body: 'Definition, why it matters, a real-world example, a step-by-step walkthrough and code in Java, Python, C++, Go, TypeScript or JavaScript. React topics come back as TSX, SQL topics as SQL, DevOps as shell and YAML.',
+    body: 'Definition, why it matters, a real-world example, a step-by-step walkthrough and code in Python, Java, TypeScript, Go, C++, Rust, Kotlin, Swift, Dart or SQL. React topics come back as TSX, DevOps as shell and YAML, and AI engineering with runnable Python.',
     shot: { src: '/screens/examples.jpg', alt: 'Worked examples with numbered steps and runnable code' },
   },
   {
@@ -124,6 +130,14 @@ const FAQ = [
     a: 'Because it keeps a 90-day pass at ₹199 and puts you in control. Groq has a free tier that covers normal daily use; OpenAI usage for a heavy week is usually a few rupees. Your key is encrypted at rest and only ever sent to the provider you chose.',
   },
   {
+    q: 'Which disciplines and tracks are covered in the curriculum?',
+    a: 'Prep features 157 complete tracks across 12 disciplines: AI & Generative AI (LLMs, RAG, Agents, MLOps, Computer Vision), Backend Frameworks (Spring Boot, Node.js, FastAPI, Go, Django, gRPC), Frontend & Web (React, Next.js, TypeScript, Vue, Svelte, Web Performance), Cloud & DevOps (AWS, Azure, GCP, Docker, Kubernetes, Terraform, CI/CD), Mobile (Flutter, React Native, Kotlin, Swift), Data Engineering & Science (Spark, Kafka, Airflow, dbt, Pandas, Power BI), Cybersecurity (AppSec, Cloud Security, Threat Modeling), CS Fundamentals (OS, Networks, DBMS, Distributed Systems), and Software Engineering Interviews (DSA, HLD, LLD). You can code in Java, Python, C++, Go, TypeScript, JavaScript, Rust, Kotlin, Swift, Dart, and SQL.',
+  },
+  {
+    q: 'Can I follow a pre-made career roadmap instead of choosing individual tracks?',
+    a: 'Yes. Prep includes 20 pre-built Career Path Blueprints for roles like AI Engineer, Generative AI Engineer, Full-Stack Developer, Frontend Developer, Java Backend Developer, Python Backend Developer, DevOps Engineer, Cloud Architect, Flutter Developer, Data Scientist, Data Engineer, and SWE Interview Prep. You can use any blueprint as-is or customize it by adding, removing, or reordering topics to match your exact interview timeline.',
+  },
+  {
     q: 'Is there a subscription or auto-renewal?',
     a: 'No. You buy a pass for 90 days, 180 days or a year with one payment. Nothing renews by itself, and buying another pass simply adds its days to the end of the current one.',
   },
@@ -136,10 +150,6 @@ const FAQ = [
     a: 'Pick a round such as DSA coding, system design, React or behavioural, a difficulty and a duration. An AI interviewer asks questions out loud, listens to your answers, pushes back on gaps, and gives you a scorecard with model answers and topics to revise.',
   },
   {
-    q: 'Which languages and tracks are covered?',
-    a: 'DSA and competitive programming, Core Java, JavaScript and TypeScript, React and Next.js, Node.js and backend, SQL and PostgreSQL, high-level system design, low-level design, CS fundamentals, and DevOps with CI/CD, Docker and security. Code in Java, Python, C++, Go, TypeScript or JavaScript.',
-  },
-  {
     q: 'Does it work on my phone?',
     a: 'Yes. Everything syncs to your account, so the plan you build on a laptop is on your phone in the morning, including attempts and notes.',
   },
@@ -149,6 +159,9 @@ export default function Landing() {
   useReveal()
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState<number | null>(0)
+  const [curriculumTab, setCurriculumTab] = useState<'tracks' | 'paths'>('tracks')
+  const [selectedDomain, setSelectedDomain] = useState<string>('all')
+  const [curriculumSearch, setCurriculumSearch] = useState<string>('')
   const heroRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -158,6 +171,76 @@ export default function Landing() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  const domainTrackCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: MARKETING_TRACKS.length }
+    for (const dom of MARKETING_DOMAINS) {
+      if (dom.id === 'all') continue
+      if (dom.id === 'data') {
+        counts[dom.id] = MARKETING_TRACKS.filter((t) =>
+          ['Data Engineering', 'Data Science', 'Data Analytics & BI'].includes(t.family),
+        ).length
+      } else if (dom.id === 'interviews') {
+        counts[dom.id] = MARKETING_TRACKS.filter((t) =>
+          ['Software Engineering Interviews', 'Computer Science'].includes(t.family),
+        ).length
+      } else if (dom.family) {
+        counts[dom.id] = MARKETING_TRACKS.filter((t) => t.family === dom.family).length
+      }
+    }
+    return counts
+  }, [])
+
+  const filteredTracks = useMemo(() => {
+    let list = MARKETING_TRACKS
+    const q = curriculumSearch.trim().toLowerCase()
+
+    if (selectedDomain !== 'all') {
+      const dom = MARKETING_DOMAINS.find((d) => d.id === selectedDomain)
+      if (dom) {
+        if (dom.id === 'data') {
+          list = list.filter((t) =>
+            ['Data Engineering', 'Data Science', 'Data Analytics & BI'].includes(t.family),
+          )
+        } else if (dom.id === 'interviews') {
+          list = list.filter((t) =>
+            ['Software Engineering Interviews', 'Computer Science'].includes(t.family),
+          )
+        } else if (dom.family) {
+          list = list.filter((t) => t.family === dom.family)
+        }
+      }
+    } else if (!q) {
+      list = list.filter((t) => t.popular)
+    }
+
+    if (q) {
+      list = list.filter(
+        (t) =>
+          t.title.toLowerCase().includes(q) ||
+          t.family.toLowerCase().includes(q) ||
+          t.tags.some((tag) => tag.toLowerCase().includes(q)),
+      )
+    }
+
+    return list
+  }, [selectedDomain, curriculumSearch])
+
+  const totalFilteredHours = useMemo(() => {
+    return filteredTracks.reduce((sum, t) => sum + t.hours, 0)
+  }, [filteredTracks])
+
+  const filteredCareerPaths = useMemo(() => {
+    const q = curriculumSearch.trim().toLowerCase()
+    if (!q) return MARKETING_CAREER_PATHS
+    return MARKETING_CAREER_PATHS.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        p.family.toLowerCase().includes(q) ||
+        p.description.toLowerCase().includes(q) ||
+        p.roles.some((r) => r.toLowerCase().includes(q)),
+    )
+  }, [curriculumSearch])
+
   return (
     <div className="lp">
       <header className={`lp-nav ${scrolled ? 'is-scrolled' : ''}`}>
@@ -166,6 +249,7 @@ export default function Landing() {
             <BrandLogo size={30} />
           </a>
           <nav className="lp-nav-links" aria-label="Site">
+            <a href="#curriculum">Curriculum</a>
             <a href="#product">Product</a>
             <a href="#how">How it works</a>
             <a href="#pricing">Pricing</a>
@@ -187,21 +271,21 @@ export default function Landing() {
           <div className="lp-hero-glow" aria-hidden="true" />
           <div className="lp-container lp-hero-grid">
             <div className="lp-hero-copy">
-              <p className="lp-eyebrow">Interview prep for product-based-company roles and more</p>
+              <p className="lp-eyebrow">157 Engineering Tracks · 12 Disciplines · AI Mock Interviews</p>
               <h1>
                 Stop collecting resources.
                 <br />
                 <span className="text-gradient">Start finishing them.</span>
               </h1>
               <p className="lp-lede">
-                Prep turns ten engineering tracks into a day-by-day plan, explains every topic in the language you code in, and keeps your job hunt in the same place, with AI mock interviews that feel like the real round. Passes from ₹{PLANS[0].priceInr} for {PLANS[0].name}.
+                Prep turns 157 engineering tracks across 12 disciplines into a personalized day-by-day plan, explains every topic in the language you code in, and keeps your job hunt in the same place, with AI mock interviews that feel like the real round. Passes from ₹{PLANS[0].priceInr} for {PLANS[0].name}.
               </p>
               <div className="lp-cta-row">
                 <a href="/app" className="btn btn-primary lp-cta">
                   Get started
                 </a>
-                <a href="#how" className="btn btn-ghost lp-cta">
-                  See how it works
+                <a href="#curriculum" className="btn btn-ghost lp-cta">
+                  Explore curriculum
                 </a>
               </div>
               <p className="lp-fineprint">One payment, no auto-renew · Bring your own OpenAI or Groq key · Syncs to every device</p>
@@ -220,20 +304,246 @@ export default function Landing() {
         <section className="lp-stats" aria-label="What is inside">
           <div className="lp-container lp-stats-grid" data-reveal>
             <div>
-              <strong>10</strong>
-              <span>learning tracks</span>
+              <strong>{MARKETING_STATS.tracksCount}</strong>
+              <span>learning tracks across {MARKETING_STATS.domainsCount} fields</span>
             </div>
             <div>
-              <strong>661</strong>
-              <span>topics, each with a lesson and quiz</span>
+              <strong>{MARKETING_STATS.topicsCount}</strong>
+              <span>topics with lessons & quizzes</span>
             </div>
             <div>
-              <strong>3,300+</strong>
-              <span>planned tasks with time estimates</span>
+              <strong>{MARKETING_STATS.tasksCount}</strong>
+              <span>tasks with runnable code</span>
             </div>
             <div>
-              <strong>6</strong>
-              <span>languages in the code runner</span>
+              <strong>{MARKETING_STATS.careerPathsCount}</strong>
+              <span>career path blueprints</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="curriculum" className="lp-section lp-curriculum-section">
+          <div className="lp-curriculum-glow" aria-hidden="true" />
+          <div className="lp-container">
+            <div className="lp-section-head" data-reveal>
+              <p className="lp-eyebrow">Comprehensive Curriculum & Roadmaps</p>
+              <h2>Every discipline. Every role. Fully mapped.</h2>
+              <p className="lp-lede">
+                From Generative AI, MLOps, and System Design to Flutter, Kubernetes, and Core C++ — browse 157 structured tracks and 20 end-to-end career roadmaps designed for product engineering interviews.
+              </p>
+            </div>
+
+            <div className="lp-curriculum-controls" data-reveal>
+              {/* Segmented Mode Switcher */}
+              <div className="lp-segmented-nav" role="tablist" aria-label="Curriculum view">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={curriculumTab === 'tracks'}
+                  className={`lp-segmented-btn ${curriculumTab === 'tracks' ? 'is-active' : ''}`}
+                  onClick={() => setCurriculumTab('tracks')}
+                >
+                  <span>📚</span>
+                  <span>Browse All Tracks ({MARKETING_STATS.tracksCount})</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={curriculumTab === 'paths'}
+                  className={`lp-segmented-btn ${curriculumTab === 'paths' ? 'is-active' : ''}`}
+                  onClick={() => setCurriculumTab('paths')}
+                >
+                  <span>🗺️</span>
+                  <span>Career Path Blueprints ({MARKETING_STATS.careerPathsCount})</span>
+                </button>
+              </div>
+
+              {/* Domain Filter Pills for Tracks */}
+              {curriculumTab === 'tracks' && (
+                <div className="lp-domain-pills" role="tablist" aria-label="Filter by discipline">
+                  {MARKETING_DOMAINS.map((dom) => (
+                    <button
+                      key={dom.id}
+                      type="button"
+                      className={`lp-pill-btn ${selectedDomain === dom.id ? 'is-active' : ''}`}
+                      onClick={() => setSelectedDomain(dom.id)}
+                    >
+                      <span>{dom.icon}</span>
+                      <span>{dom.name}</span>
+                      <span className="lp-pill-count">{domainTrackCounts[dom.id] || 0}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Search Bar */}
+              <div className="lp-search-wrap">
+                <span className="lp-search-icon" aria-hidden="true">
+                  🔍
+                </span>
+                <input
+                  type="text"
+                  className="lp-search-input"
+                  placeholder={
+                    curriculumTab === 'tracks'
+                      ? 'Search 157 tracks by skill, topic, or language (e.g. RAG, Kafka, Spring, React, Rust, AWS)...'
+                      : 'Search 20 career roadmaps (e.g. AI Engineer, Full-Stack, Cloud, DevOps, Security)...'
+                  }
+                  value={curriculumSearch}
+                  onChange={(e) => setCurriculumSearch(e.target.value)}
+                />
+                {curriculumSearch && (
+                  <button
+                    type="button"
+                    className="lp-search-clear"
+                    onClick={() => setCurriculumSearch('')}
+                    aria-label="Clear search"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Content Display */}
+            {curriculumTab === 'tracks' ? (
+              <>
+                <div className="lp-curriculum-meta-row" data-reveal>
+                  <span>
+                    {curriculumSearch
+                      ? `Found ${filteredTracks.length} tracks matching "${curriculumSearch}"`
+                      : selectedDomain === 'all'
+                        ? `Showing ${filteredTracks.length} featured tracks of 157 total (select a discipline above to see all)`
+                        : `Showing ${filteredTracks.length} tracks in ${MARKETING_DOMAINS.find((d) => d.id === selectedDomain)?.name}`}
+                  </span>
+                  <span>~{totalFilteredHours} study hours</span>
+                </div>
+
+                <div className="lp-curriculum-grid">
+                  {filteredTracks.map((track) => (
+                    <a
+                      key={track.id}
+                      href="/app"
+                      className="lp-curriculum-card"
+                      title={`Open ${track.title} in Prep`}
+                    >
+                      <div className="lp-card-head">
+                        <div className="lp-card-icon-wrap" aria-hidden="true">
+                          {track.icon}
+                        </div>
+                        <div className="lp-card-title-group">
+                          <h3>{track.title}</h3>
+                          <span className="lp-card-domain-badge">{track.family}</span>
+                        </div>
+                      </div>
+
+                      <div className="lp-card-tags">
+                        {track.tags.map((tag) => (
+                          <span key={tag} className="lp-card-tag">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="lp-card-footer">
+                        <span>
+                          {track.topics} topics · ~{track.hours}h
+                        </span>
+                        <span className="lp-card-cta">
+                          Start track <span aria-hidden="true">→</span>
+                        </span>
+                      </div>
+                    </a>
+                  ))}
+
+                  {filteredTracks.length === 0 && (
+                    <div className="lp-curriculum-empty">
+                      <p>No tracks matching "{curriculumSearch}" in this filter.</p>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => {
+                          setCurriculumSearch('')
+                          setSelectedDomain('all')
+                        }}
+                      >
+                        Reset filters
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="lp-curriculum-meta-row" data-reveal>
+                  <span>Showing {filteredCareerPaths.length} curated career blueprints</span>
+                  <span>100% customizable</span>
+                </div>
+
+                <div className="lp-curriculum-grid">
+                  {filteredCareerPaths.map((path) => (
+                    <a
+                      key={path.id}
+                      href="/app"
+                      className="lp-curriculum-card"
+                      title={`View ${path.title} career roadmap`}
+                    >
+                      <div className="lp-card-head">
+                        <div className="lp-card-icon-wrap" aria-hidden="true">
+                          {path.icon}
+                        </div>
+                        <div className="lp-card-title-group">
+                          <h3>{path.title}</h3>
+                          <span className="lp-card-domain-badge">{path.family}</span>
+                        </div>
+                      </div>
+
+                      <p className="lp-card-desc">{path.description}</p>
+
+                      <div className="lp-card-tags">
+                        {path.roles.map((role) => (
+                          <span key={role} className="lp-card-tag">
+                            {role}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="lp-card-footer">
+                        <span>{path.trackCount} tracks roadmap</span>
+                        <span className="lp-card-cta">
+                          Use Blueprint <span aria-hidden="true">→</span>
+                        </span>
+                      </div>
+                    </a>
+                  ))}
+
+                  {filteredCareerPaths.length === 0 && (
+                    <div className="lp-curriculum-empty">
+                      <p>No career paths matching "{curriculumSearch}".</p>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setCurriculumSearch('')}
+                      >
+                        Clear search
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Bottom Callout */}
+            <div className="lp-curriculum-footer-banner" data-reveal>
+              <div className="lp-curriculum-footer-text">
+                <h3>Need a custom syllabus for your target company?</h3>
+                <p>
+                  Pick any combination of tracks or adapt a blueprint. Prep calculates your daily calendar, spaced repetition revision, and practice intervals automatically.
+                </p>
+              </div>
+              <a href="/app" className="btn btn-primary lp-cta">
+                Build your roadmap
+              </a>
             </div>
           </div>
         </section>
@@ -389,6 +699,7 @@ export default function Landing() {
             <p>Interview preparation with a plan, for engineers targeting product companies.</p>
           </div>
           <nav className="lp-footer-links" aria-label="Footer">
+            <a href="#curriculum">Curriculum</a>
             <a href="#product">Product</a>
             <a href="#pricing">Pricing</a>
             <a href="#faq">FAQ</a>
