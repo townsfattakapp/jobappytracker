@@ -256,10 +256,10 @@ export default function Landing() {
             <a href="#faq">FAQ</a>
           </nav>
           <div className="lp-nav-actions">
-            <a href="/app" className="lp-link">
+            <a href="/app?mode=signin" className="lp-link">
               Sign in
             </a>
-            <a href="/app" className="btn btn-primary btn-sm">
+            <a href="/app?mode=signup" className="btn btn-primary btn-sm">
               Get started
             </a>
           </div>
@@ -281,7 +281,7 @@ export default function Landing() {
                 Prep turns 157 engineering tracks across 12 disciplines into a personalized day-by-day plan, explains every topic in the language you code in, and keeps your job hunt in the same place, with AI mock interviews that feel like the real round. Passes from ₹{PLANS[0].priceInr} for {PLANS[0].name}.
               </p>
               <div className="lp-cta-row">
-                <a href="/app" className="btn btn-primary lp-cta">
+                <a href="/app?mode=signup" className="btn btn-primary lp-cta">
                   Get started
                 </a>
                 <a href="#curriculum" className="btn btn-ghost lp-cta">
@@ -541,7 +541,7 @@ export default function Landing() {
                   Pick any combination of tracks or adapt a blueprint. Prep calculates your daily calendar, spaced repetition revision, and practice intervals automatically.
                 </p>
               </div>
-              <a href="/app" className="btn btn-primary lp-cta">
+              <a href="/app?mode=signup" className="btn btn-primary lp-cta">
                 Build your roadmap
               </a>
             </div>
@@ -634,7 +634,7 @@ export default function Landing() {
               <p className="lp-section-sub">Every pass includes everything. No subscription, no auto-renewal, no card kept on file.</p>
             </div>
             <div data-reveal>
-              <PlanCards href="/app" ctaLabel={(plan) => `Get ${plan.name} for ₹${plan.priceInr}`} />
+              <PlanCards href="/app?mode=signup" ctaLabel={(plan) => `Get ${plan.name} for ₹${plan.priceInr}`} />
             </div>
             <div className="lp-pricing" data-reveal>
               <div className="lp-price-card">
@@ -684,7 +684,7 @@ export default function Landing() {
           <div className="lp-container lp-final-inner" data-reveal>
             <BrandMark size={56} />
             <h2>Your next interview is closer than the end of your bookmarks folder.</h2>
-            <a href="/app" className="btn btn-primary lp-cta">
+            <a href="/app?mode=signup" className="btn btn-primary lp-cta">
               Get started
             </a>
             <p className="lp-fineprint">Passes from ₹{PLANS[0].priceInr} · One payment · No auto-renew</p>
@@ -703,7 +703,7 @@ export default function Landing() {
             <a href="#product">Product</a>
             <a href="#pricing">Pricing</a>
             <a href="#faq">FAQ</a>
-            <a href="/app">Sign in</a>
+            <a href="/app?mode=signin">Sign in</a>
           </nav>
           <p className="lp-footer-credit">
             Developed by{' '}

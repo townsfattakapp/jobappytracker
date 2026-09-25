@@ -14,6 +14,10 @@ interface AuthPanelProps {
   /** Controlled modal visibility (used by the sidebar "Sign in" button). */
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  /** Initial mode for the form (signin or signup). */
+  initialMode?: 'signin' | 'signup'
+  /** Called when user toggles between signin and signup. */
+  onModeChange?: (mode: 'signin' | 'signup') => void
 }
 
 const LAST_EMAIL_KEY = 'jobappy-last-email'
@@ -44,11 +48,86 @@ function loadAuthOptions(): Promise<AuthOptions> {
 
 function GoogleIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true" className="shrink-0">
       <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
       <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
       <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
       <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  )
+}
+
+function MailIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="20" height="16" x="2" y="4" rx="2" />
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+    </svg>
+  )
+}
+
+function LockIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  )
+}
+
+function UserIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  )
+}
+
+function EyeIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
+function EyeOffIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+      <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+      <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+      <line x1="2" x2="22" y1="2" y2="22" />
+    </svg>
+  )
+}
+
+function AlertCircleIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" x2="12" y1="8" y2="12" />
+      <line x1="12" x2="12.01" y1="16" y2="16" />
+    </svg>
+  )
+}
+
+function CloseIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
+    </svg>
+  )
+}
+
+function SpinnerIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
     </svg>
   )
 }
@@ -62,6 +141,8 @@ export default function AuthPanel({
   inline = false,
   open,
   onOpenChange,
+  initialMode,
+  onModeChange,
 }: AuthPanelProps) {
   const [internalOpen, setInternalOpen] = useState(false)
   const isOpen = open ?? internalOpen
@@ -70,7 +151,24 @@ export default function AuthPanel({
     onOpenChange?.(next)
   }
 
-  const [mode, setMode] = useState<'signin' | 'signup'>(() => (readLastEmail() ? 'signin' : 'signup'))
+  const [mode, setMode] = useState<'signin' | 'signup'>(() => {
+    if (initialMode) return initialMode
+    return readLastEmail() ? 'signin' : 'signup'
+  })
+
+  useEffect(() => {
+    if (initialMode && initialMode !== mode) {
+      setMode(initialMode)
+    }
+  }, [initialMode])
+
+  const handleModeChange = (next: 'signin' | 'signup') => {
+    setMode(next)
+    setError(null)
+    setUnverified(false)
+    onModeChange?.(next)
+  }
+
   const [email, setEmail] = useState(() => readLastEmail())
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
@@ -118,11 +216,11 @@ export default function AuthPanel({
     setUnverified(false)
     const cleanEmail = email.trim().toLowerCase()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
-      setError('Enter a valid email address.')
+      setError('Please enter a valid email address.')
       return
     }
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setError(`Use a password with at least ${MIN_PASSWORD_LENGTH} characters.`)
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`)
       return
     }
     setBusy(true)
@@ -153,7 +251,7 @@ export default function AuthPanel({
         setUnverified(true)
         setResendState('idle')
       }
-      const message = err instanceof Error ? err.message : 'Sign-in failed. Try again.'
+      const message = err instanceof Error ? err.message : 'Sign-in failed. Please check your credentials.'
       setError(message)
     } finally {
       setBusy(false)
@@ -179,41 +277,57 @@ export default function AuthPanel({
       await signInWithGoogle()
     } catch {
       setGoogleBusy(false)
-      setError('Google sign-in could not start. Try again.')
+      setError('Google sign-in could not start. Please try again.')
     }
   }
 
   const inboxContent = pendingEmail ? (
-    <div className="w-full flex flex-col items-stretch text-center">
-      <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-3xl" aria-hidden="true">
-        ✉️
+    <div className="w-full flex flex-col items-center text-center py-2 animate-fade">
+      <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-3xl mb-4 shadow-sm">
+        📬
       </div>
-      <h2 id="auth-title" className="font-display text-2xl text-foreground">
+      <h2 id="auth-title" className="font-display text-2xl font-bold text-foreground tracking-tight">
         Check your inbox
       </h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        We sent a confirmation link to <span className="font-semibold text-foreground">{pendingEmail}</span>. Open it to activate your account, then sign in.
+      <p className="mt-2 text-sm text-muted-foreground max-w-sm leading-relaxed">
+        We sent a verification link to <strong className="font-semibold text-foreground">{pendingEmail}</strong>. Click the link to activate your account.
       </p>
-      <p className="mt-3 text-xs text-muted-foreground">The link works for 24 hours. Check spam if it has not arrived in a minute.</p>
-      {error ? (
-        <p className="mt-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive" role="alert">
-          {error}
+
+      <div className="my-5 w-full p-4 rounded-2xl bg-muted/40 border border-border/50 text-xs text-muted-foreground text-left space-y-2">
+        <p className="font-semibold text-foreground flex items-center gap-1.5">
+          <span>💡</span> Quick tips:
         </p>
-      ) : null}
-      <div className="mt-5 flex flex-col gap-2">
-        <button type="button" className="btn btn-primary w-full" disabled={resendState !== 'idle'} onClick={() => void resend(pendingEmail)}>
-          {resendState === 'sending' ? 'Sending…' : resendState === 'sent' ? 'Email sent again' : 'Resend email'}
-        </button>
+        <p>• The activation link remains active for 24 hours.</p>
+        <p>• If it does not arrive within a minute, please check your spam folder.</p>
+      </div>
+
+      {error && (
+        <div className="mb-4 w-full flex items-start gap-2.5 p-3 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive text-sm" role="alert">
+          <AlertCircleIcon className="w-4 h-4 shrink-0 mt-0.5" />
+          <p className="text-xs sm:text-sm font-medium">{error}</p>
+        </div>
+      )}
+
+      <div className="w-full space-y-2.5">
         <button
           type="button"
-          className="btn btn-ghost w-full"
+          className="w-full py-3 px-4 rounded-xl font-semibold text-sm bg-foreground text-background hover:bg-foreground/90 transition-all shadow-md active:scale-[0.99] flex items-center justify-center gap-2"
           onClick={() => {
             setPendingEmail(null)
-            setMode('signin')
+            handleModeChange('signin')
             setError(null)
           }}
         >
-          I have confirmed — sign in
+          I have confirmed — Sign in →
+        </button>
+
+        <button
+          type="button"
+          className="w-full py-2.5 px-4 rounded-xl font-semibold text-sm border border-border/80 bg-card hover:bg-muted/40 text-foreground transition-all disabled:opacity-60"
+          disabled={resendState !== 'idle'}
+          onClick={() => void resend(pendingEmail)}
+        >
+          {resendState === 'sending' ? 'Sending link…' : resendState === 'sent' ? '✓ Link sent again' : 'Resend confirmation link'}
         </button>
       </div>
     </div>
@@ -221,139 +335,190 @@ export default function AuthPanel({
 
   const formContent = inboxContent ?? (
     <div className="w-full flex flex-col items-stretch">
-      {!inline && (
-        <>
-          <h2 id="auth-title" className="font-display text-2xl text-foreground">
-            {mode === 'signin' ? 'Sign in' : 'Create account'}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Your tracker, notes and learning plan follow you to every device.
-          </p>
-        </>
-      )}
-
-      {options?.google && (
-        <>
-          <button type="button" className="auth-google mt-3" onClick={() => void google()} disabled={googleBusy || busy}>
-            <GoogleIcon />
-            <span>{googleBusy ? 'Opening Google…' : 'Continue with Google'}</span>
-          </button>
-          <div className="auth-divider" role="separator">
-            <span>or with email</span>
-          </div>
-        </>
-      )}
-
-      <div className={`${options?.google ? 'mt-1' : 'mt-3'} grid grid-cols-2 gap-1 rounded-xl bg-muted/60 p-1`} role="tablist" aria-label="Sign in or create account">
-        {(['signin', 'signup'] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            role="tab"
-            aria-selected={mode === m}
-            className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
-              mode === m ? 'bg-[hsl(var(--card))] text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-            }`}
-            onClick={() => {
-              setMode(m)
-              setError(null)
-              setUnverified(false)
-            }}
-          >
-            {m === 'signin' ? 'Sign in' : 'Create account'}
-          </button>
-        ))}
+      {/* Segmented Mode Selector - 100% full width end-to-end */}
+      <div
+        className="w-full grid grid-cols-2 p-1 rounded-2xl bg-muted/50 border border-border/50 mb-5"
+        role="tablist"
+        aria-label="Sign in or create account"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === 'signin'}
+          className={`w-full py-2.5 px-3 rounded-xl text-sm font-semibold transition-all duration-150 text-center ${
+            mode === 'signin'
+              ? 'bg-card text-foreground shadow-sm border border-border/60'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+          onClick={() => handleModeChange('signin')}
+        >
+          Sign in
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === 'signup'}
+          className={`w-full py-2.5 px-3 rounded-xl text-sm font-semibold transition-all duration-150 text-center ${
+            mode === 'signup'
+              ? 'bg-card text-foreground shadow-sm border border-border/60'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+          onClick={() => handleModeChange('signup')}
+        >
+          Create account
+        </button>
       </div>
 
-      <form className="mt-4 flex flex-col gap-4 w-full" onSubmit={submit} noValidate>
-        {mode === 'signup' ? (
-          <div>
-            <label htmlFor="auth-name" className="label-quiet">
-              Name
+      {/* Google OAuth Button */}
+      {options?.google && (
+        <div className="w-full mb-5">
+          <button
+            type="button"
+            className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-border/80 bg-card hover:bg-muted/30 text-foreground font-semibold text-sm transition-all duration-150 shadow-sm hover:border-border hover:shadow disabled:opacity-60"
+            onClick={() => void google()}
+            disabled={googleBusy || busy}
+          >
+            <GoogleIcon />
+            <span>{googleBusy ? 'Connecting to Google…' : 'Continue with Google'}</span>
+          </button>
+          <div className="relative my-5 flex items-center justify-center">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border/60" />
+            </div>
+            <span className="relative bg-card px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              or continue with email
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Inputs Form */}
+      <form className="flex flex-col gap-4 w-full" onSubmit={submit} noValidate>
+        {mode === 'signup' && (
+          <div className="w-full">
+            <label htmlFor="auth-name" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+              Full name <span className="font-normal text-muted-foreground/60 normal-case">(optional)</span>
             </label>
+            <div className="relative w-full">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted-foreground">
+                <UserIcon />
+              </div>
+              <input
+                id="auth-name"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-input/80 bg-background text-foreground text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all shadow-sm placeholder:text-muted-foreground/50"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Alex Johnson"
+                autoComplete="name"
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="w-full">
+          <label htmlFor="auth-email" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+            Email address
+          </label>
+          <div className="relative w-full">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted-foreground">
+              <MailIcon />
+            </div>
             <input
-              id="auth-name"
-              className="input-field"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Optional"
-              autoComplete="name"
+              id="auth-email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-input/80 bg-background text-foreground text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all shadow-sm placeholder:text-muted-foreground/50"
+              autoComplete="email"
+              autoFocus={!email}
             />
           </div>
-        ) : null}
-
-        <div>
-          <label htmlFor="auth-email" className="label-quiet">
-            Email
-          </label>
-          <input
-            id="auth-email"
-            className="input-field"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            autoComplete="email"
-            autoFocus={!email}
-          />
         </div>
 
-        <div>
-          <label htmlFor="auth-password" className="label-quiet">
-            Password
-          </label>
-          <div className="relative">
+        <div className="w-full">
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor="auth-password" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Password
+            </label>
+            {mode === 'signup' && (
+              <span className="text-[11px] text-muted-foreground font-medium">
+                Min. {MIN_PASSWORD_LENGTH} characters
+              </span>
+            )}
+          </div>
+          <div className="relative w-full">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted-foreground">
+              <LockIcon />
+            </div>
             <input
               id="auth-password"
-              className="input-field pr-16"
               type={showPassword ? 'text' : 'password'}
               required
               minLength={MIN_PASSWORD_LENGTH}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
+              placeholder={mode === 'signup' ? `At least ${MIN_PASSWORD_LENGTH} characters` : 'Enter your password'}
+              className="w-full pl-10 pr-11 py-2.5 rounded-xl border border-input/80 bg-background text-foreground text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all shadow-sm placeholder:text-muted-foreground/50"
               autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
               autoFocus={Boolean(email)}
             />
             <button
               type="button"
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground hover:text-foreground px-2 py-1"
+              className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-muted-foreground hover:text-foreground transition-colors"
               onClick={() => setShowPassword((v) => !v)}
-              aria-pressed={showPassword}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
-              {showPassword ? 'Hide' : 'Show'}
+              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
             </button>
           </div>
         </div>
 
-        {error ? (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive" role="alert">
-            <p>{error}</p>
-            {unverified && (
-              <button type="button" className="mt-1 underline font-semibold" disabled={resendState !== 'idle'} onClick={() => void resend(email.trim().toLowerCase())}>
-                {resendState === 'sending' ? 'Sending…' : resendState === 'sent' ? 'Sent — check your inbox' : 'Resend confirmation email'}
-              </button>
-            )}
+        {error && (
+          <div className="w-full flex items-start gap-2.5 p-3 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive text-sm" role="alert">
+            <AlertCircleIcon className="w-4 h-4 shrink-0 mt-0.5" />
+            <div className="flex-1 text-xs sm:text-sm font-medium">
+              <p>{error}</p>
+              {unverified && (
+                <button
+                  type="button"
+                  className="mt-1 font-semibold underline hover:no-underline block"
+                  disabled={resendState !== 'idle'}
+                  onClick={() => void resend(email.trim().toLowerCase())}
+                >
+                  {resendState === 'sending' ? 'Sending…' : resendState === 'sent' ? 'Sent — check your inbox' : 'Resend confirmation email'}
+                </button>
+              )}
+            </div>
           </div>
-        ) : null}
+        )}
 
-        <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
-          {!inline && (
-            <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>
-              Cancel
-            </button>
-          )}
-          <button type="submit" className="btn btn-primary w-full sm:w-auto" disabled={busy || googleBusy}>
-            {busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
+        {/* Submit button - 100% full width end-to-end */}
+        <div className="w-full pt-1">
+          <button
+            type="submit"
+            className="w-full py-3.5 px-4 rounded-xl font-semibold text-sm bg-foreground text-background hover:bg-foreground/90 transition-all duration-150 shadow-md hover:shadow-lg active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-60 disabled:pointer-events-none"
+            disabled={busy || googleBusy}
+          >
+            {busy ? (
+              <>
+                <SpinnerIcon className="w-4 h-4 animate-spin" />
+                <span>Please wait…</span>
+              </>
+            ) : mode === 'signin' ? (
+              <span>Sign in to Prep →</span>
+            ) : (
+              <span>Create account →</span>
+            )}
           </button>
         </div>
       </form>
 
-      <p className="mt-4 text-center text-xs text-muted-foreground">
+      <p className="mt-4 text-center text-xs text-muted-foreground leading-relaxed">
         {mode === 'signup' && options?.emailConfirmation
-          ? 'We will email you a confirmation link before the account is active.'
-          : 'Passwords are hashed on the server. There is no password reset yet, so keep it somewhere safe.'}
+          ? 'We will send a verification link to confirm your email before activating.'
+          : 'Passwords are cryptographically salted and hashed. Cloud sync protects your work.'}
       </p>
     </div>
   )
@@ -361,20 +526,40 @@ export default function AuthPanel({
   const modal =
     isOpen && !inline && typeof document !== 'undefined'
       ? createPortal(
-          <div className="fixed inset-0 z-[110] flex items-end justify-center p-4 sm:items-center animate-fade">
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6 animate-fade">
             <button
               type="button"
-              className="absolute inset-0 bg-black/50"
+              className="absolute inset-0 bg-background/80 backdrop-blur-md transition-opacity"
               aria-label="Close"
               onClick={() => setOpen(false)}
             />
             <div
               role="dialog"
               aria-modal="true"
-              aria-labelledby="auth-title"
-              className="relative z-10 w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-[hsl(var(--card))] p-5 shadow-lg sm:p-6 animate-slide-up"
-              style={{ maxHeight: '90vh' }}
+              aria-labelledby="auth-modal-title"
+              className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-2xl animate-scale-in"
             >
+              {/* Close Button */}
+              <button
+                type="button"
+                className="absolute top-4 right-4 p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                onClick={() => setOpen(false)}
+                aria-label="Close dialog"
+              >
+                <CloseIcon />
+              </button>
+
+              <div className="mb-6 text-center pr-6">
+                <h2 id="auth-modal-title" className="font-display text-2xl font-bold text-foreground tracking-tight">
+                  {mode === 'signin' ? 'Welcome back' : 'Create an account'}
+                </h2>
+                <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground">
+                  {mode === 'signin'
+                    ? 'Sign in to sync your goals, notes, and attempts.'
+                    : 'Start your preparation journey with full cloud sync.'}
+                </p>
+              </div>
+
               {formContent}
             </div>
           </div>,

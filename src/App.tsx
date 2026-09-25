@@ -13,8 +13,6 @@ import BookmarkletModal from './BookmarkletModal.tsx'
 import dynamic from 'next/dynamic'
 import AppFooter from './components/AppFooter'
 import BrandLogo, { BrandMark } from './components/BrandLogo'
-
-const HeroScene = dynamic(() => import('./components/HeroScene'), { ssr: false, loading: () => null })
 import PrepKit from './PrepKit.tsx'
 import AuthPanel from './AuthPanel.tsx'
 const GmailSyncPanel = dynamic(() => import('./GmailSyncPanel'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Gmail Sync Panel...</div> })
@@ -178,6 +176,7 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false)
   const [guestMode, setGuestMode] = useState(() => readLocal(GUEST_MODE_KEY) === '1')
   const [authModalOpen, setAuthModalOpen] = useState(false)
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
   const [syncError, setSyncError] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [cloudHydrated, setCloudHydrated] = useState(false)
@@ -211,6 +210,16 @@ export default function App() {
     writeLocal('job-app-theme', theme)
     document.documentElement.classList.toggle('dark', theme === 'dark')
   }, [theme])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const modeParam = params.get('mode')
+      if (modeParam === 'signup' || modeParam === 'signin') {
+        setAuthMode(modeParam)
+      }
+    }
+  }, [])
 
   const setView = useCallback((next: ViewMode) => {
     setViewState(next)
@@ -526,6 +535,10 @@ export default function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
+    const modeParam = params.get('mode')
+    if (modeParam === 'signup' || modeParam === 'signin') {
+      setAuthMode(modeParam)
+    }
     const verified = params.get('verified')
     const authError = params.get('error')
     if (verified || authError) {
@@ -1449,6 +1462,8 @@ export default function App() {
         <AuthPanel
           user={user}
           syncing={syncing}
+          initialMode={authMode}
+          onModeChange={setAuthMode}
           onSignedIn={handleSignedIn}
           onSignOut={handleSignOut}
           onToast={showToast}
@@ -1477,32 +1492,141 @@ export default function App() {
         </div>
       )}
       {authReady && showAuthGate && (
-        <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-xl flex items-center justify-center p-4 overflow-y-auto">
-          <div className="w-full max-w-md bg-card/95 border border-border/50 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden my-auto">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-accent"></div>
-            <HeroScene height={180} className="-mx-6 sm:-mx-8 -mt-4 sm:-mt-6" />
-            <div className="flex justify-center mb-3 -mt-6 relative">
-              <BrandLogo size={40} />
+        <div className="fixed inset-0 z-[100] bg-background/90 backdrop-blur-2xl flex items-center justify-center p-3 sm:p-6 lg:p-8 overflow-y-auto">
+          {/* Subtle atmospheric ambient glow */}
+          <div className="fixed inset-0 pointer-events-none overflow-hidden">
+            <div className="absolute -top-40 left-1/4 w-96 h-96 bg-primary/15 rounded-full blur-3xl" />
+            <div className="absolute -bottom-40 right-1/4 w-96 h-96 bg-accent/15 rounded-full blur-3xl" />
+          </div>
+
+          <div className="relative w-full max-w-4xl bg-card border border-border/70 rounded-3xl shadow-2xl shadow-primary/5 overflow-hidden my-auto grid grid-cols-1 lg:grid-cols-12">
+            {/* Top decorative gradient line */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-accent to-emerald-500 z-10" />
+
+            {/* Left Column: Brand, Value Props & Social Proof (Hidden on smaller screens) */}
+            <div className="hidden lg:flex lg:col-span-5 flex-col justify-between p-8 xl:p-10 bg-gradient-to-b from-muted/40 via-muted/20 to-background border-r border-border/50 relative overflow-hidden">
+              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-primary/10 rounded-full blur-2xl pointer-events-none" />
+
+              <div>
+                <div className="flex items-center gap-3 mb-8">
+                  <BrandLogo size={36} />
+                  <span className="text-[11px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+                    Career Suite
+                  </span>
+                </div>
+
+                <h2 className="text-2xl font-display font-extrabold tracking-tight text-foreground mb-3 leading-tight">
+                  Master High-Stakes Tech Interviews.
+                </h2>
+                <p className="text-xs text-muted-foreground leading-relaxed mb-8">
+                  The complete engineering preparation workspace with zero-to-one architecture, voice AI mocks, and local-first privacy.
+                </p>
+
+                {/* Key Pillars */}
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-foreground">157 Interactive Tracks</h4>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">System design, algorithms, concurrency, and real-world microservice labs.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-7 h-7 rounded-lg bg-accent/10 text-accent border border-accent/20 flex items-center justify-center shrink-0 mt-0.5">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-foreground">Voice AI Mock Rounds</h4>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">Live voice evaluation simulating Staff & Principal panel interviews.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-foreground">Encrypted Cloud or Local</h4>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">Sync across all devices or run 100% offline with zero telemetry.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quote pill */}
+              <div className="mt-8 pt-5 border-t border-border/40">
+                <p className="text-xs italic text-muted-foreground leading-snug">
+                  "Prep gave me the structured rigor I needed for Staff rounds at tier-1 tech companies."
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">S</div>
+                  <span className="text-[11px] font-medium text-foreground">Senior Staff Architect</span>
+                  <span className="text-[11px] text-muted-foreground">• San Francisco</span>
+                </div>
+              </div>
             </div>
-            <h2 className="text-3xl font-display font-bold mb-2 text-center tracking-tight">Welcome to Prep</h2>
-            <p className="text-muted-foreground text-center mb-4 font-medium text-sm">
-              Sign in to sync across devices, or keep everything on this device.
-            </p>
-            <AuthPanel
-              user={user}
-              syncing={syncing}
-              onSignedIn={handleSignedIn}
-              onSignOut={handleSignOut}
-              onToast={showToast}
-              inline={true}
-            />
-            <button
-              type="button"
-              onClick={continueOffline}
-              className="mt-5 w-full text-center text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Continue offline (local only)
-            </button>
+
+            {/* Right Column: Authentication Form */}
+            <div className="lg:col-span-7 p-6 sm:p-8 lg:p-10 flex flex-col justify-center bg-card">
+              {/* Mobile Brand Header */}
+              <div className="lg:hidden flex items-center justify-between mb-5">
+                <BrandLogo size={30} />
+                <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  Career Suite
+                </span>
+              </div>
+
+              <div className="mb-5">
+                <h3 className="text-2xl font-display font-bold tracking-tight text-foreground">
+                  {authMode === 'signup' ? 'Create your account' : 'Welcome back'}
+                </h3>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                  {authMode === 'signup'
+                    ? 'Start tracking 157 curricula, taking voice mock rounds, and syncing progress.'
+                    : 'Sign in to access your interview workspace, syllabus tracks, and notes.'}
+                </p>
+              </div>
+
+              <AuthPanel
+                user={user}
+                syncing={syncing}
+                initialMode={authMode}
+                onModeChange={setAuthMode}
+                onSignedIn={handleSignedIn}
+                onSignOut={handleSignOut}
+                onToast={showToast}
+                inline={true}
+              />
+
+              <div className="mt-5 pt-5 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <button
+                  type="button"
+                  onClick={continueOffline}
+                  className="font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 py-1 px-2 rounded-lg hover:bg-muted/50"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 4.243a9 9 0 01-12.728 0m0 0l2.829-2.829m-2.829 2.829L3 21m2.828-12.536a5 5 0 017.072 0m0 0l2.829 2.829M3 3l18 18" />
+                  </svg>
+                  <span>Continue offline (local only)</span>
+                </button>
+
+                <a
+                  href="/"
+                  className="font-medium text-muted-foreground hover:text-foreground transition-colors hover:underline"
+                >
+                  Back to homepage
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       )}
