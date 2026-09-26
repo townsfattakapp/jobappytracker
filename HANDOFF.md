@@ -1,4 +1,69 @@
-﻿# Phase 11 — production deployment, live job catalog and resume comparison — 2026-09-26 IST
+﻿# Phase 12 — "Minified React error #441" fix and portal-company ingestion (Amazon, Microsoft, Netflix, Adobe, NVIDIA, Salesforce, PayPal, Autodesk, Mastercard) — 2026-09-27 IST
+
+## The React #441 the owner saw in production: root cause and fix
+
+`Minified React error #441` is React's production-masked "An error occurred in the Server Components render … a digest property is included". It is what the browser receives when a **server action** throws or is refused. Cloud sync (`src/lib/cloudSync.ts` → `serverSaveCloudState` in `src/app/actions/cloud.ts`) posts the learner's whole local state through a server action, and Next.js caps server-action bodies at **1 MB** by default. The owner's `career_state` payload in production is 0.92 MB of JSON (revision 55) plus the learning history that is added on top, so the request was refused and the app showed the raw React message under "Cloud sync is paused".
+
+Reproduced locally on the production build (`next start`, local database): planting a 1.36 MB pending payload made the action answer HTTP 500 with the server log line `⨯ Error: Body exceeded 1 MB limit.` After the fix the same payload syncs cleanly.
+
+Fix (this commit):
+- `next.config.ts`: `experimental.serverActions.bodySizeLimit = '4mb'` (under Vercel's 4.5 MB request limit).
+- `src/lib/cloudSync.ts`: refuses payloads above 3.5 MB *before* sending, with a message that says the size and what to do (export a backup, clear old history); `syncErrorMessage()` maps the masked React error, expired sessions and network failures to plain sentences. `src/App.tsx` uses it for both the initial sync and the debounced save.
+- `src/lib/db/index.ts`: the pg pool is bounded per function instance (`DATABASE_POOL_MAX`, default 5) with a 15 s connection timeout, so a saturated database fails a request instead of hanging it.
+
+Not the cause: every anonymous page (`/`, `/app`, `/pricing`) and, on the local production build as the bootstrap admin, every learner view and all 19 `/admin/*` pages rendered without an error boundary (`scratch/walk-admin-local.mjs`). Vercel Hobby keeps runtime logs for about an hour, so the original digest could not be pulled after the fact; a temporary QA account on production could exercise the learner pages only (granting it the admin role was blocked by the session's permission system).
+
+## Resume upload in production: every PDF was reported as unreadable
+
+The owner's resume (a 55 KB text-based PDF: 6 fonts, ToUnicode maps, no images; 4 202 characters when parsed locally) came back as "could not be read as text … scanned image". A synthetic text PDF uploaded through `/api/resumes` in production failed identically, so the file was never the problem; `uploadResume` swallowed the exception and stored the resume with an empty profile. Two production-only causes, found in this order:
+
+1. **Worker not traced** (commit `7119515`). pdf.js in Node imports its worker as `./pdf.worker.mjs` with a computed path; Vercel's file tracing follows static imports only, so the deployed function had `pdf.mjs` without the worker (`Setting up fake worker failed`, reproduced with the traced `.next/standalone` output). `next.config.ts` `outputFileTracingIncludes` now adds pdf.js's build, CMaps, standard fonts and WASM to `/api/resumes`, and `extractText` points pdf.js at the worker explicitly. The failure is also logged now (`resume.extract_failed`), which exposed the second cause.
+2. **`DOMMatrix is not defined`** (commit after `7119515`). pdf.js evaluates `new DOMMatrix()` while its module loads and expects Node to get that class from the optional native package `@napi-rs/canvas`, whose Linux binary is loaded by a computed `require` and was not in the function either, so `import('pdf-parse')` itself failed. `extractText` now installs a plain 2-D affine `DOMMatrix` when the global is missing (text extraction never draws), and the canvas package plus its Linux x64 binary are traced too. Reproduced locally by hiding the platform binary (`scratch/simulate-no-canvas.mjs`): fails without the polyfill, extracts the text with it.
+
+Existing resumes with an empty profile are re-parsed by uploading the file again (the stored bytes are unchanged); the owner should re-upload once after the deploy. Production check after the deploy: commit `897e2c6` deployed as `job-appy-4vvfx8c6k`; the same synthetic PDF uploaded through `/api/resumes` on prep.evolw.in now returns no warnings, name, e-mail, 8 skills and 2 employment entries (test upload deleted afterwards).
+
+## Portal companies: what changed in Job Discovery
+
+Until now only companies on Greenhouse, Lever or Ashby were ingested; Amazon, Microsoft, Netflix, Adobe, NVIDIA, Salesforce, PayPal, Autodesk and Mastercard were "Unsupported" because their careers sites have no documented public API. Their sites do, however, call JSON endpoints of their own that answer plain GET/POST requests, and three adapters now read those the way the browser does:
+
+| Provider | Endpoint | Companies |
+|---|---|---|
+| `amazon` (`providers/amazon.ts`) | `amazon.jobs/en/search.json` per country (India first, 900 cap; 30 other hubs, 300 cap each) and per category | Amazon |
+| `eightfold` (`providers/eightfold.ts`) | `pcsx` flavour (`apply.careers.microsoft.com/api/pcsx/search` + `position_details`) and `apply-v2` flavour (`explore.jobs.netflix.net/api/apply/v2/jobs[/{id}]`); pages of 10, detail call per job, 3 in flight, 429 retried with backoff | Microsoft, Netflix |
+| `workday` (`providers/workday.ts`) | `POST /wday/cxs/{tenant}/{site}/jobs` (pages of 20) + detail GET per posting; India country facet where the tenant offers it (Adobe, Autodesk), text searches otherwise; a 400 on the facet is skipped, not fatal | Adobe, NVIDIA, Salesforce, PayPal, Autodesk, Mastercard |
+
+These endpoints are **unofficial and undocumented**. The catalog (`src/data/companyCatalog.ts`), the admin copy on `/admin/catalog`, the source notes and `docs/company-source-catalog.md` say so; a shape change on their side surfaces as a failed run, never as invented data. Every adapter validates the response shape, caps how much it takes per search (`maxPerSearch`, default 200 for Eightfold/Workday), deduplicates across searches and drops positions without a description. `providers/shared.ts` holds the fetch-with-retry (429/5xx, Retry-After honoured), bounded concurrency and ISO3 country names.
+
+**Google, Meta and Apple stay careers-link only**: Google Careers is HTML only (its former public jobs API answers 404), Meta Careers answers 400 to anything that is not its own page, Apple exposes no readable JSON endpoint. Nothing was scraped or bypassed; the catalog notes explain each.
+
+Other changes: re-seeding now configures a portal that *gained* a feed (previously the "keep admin decisions" rule left it `manual`/not allowed); the engine closes runs left `running` by a dead process after 30 minutes (Algolia had one in production since 2026-09-26); `scripts/ops-seed-catalog.mjs --only=slug,slug` limits verification, scheduling and ingestion to named companies; `scripts/docs-company-catalog.mjs` regenerates the catalog document.
+
+## Checks run
+
+```text
+npx tsc --noEmit → exit 0 · eslint on every touched file → exit 0
+test:ingestion 14/14 (3 new adapter tests with captured payload shapes) · test:catalog 3/3 (token shapes, unofficial notes, re-seed upgrade) · test:scheduler 4/4 · test:jobs:domain 11/11 · test:matching 5/5 · test:security 3/3 · test:monitoring 1/1
+live read-only run of every new adapter with small caps (scratch/live-providers.mjs): all 9 answer, descriptions present, India/international regions and remote/hybrid modes classified
+local production build: all public, learner and 19 admin pages OK as admin; sync repro 1.3 MB → OK after fix (500 before), 4.0 MB → clear client message
+e2e-jobs against the dev server: 46 checks passed up to the catalog-size assertion, which still expected the old 50–60 companies (bound raised to 200); after making the scheduled-source check relative to the database's starting state (an operator may already have scheduled sources) the full suite passed 77/77
+local ops rehearsal (--only, 9 sources): 9/9 succeeded in 327 s; created Amazon 1 589 (2 979 fetched, 1 390 non-tech dropped), NVIDIA 423, Microsoft 365 (163 s, 429s retried), Mastercard 209, Adobe 162, Autodesk 124, Netflix 105, Salesforce 90, PayPal 54; local database 4 540 → 7 664 published jobs
+```
+
+## Production
+
+- Commit `0d904b4` (sync limit, providers) deployed by Vercel as `job-appy-aq31rnqve` and aliased to https://prep.evolw.in; the resume fixes are commits `7119515` and `897e2c6` (deployment `job-appy-4vvfx8c6k`).
+- `scripts/ops-seed-catalog.mjs --parallel=4 --only=amazon,microsoft,netflix,adobe,nvidia,salesforce,paypal,autodesk,mastercard` against the hosted database (1 905 s; the hosted database is far slower than the local one for the per-job upserts): catalog re-seeded (168 refreshed, the nine portals switched from `manual` to their providers), 9/9 feeds verified live, 9/9 ingested with 0 failures.
+- Created in production: Amazon 1 589 (2 979 fetched), NVIDIA 423, Microsoft 362, Mastercard 209, Adobe 162, Autodesk 124, Netflix 104, Salesforce 90, PayPal 54.
+- **Published jobs: 4 424 → 7 541.** By region / mode: international onsite 4 188, international remote 1 805, India onsite 1 158, international hybrid 329, India remote 48, India hybrid 13 (India total 1 219, up from 279). Top companies now Amazon, NVIDIA, Microsoft, OpenAI, Anthropic, Mastercard, Databricks, Cloudflare, Adobe, Roblox.
+- The nine sources are scheduled, so the daily cron (once `CRON_SECRET` exists) refreshes them like the others.
+
+## Still for the operator
+
+Unchanged from Phase 11: `CRON_SECRET` (and optionally `PLATFORM_ADMINS`, AI keys, `RAZORPAY_WEBHOOK_SECRET`, mailer and TTS keys) in Vercel; real prices on `/admin/plans`; press Verify for MongoDB on `/admin/catalog`. New: the nine portal sources are large (Microsoft and NVIDIA especially); with the daily 240 s cron budget the scheduler rotates through the least-recently-run sources, so a full refresh of every source now takes several days on Hobby. Vercel Pro (more crons, longer functions) or a second daily cron would shorten that.
+
+---
+
+# Phase 11 — production deployment, live job catalog and resume comparison — 2026-09-26 IST
 
 **Deployed.** Commit `4803608` on `main` (GitHub `townsfattakapp/jobappytracker`) was built by Vercel (team Evolw, project `job-appy`, Hobby plan) and is live at https://prep.evolw.in (aliases `job-appy.vercel.app`, `job-appy-evolw.vercel.app`). The hosted Tiger Cloud database was already migrated through `0012` before this phase (preflight: ledger 13 / journal 13 / pending 0; no migration was run here). The production database now holds the seeded company catalog and the first ingestion pass; see the numbers below.
 
