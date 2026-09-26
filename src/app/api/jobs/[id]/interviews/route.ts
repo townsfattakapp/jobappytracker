@@ -1,5 +1,7 @@
+import { eq } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 import { db } from '../../../../../lib/db'
+import { users } from '../../../../../lib/db/schema'
 import { buildInterviewContext, SECTION_TITLES, type InterviewMode, type SectionId } from '../../../../../lib/interview/jobInterview'
 import { ValidationError } from '../../../../../lib/jobs/normalize'
 import { errorResponse, readJson } from '../../../../../lib/server/apiErrors'
@@ -76,7 +78,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const modes: InterviewMode[] = ['full', 'weak_areas', 'section', 'missed_concepts', 'preview']
     const mode = modes.includes(body.mode as InterviewMode) ? (body.mode as InterviewMode) : 'full'
     const sectionId = typeof body.sectionId === 'string' && body.sectionId in SECTION_TITLES ? (body.sectionId as SectionId) : null
-    const row = await createSession(db, { userId: access.userId, ...inputs, config: body.config, mode, parentSessionId: typeof body.parentSessionId === 'string' ? body.parentSessionId : null, sectionId, language: typeof body.language === 'string' ? body.language.slice(0, 20) : undefined, access: ia }, now)
+    const account = await db.query.users.findFirst({ where: eq(users.id, access.userId), columns: { name: true } })
+    const row = await createSession(db, { userId: access.userId, ...inputs, config: body.config, mode, parentSessionId: typeof body.parentSessionId === 'string' ? body.parentSessionId : null, sectionId, language: typeof body.language === 'string' ? body.language.slice(0, 20) : undefined, access: ia, candidateName: account?.name ?? null, voice: body.voice === true }, now)
     return NextResponse.json({ session: toSessionDto(row, now), resumed: false }, { status: 201 })
   } catch (error) {
     return errorResponse(error, 'POST /api/jobs/[id]/interviews')

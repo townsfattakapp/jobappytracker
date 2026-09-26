@@ -548,7 +548,7 @@ export default function AuthPanel({
               role="dialog"
               aria-modal="true"
               aria-labelledby="auth-modal-title"
-              className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-2xl animate-scale-in"
+              className="relative z-10 w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-2xl animate-scale-in"
             >
               {/* Close Button */}
               <button

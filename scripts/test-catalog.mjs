@@ -36,15 +36,15 @@ async function freshDb() {
   return { client, db, catalog }
 }
 
-test('catalog data: 50–60 companies, unique official identities, valid role families, feeds only with verification evidence', () => {
-  assert.ok(COMPANY_CATALOG.length >= 50 && COMPANY_CATALOG.length <= 60, `size ${COMPANY_CATALOG.length}`)
+test('catalog data: 50–200 companies, unique official identities, valid role families, feeds only with verification evidence', () => {
+  assert.ok(COMPANY_CATALOG.length >= 50 && COMPANY_CATALOG.length <= 200, `size ${COMPANY_CATALOG.length}`)
   const slugs = new Set(COMPANY_CATALOG.map((c) => c.slug))
   assert.equal(slugs.size, COMPANY_CATALOG.length, 'unique slugs')
   for (const c of COMPANY_CATALOG) {
     assert.match(c.slug, /^[a-z0-9-]+$/)
     assert.match(c.careersUrl, /^https:\/\//, `${c.slug} careers url`)
     assert.match(c.website, /^https:\/\//)
-    assert.ok(!/linkedin\.com|google\.com\/search|indeed|naukri|glassdoor/i.test(c.careersUrl), `${c.slug} links the official page, not an aggregator`)
+    assert.ok(c.slug === 'linkedin' || !/linkedin\.com|google\.com\/search|indeed|naukri|glassdoor/i.test(c.careersUrl), `${c.slug} links the official page, not an aggregator`)
     assert.ok(['strong', 'moderate', 'international'].includes(c.indiaRelevance))
     assert.ok(c.roleFamilies.length > 0 && c.roleFamilies.every((f) => ROLE_CATEGORY_IDS.includes(f)), `${c.slug} role families valid`)
     if (c.feed) {

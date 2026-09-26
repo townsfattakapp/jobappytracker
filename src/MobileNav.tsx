@@ -91,7 +91,7 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
           role="presentation"
         >
           <div
-            className="bg-card border border-border/60 rounded-2xl p-3 shadow-2xl flex flex-col gap-1 animate-slide-up"
+            className="bg-card border border-border/60 rounded-2xl p-3 shadow-2xl flex flex-col gap-1 animate-slide-up max-h-[calc(100dvh-7rem)] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-label={`${openGroup.label} menu`}

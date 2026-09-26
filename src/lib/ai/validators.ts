@@ -4,7 +4,7 @@
  * failed validation means the deterministic output is used alone.
  */
 
-const HIRE_WORDS = /\b(hire|hired|hiring probab|chance of (getting|being)|\d{1,3}\s?% (chance|likely)|you will (get|receive) (the|an) offer)\b/i
+const HIRE_WORDS = /\b(hire|hired|hiring (probab\w*|chances?|odds)|chance of (getting|being)|\d{1,3}\s?% (chance|likely)|you will (get|receive) (the|an) offer)\b/i
 
 export function validateFollowUp(text: unknown): string | null {
   if (typeof text !== 'string') return null

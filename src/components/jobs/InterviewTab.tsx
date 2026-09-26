@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import LockedFeature from '../LockedFeature'
+import DeviceCheck from '../interview/DeviceCheck'
 import InterviewReportView from './InterviewReportView'
 import InterviewSessionView from './InterviewSessionView'
 import { ApiError } from '../../lib/adminClient'
 import { DEPTHS, DIFFICULTIES, FOCUS_OPTIONS, INTERVIEW_DURATIONS, type InterviewConfig, type InterviewMode, type SectionId } from '../../lib/interview/jobInterview'
+import { loadVoiceSettings, saveVoiceSettings, type VoiceSettings } from '../../lib/interview/voice'
 import type { CompatibilityReport } from '../../lib/jobs/compatibility'
-import { deriveInterview, fetchInterviewOverview, fetchInterviewSession, progressSummary, startInterview, type DeriveResponse, type InterviewOverview } from '../../lib/jobs/interviewClient'
+import { deriveInterview, fetchInterviewOverview, fetchInterviewSession, fetchVoiceConfig, progressSummary, startInterview, type DeriveResponse, type InterviewOverview, type VoiceConfig } from '../../lib/jobs/interviewClient'
 import type { JobDto } from '../../lib/jobs/types'
 import type { HistoryItem, SessionDto } from '../../lib/server/interviews'
 import type { Goal, KnowledgeWorkspace, RoadmapDay } from '../../types'
@@ -35,7 +37,7 @@ function minutesOf(item: HistoryItem): string {
   return `${Math.max(1, Math.round(item.durationSeconds / 60))} min (planned ${item.minutes})`
 }
 
-/** "Mock Interview for This Job": derived configuration, setup, session, report and attempt history. */
+/** "Mock Interview for This Job": derived configuration, device check and voice settings, the interview room, feedback and attempt history. */
 export default function InterviewTab({ job, signedIn, can, compatibility, goals, roadmap, knowledgeWorkspaces, hasBlueprint, onOpenTopic, onAddPlan, onHistoryChanged, onSessionActive, onGoPrepare, onSignIn, onUpgrade }: Props) {
   const [overview, setOverview] = useState<InterviewOverview | null>(null)
   const [derived, setDerived] = useState<DeriveResponse | null>(null)
@@ -45,10 +47,18 @@ export default function InterviewTab({ job, signedIn, can, compatibility, goals,
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [reattempt, setReattempt] = useState<{ mode: InterviewMode; parentSessionId: string; sectionId?: SectionId } | null>(null)
+  const [voiceConfig, setVoiceConfig] = useState<VoiceConfig | null>(null)
+  const [voiceError, setVoiceError] = useState<string | null>(null)
+  const [settings, setSettings] = useState<VoiceSettings>(() => loadVoiceSettings())
   const progress = useMemo(() => progressSummary(roadmap, knowledgeWorkspaces), [roadmap, knowledgeWorkspaces])
   const compat = useMemo(() => (compatibility ? { score: compatibility.score, strongAlignment: compatibility.strongAlignment, missingRequirements: compatibility.missingRequirements } : null), [compatibility])
   const allowed = signedIn && (can('interview.jobFull') || can('interview.jobPreview'))
   const full = can('interview.jobFull')
+
+  const updateSettings = useCallback((s: VoiceSettings) => {
+    setSettings(s)
+    saveVoiceSettings(s)
+  }, [])
 
   const load = useCallback(async () => {
     if (!allowed) return
@@ -72,15 +82,34 @@ export default function InterviewTab({ job, signedIn, can, compatibility, goals,
   }, [load])
 
   useEffect(() => {
+    if (!allowed) return
+    let cancelled = false
+    fetchVoiceConfig()
+      .then((c) => {
+        if (cancelled) return
+        setVoiceConfig(c)
+        setVoiceError(null)
+        // Server defaults (admin-managed pacing) apply until the learner changes them on this device.
+        setSettings((s) => loadVoiceSettings({ rate: c.tts.rate, silenceThinkingSec: c.tts.silenceThinkingSec, silenceClarifySec: c.tts.silenceClarifySec, endOfSpeechSec: c.tts.endOfSpeechSec, enabled: s.enabled && c.voice }))
+      })
+      .catch((e) => {
+        if (!cancelled) setVoiceError(e instanceof ApiError ? e.message : 'The interview service could not be reached. You can still start a text interview once it is back.')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [allowed])
+
+  useEffect(() => {
     onSessionActive(view === 'session')
   }, [view, onSessionActive])
 
-  const start = async (opts: { mode: InterviewMode; parentSessionId?: string | null; sectionId?: SectionId | null }) => {
+  const start = async (opts: { mode: InterviewMode; parentSessionId?: string | null; sectionId?: SectionId | null; voice: boolean }) => {
     if (!config) return
     setBusy('start')
     setError(null)
     try {
-      const { session: s } = await startInterview(job.id, { progress, compatibility: compat, config, mode: opts.mode, parentSessionId: opts.parentSessionId ?? null, sectionId: opts.sectionId ?? null, language: 'javascript' })
+      const { session: s } = await startInterview(job.id, { progress, compatibility: compat, config, mode: opts.mode, parentSessionId: opts.parentSessionId ?? null, sectionId: opts.sectionId ?? null, language: 'javascript', voice: opts.voice })
       setSession(s)
       setReattempt(null)
       setView('session')
@@ -116,12 +145,16 @@ export default function InterviewTab({ job, signedIn, can, compatibility, goals,
   }
 
   if (!signedIn) return <LockedFeature title="Mock interview for this job" description="Sign in to run a role-adapted mock interview built from this listing, your resume and your curriculum progress." onSignIn={onSignIn} signedIn={false} />
-  if (!allowed) return <LockedFeature title="Mock interview for this job" description="Job-specific mock interviews with adaptive follow-ups, evidence-based feedback and weakness mapping to your curriculum." onUpgrade={onUpgrade} signedIn />
+  if (!allowed) return <LockedFeature title="Mock interview for this job" description="Job-specific mock interviews with a spoken interviewer, adaptive follow-ups, evidence-based feedback and weakness mapping to your curriculum." onUpgrade={onUpgrade} signedIn />
 
   if (view === 'session' && session) {
     return (
       <InterviewSessionView
+        key={session.id}
         session={session}
+        voiceConfig={voiceConfig}
+        settings={settings}
+        onSettingsChange={updateSettings}
         onSessionChanged={setSession}
         onFinished={finished}
         onLeave={() => {
@@ -156,13 +189,15 @@ export default function InterviewTab({ job, signedIn, can, compatibility, goals,
   }
 
   const d = derived?.derived ?? null
+  const startMode = reattempt ? { mode: reattempt.mode, parentSessionId: reattempt.parentSessionId, sectionId: reattempt.sectionId ?? null } : { mode: (full ? 'full' : 'preview') as InterviewMode }
+  const startLabel = reattempt ? `Start ${MODE_LABEL[reattempt.mode].toLowerCase()} re-attempt` : full ? 'Start interview' : 'Start preview interview'
   return (
     <div className="flex flex-col gap-5">
       <section className="job-section" aria-labelledby="jiv-setup">
         <h3 id="jiv-setup" className="job-section-title">
           Mock Interview for This Job <span className="job-personal-label">Recommended practice based on this role</span>
         </h3>
-        <p className="job-section-sub">Built from the job description, role family and seniority, the skills it names, your resume evidence, compatibility analysis, curriculum progress and preparation blueprint. Questions carry their source; nothing is presented as a real {job.company?.name || 'company'} interview question.</p>
+        <p className="job-section-sub">A structured interviewer takes you through a realistic interview built from the job description, role family and seniority, the skills it names, your resume evidence, compatibility analysis, curriculum progress and preparation blueprint. Questions carry their source; nothing is presented as a real {job.company?.name || 'company'} interview question, and the interviewer does not represent the company.</p>
         {error && (
           <p className="text-sm text-destructive mt-2" role="alert">
             {error}
@@ -262,17 +297,15 @@ export default function InterviewTab({ job, signedIn, can, compatibility, goals,
             ) : (
               <p className="text-sm mt-3">Your plan includes a three-question preview with summary feedback. The full interview, adaptive follow-ups, detailed feedback and re-attempts need an upgrade.</p>
             )}
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <button type="button" className="btn btn-primary" onClick={() => start(reattempt ? { mode: reattempt.mode, parentSessionId: reattempt.parentSessionId, sectionId: reattempt.sectionId ?? null } : { mode: full ? 'full' : 'preview' })} disabled={busy !== null || (!full && !can('interview.jobPreview'))}>
-                {busy === 'start' ? 'Starting…' : reattempt ? `Start ${MODE_LABEL[reattempt.mode].toLowerCase()} re-attempt` : full ? 'Start interview' : 'Start preview interview'}
-              </button>
-              {overview && (
-                <span className="text-xs text-muted-foreground">
-                  Interviews used: {overview.limits.day.used}/{overview.limits.day.limit} today · {overview.limits.month.used}/{overview.limits.month.limit} this month
-                </span>
-              )}
+            <div className="mt-4">
+              <DeviceCheck config={voiceConfig} configError={voiceError} settings={settings} onSettings={updateSettings} onStart={(mode) => void start({ ...startMode, voice: mode === 'voice' })} startLabel={startLabel} busy={busy === 'start'} />
             </div>
-            {!full && <LockedFeature title="Full job-specific interviews" description="Complete role-adapted interview with coding and design where relevant, adaptive follow-ups, detailed feedback, weakness mapping, re-attempts and history." onUpgrade={onUpgrade} signedIn compact />}
+            {overview && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Interviews used: {overview.limits.day.used}/{overview.limits.day.limit} today · {overview.limits.month.used}/{overview.limits.month.limit} this month
+              </p>
+            )}
+            {!full && <LockedFeature title="Full job-specific interviews" description="Complete role-adapted interview with coding and design where relevant, adaptive follow-ups, detailed feedback, weakness mapping, re-attempts, replay and history." onUpgrade={onUpgrade} signedIn compact />}
           </>
         )}
       </section>
@@ -294,6 +327,7 @@ export default function InterviewTab({ job, signedIn, can, compatibility, goals,
                   <th>Sections</th>
                   <th>Areas demonstrated</th>
                   <th>Still weak</th>
+                  <th>Mode</th>
                   <th></th>
                 </tr>
               </thead>
@@ -311,6 +345,7 @@ export default function InterviewTab({ job, signedIn, can, compatibility, goals,
                     </td>
                     <td>{h.metrics.filter((m) => m.total > 0 && m.demonstrated / m.total >= 0.6).length}/{h.metrics.length}</td>
                     <td>{h.weaknessCount}</td>
+                    <td className="text-xs text-muted-foreground">{h.voiceUsed ? 'Voice' : 'Text'}</td>
                     <td>
                       {h.status === 'completed' && (
                         <button type="button" className="btn btn-ghost btn-sm" onClick={() => openReport(h.id)} disabled={busy !== null} aria-label={`Open report from ${new Date(h.completedAt ?? h.startedAt).toLocaleString()}`}>

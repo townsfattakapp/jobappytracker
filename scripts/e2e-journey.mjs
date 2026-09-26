@@ -37,7 +37,7 @@ const pass = (msg) => {
   console.log(`PASS: ${msg}`)
 }
 const field = (scope, label) => scope.locator(`xpath=//label[span[normalize-space(.)=${JSON.stringify(label)}]]//*[self::input or self::select or self::textarea]`)
-const ALL_FEATURES = ['jobs.discovery', 'jobs.personalizedFeed', 'jobs.advancedFilters', 'jobs.matching', 'jobs.curriculumGaps', 'resume.profile', 'jobs.resumeAnalysis', 'jobs.applicationStrategy', 'jobs.networkingBasic', 'jobs.referrals', 'jobs.outreachTracker', 'jobs.preparationBasic', 'jobs.preparation', 'jobs.interviewKit', 'jobs.readinessAdvanced', 'tracker.basic', 'mock.integrations', 'interview.jobPreview', 'interview.jobFull', 'interview.adaptive', 'interview.coding', 'interview.systemDesign', 'interview.feedbackDetailed', 'interview.curriculumMapping', 'interview.reattempt', 'interview.history', 'ai.highLimits']
+const ALL_FEATURES = ['jobs.discovery', 'jobs.personalizedFeed', 'jobs.advancedFilters', 'jobs.matching', 'jobs.curriculumGaps', 'resume.profile', 'jobs.resumeAnalysis', 'jobs.applicationStrategy', 'jobs.networkingBasic', 'jobs.referrals', 'jobs.outreachTracker', 'jobs.preparationBasic', 'jobs.preparation', 'jobs.interviewKit', 'jobs.readinessAdvanced', 'tracker.basic', 'mock.integrations', 'interview.jobPreview', 'interview.jobFull', 'interview.adaptive', 'interview.coding', 'interview.systemDesign', 'interview.feedbackDetailed', 'interview.curriculumMapping', 'interview.reattempt', 'interview.history', 'interview.voice', 'interview.premiumVoice', 'interview.replay', 'ai.highLimits']
 
 function minimalPdf(lines) {
   const esc = (l) => l.replace(/[()\\]/g, '\\$&')
@@ -96,7 +96,7 @@ function interviewAnswer(section, isFollowUp, thinUsedRef) {
   if (/Coding/.test(section)) return 'Approach: use a hash map in a single pass, storing each value and checking the complement. Time complexity O(n) and space complexity O(n). Edge cases: empty input, duplicates, negative numbers and very large inputs. Dry run: for input [2,7,11,15] with target 9 it returns [0,1].'
   if (/System design/.test(section)) return 'Requirements first: create and read orders. The API exposes REST endpoints; the data model has orders and items; components are the API service, a cache and the database; request flow goes client to API to database with validation and logging at each hop; error handling returns typed errors and retries. The trade-off of caching is staleness.'
   if (/Behavioural/.test(section)) return 'When our release failed last year, the situation was a broken payment job. I decided to own it: I investigated the logs, wrote a retry with backoff and paired with QA. As a result failures dropped 90% and we shipped on time. I learned to add alerts first.'
-  return 'What does success look like in the first ninety days, and how is the team measuring reliability today?'
+  return 'No questions from my side, thank you.'
 }
 async function runInterview(page) {
   const thin = { used: false }
@@ -104,16 +104,16 @@ async function runInterview(page) {
   for (let step = 0; step < 40; step++) {
     if (await page.getByRole('heading', { name: 'Interview report' }).count()) break
     const titleEl = page.locator('#jiv-question-title')
-    if (!(await titleEl.count())) {
+    if (!(await titleEl.count()) || !(await page.locator('#jiv-answer').count())) {
       await page.waitForTimeout(400)
       continue
     }
     const before = (await titleEl.textContent()).trim()
-    const section = (await page.getByText(/Section \d+ of \d+:/).textContent()).replace(/^.*: /, '')
-    const isFollowUp = (await page.getByText('Follow-up', { exact: true }).count()) > 0
+    const section = (await page.locator('.room-stage-label').textContent()).trim()
+    const isFollowUp = (await page.getByRole('button', { name: 'Answer follow-up' }).count()) > 0
     if (isFollowUp) sawFollowUp = true
     await page.locator('#jiv-answer').fill(interviewAnswer(section, isFollowUp, thin))
-    await page.getByRole('button', { name: isFollowUp ? 'Answer follow-up' : 'Submit answer' }).click()
+    await page.getByRole('button', { name: isFollowUp ? 'Answer follow-up' : /^(Send answer|Send)$/ }).click()
     await page.waitForFunction((prev) => {
       const el = document.querySelector('#jiv-question-title')
       return !el || el.textContent.trim() !== prev || Array.from(document.querySelectorAll('h3')).some((h) => h.textContent.trim().startsWith('Interview report'))
@@ -136,7 +136,7 @@ try {
   const adminUser = (await pool.query('SELECT id FROM users WHERE email = $1', [adminEmail])).rows[0]
   await pool.query('INSERT INTO user_roles ("userId", role, "grantedBy") VALUES ($1, $2, $3)', [adminUser.id, 'admin', 'e2e'])
   assert.equal(await admin.evaluate((f) => fetch('/api/admin/plans/pro', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ features: f }) }).then((r) => r.status), ALL_FEATURES), 200)
-  assert.equal(await admin.evaluate(() => fetch('/api/admin/plans/free', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ features: ['jobs.discovery', 'tracker.basic', 'resume.profile', 'jobs.networkingBasic', 'jobs.preparationBasic', 'interview.jobPreview'] }) }).then((r) => r.status)), 200)
+  assert.equal(await admin.evaluate(() => fetch('/api/admin/plans/free', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ features: ['jobs.discovery', 'tracker.basic', 'resume.profile', 'jobs.networkingBasic', 'jobs.preparationBasic', 'interview.jobPreview', 'interview.voice'] }) }).then((r) => r.status)), 200)
   const company = await admin.evaluate((body) => fetch('/api/admin/companies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json()), { name: companyName, slug: companySlug, website: 'https://nimbus-payments.example.com', careersUrl: 'https://nimbus-payments.example.com/careers', headquarters: 'Hyderabad, India' })
   assert.ok(company.id, `company created (${JSON.stringify(company).slice(0, 120)})`)
   const job = await admin.evaluate((body) => fetch('/api/admin/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json()), { companyId: company.id, title: 'Backend Engineer', roleCategory: 'backend', level: 'mid', description: 'Build and operate Java services for the payments platform with Spring Boot, PostgreSQL and Kafka. You will own APIs end to end.', requiredSkills: 'Java, Spring Boot, SQL', preferredSkills: 'Kafka, Docker', experienceMin: 2, experienceMax: 5, employmentType: 'full_time', workMode: 'hybrid', locationCity: 'Hyderabad', locationCountry: 'India', region: 'india', applyUrl: `https://nimbus-payments.example.com/careers/jobs/${stamp}`, expiresAt: '2027-01-31' })
@@ -293,8 +293,9 @@ try {
   await learner.getByRole('button', { name: 'Mock Interview for This Job' }).click()
   await learner.getByRole('region', { name: 'Derived configuration' }).getByText(/Standard difficulty from the mid-level listing/).waitFor()
   await learner.getByLabel('Interview duration').selectOption('30')
-  await learner.getByRole('button', { name: 'Start interview', exact: true }).click()
-  await learner.getByText(/Section 1 of \d+: Introduction/).waitFor()
+  await learner.getByRole('region', { name: 'Device check' }).waitFor()
+  await learner.getByRole('button', { name: 'Start in text only' }).click()
+  await learner.locator('.room-stage-label').getByText('Introduction').waitFor()
   const sawFollowUp = await runInterview(learner)
   assert.ok(sawFollowUp, 'the interviewer reacted with a follow-up')
   await learner.getByRole('heading', { name: 'Question-level feedback' }).waitFor()
@@ -382,18 +383,20 @@ try {
   await free.getByRole('region', { name: /Compatibility analysis \(Prep Pro\)/ }).waitFor()
   assert.equal(await free.evaluate((id) => fetch('/api/jobs/' + id + '/resume-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).then((r) => r.status), jobId), 402)
   await free.getByRole('tab', { name: 'Mock interview' }).click()
-  await free.getByRole('button', { name: 'Start preview interview' }).click()
-  await free.getByText(/Preview interview/).waitFor()
-  for (let i = 0; i < 4; i++) {
+  await free.getByRole('region', { name: 'Device check' }).waitFor()
+  await free.getByText(/Premium voice is not included in your plan; the browser voice is used|This browser cannot speak\. Captions and text remain available/).waitFor()
+  await free.getByRole('button', { name: 'Start in text only' }).click()
+  await free.waitForFunction(() => /Preview interview/.test(document.querySelector('.room-sub')?.textContent || ''))
+  for (let i = 0; i < 6; i++) {
     if (await free.getByRole('heading', { name: 'Interview report' }).count()) break
     const el = free.locator('#jiv-question-title')
-    if (!(await el.count())) {
+    if (!(await el.count()) || !(await free.locator('#jiv-answer').count())) {
       await free.waitForTimeout(400)
       continue
     }
     const before = (await el.textContent()).trim()
     await free.locator('#jiv-answer').fill('I would start by understanding the requirement, then design the solution carefully and measure the result.')
-    await free.getByRole('button', { name: 'Submit answer' }).click()
+    await free.getByRole('button', { name: 'Send answer' }).click()
     await free.waitForFunction((prev) => { const q = document.querySelector('#jiv-question-title'); return !q || q.textContent.trim() !== prev || Array.from(document.querySelectorAll('h3')).some((h) => h.textContent.trim().startsWith('Interview report')) }, before, { timeout: 20000 })
   }
   await free.getByRole('heading', { name: 'Interview report' }).waitFor({ timeout: 20000 })

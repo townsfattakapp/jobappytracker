@@ -23,6 +23,7 @@ const LabWorkspace = dynamic(() => import('./LabWorkspace'), { ssr: false, loadi
 const LabTicketDetail = dynamic(() => import('./LabTicketDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Lab Ticket Detail...</div> })
 const MockInterviewWorkspace = dynamic(() => import('./MockInterviewWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Mock Interview Workspace...</div> })
 const InterviewSession = dynamic(() => import('./InterviewSession'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Interview Session...</div> })
+const readActiveMock = () => (typeof window === 'undefined' ? null : import('./InterviewSession').then((m) => m.readActiveMock()))
 import { roundForTrack, type InterviewSetup } from './lib/interview/config'
 const LearningTracksWorkspace = dynamic(() => import('./LearningTracksWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Learning Tracks Workspace...</div> })
 const SystemDesignWorkspace = dynamic(() => import('./SystemDesignWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading System Design Workspace...</div> })
@@ -215,6 +216,8 @@ export default function App() {
   const [selectedProblemId, setSelectedProblemId] = useState<string | null>(null)
   const [selectedLabId, setSelectedLabId] = useState<string | null>(null)
   const [activeInterview, setActiveInterview] = useState<InterviewSetup | null>(null)
+  /** A general mock interview restored after a refresh (transcript in the local store). */
+  const [resumeInterview, setResumeInterview] = useState<{ id: string; startedAt: string } | null>(null)
   const [openReportId, setOpenReportId] = useState<string | null>(null)
   const [selectedSystemDesignId, setSelectedSystemDesignId] = useState<string | null>(null)
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
@@ -583,6 +586,13 @@ export default function App() {
     if (!user || homeLanded.current) return
     homeLanded.current = true
     setViewState('home')
+    // A mock interview in progress survives a refresh: restore the room instead of landing on Home.
+    void readActiveMock()?.then((saved) => {
+      if (!saved) return
+      setResumeInterview({ id: saved.id, startedAt: saved.startedAt })
+      setActiveInterview(saved.setup)
+      setViewState('mock')
+    })
   }, [user])
 
   const handleSignOut = async () => {
@@ -1413,6 +1423,11 @@ export default function App() {
                 onUpgrade={() => setPaywallForced(true)}
                 onToast={showToast}
                 onOpenJobs={() => setView('jobs')}
+                onOpenJob={(id) => {
+                  setSelectedJobId(id)
+                  setView('jobDetail')
+                }}
+                onOpenTrack={() => setView('tracks')}
               />
             ) : view === 'prepKit' ? (
               <PrepKit
@@ -1506,13 +1521,18 @@ export default function App() {
               activeInterview ? (
                 <InterviewSession
                   setup={activeInterview}
+                  resume={resumeInterview}
                   onEndSession={(summary) => {
                     setMockInterviewSummaries((prev) => [summary, ...prev])
                     setActiveInterview(null)
+                    setResumeInterview(null)
                     setOpenReportId(summary.id)
-                    showToast(summary.incomplete ? 'Interview saved without a scorecard' : 'Scorecard ready')
+                    showToast(summary.incomplete ? 'Interview saved without feedback' : 'Feedback ready')
                   }}
-                  onCancel={() => setActiveInterview(null)}
+                  onCancel={() => {
+                    setActiveInterview(null)
+                    setResumeInterview(null)
+                  }}
                   onOpenSettings={() => setView('settings')}
                 />
               ) : (
@@ -1523,7 +1543,10 @@ export default function App() {
                     setSelectedJobId(id)
                     setView('jobDetail')
                   }}
-                  onStartSession={(setup) => setActiveInterview({ ...setup, candidateName: user?.name || undefined })}
+                  onStartSession={(setup) => {
+                    setResumeInterview(null)
+                    setActiveInterview({ ...setup, candidateName: user?.name || undefined })
+                  }}
                   onOpenSettings={() => setView('settings')}
                   openReportId={openReportId}
                   onReportClosed={() => setOpenReportId(null)}

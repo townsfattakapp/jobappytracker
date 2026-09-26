@@ -1,26 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import type { InterviewTurn, MockInterviewSummary } from './types'
-import { saveInterviewSessionTranscript } from './db'
+import { getInterviewSessionTranscript, saveInterviewSessionTranscript } from './db'
 import { aiUnavailableReason, chatWithAI, extractJsonObject } from './lib/aiGatewayClient'
-import {
-  buildInterviewerMessages,
-  buildScorecardMessages,
-  normalizeScorecard,
-  personaById,
-  speakableText,
-  type InterviewSetup,
-  type InterviewerTurn,
-} from './lib/interview/config'
+import { buildInterviewerMessages, buildScorecardMessages, interviewerTitle, normalizeScorecard, personaById, type InterviewSetup, type InterviewerTurn } from './lib/interview/config'
 import { useRoundById } from './lib/interview/hooks'
-import { listen, speak, sttSupported, stopSpeaking, ttsSupported, type Listener } from './lib/interview/speech'
+import { useInterviewVoice } from './lib/interview/useInterviewVoice'
+import { loadVoiceSettings, saveVoiceSettings, type VoiceSettings } from './lib/interview/voice'
+import { fetchVoiceConfig, type VoiceConfig } from './lib/jobs/interviewClient'
 import { renderMarkdownRich } from './lib/markdown'
+import InterviewRoom, { useFocusMode, useFullscreen, type RoomTurn } from './components/interview/InterviewRoom'
 import AlgoEditor from './components/compiler/AlgoEditor'
 import MermaidEditor from './components/MermaidEditor'
 import { normalizeRunnerLanguage, RUNNER_LANGUAGES, STARTER_CODE } from './lib/codeRunner'
 
 interface InterviewSessionProps {
   setup: InterviewSetup
+  /** Restore a session in progress after a refresh (transcript is read from the local store). */
+  resume?: { id: string; startedAt: string } | null
   onEndSession: (summary: MockInterviewSummary) => void
   onCancel: () => void
   onOpenSettings?: () => void
@@ -32,11 +29,34 @@ const DEFAULT_DIAGRAM = `flowchart LR
   API --> Cache[(Cache)]
   API --> DB[(Primary DB)]`
 
-function formatClock(ms: number): string {
-  const total = Math.max(0, Math.ceil(ms / 1000))
-  const m = Math.floor(total / 60)
-  const s = total % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
+export const ACTIVE_MOCK_KEY = 'prep-mock-active'
+
+export interface ActiveMock {
+  setup: InterviewSetup
+  id: string
+  startedAt: string
+}
+
+export function readActiveMock(): ActiveMock | null {
+  try {
+    const raw = sessionStorage.getItem(ACTIVE_MOCK_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as ActiveMock
+    if (!parsed?.id || !parsed?.setup?.roundId) return null
+    // Stale sessions (older than the planned length plus a grace period) are not restored.
+    if (Date.now() - new Date(parsed.startedAt).getTime() > (parsed.setup.minutes + 15) * 60_000) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+export function clearActiveMock(): void {
+  try {
+    sessionStorage.removeItem(ACTIVE_MOCK_KEY)
+  } catch {
+    // ignore
+  }
 }
 
 function parseInterviewer(raw: string): InterviewerTurn {
@@ -54,7 +74,15 @@ function parseInterviewer(raw: string): InterviewerTurn {
   return { say: raw.trim(), stage: 'question', question: 1, note: '' }
 }
 
-export default function InterviewSession({ setup, onEndSession, onCancel, onOpenSettings }: InterviewSessionProps) {
+const STAGE_LABEL: Record<NonNullable<InterviewTurn['stage']>, string> = { intro: 'Introduction', question: 'Discussion', follow_up: 'Follow-up', closing: 'Wrapping up', done: 'Ended' }
+const RE_REPEAT = /\b(repeat|say that again|didn'?t catch)\b/i
+
+/**
+ * General mock round in the interview room. The AI interviewer (through the
+ * gateway) runs the conversation; this component speaks it, listens, keeps
+ * the transcript, manages time and produces the scorecard at the end.
+ */
+export default function InterviewSession({ setup, resume, onEndSession, onCancel, onOpenSettings }: InterviewSessionProps) {
   const round = useRoundById(setup.roundId)
   const persona = useMemo(() => personaById(setup.personaId), [setup.personaId])
   const runnerLanguage = round.coding && round.defaultLanguage && round.defaultLanguage !== 'sql'
@@ -70,104 +98,172 @@ export default function InterviewSession({ setup, onEndSession, onCancel, onOpen
   const [error, setError] = useState<string | null>(null)
   const [unavailable, setUnavailable] = useState<string | null>(null)
   const [ended, setEnded] = useState(false)
-  const [voiceOn, setVoiceOn] = useState(() => setup.voice && ttsSupported())
-  const [speaking, setSpeaking] = useState(false)
-  const [listening, setListening] = useState(false)
-  const [interim, setInterim] = useState('')
-  const [pane, setPane] = useState<'chat' | 'work'>('chat')
   const [remaining, setRemaining] = useState(plannedMs)
   const [banner, setBanner] = useState<string | null>(null)
-  const [hintsUsed, setHintsUsed] = useState(0)
-  const [countdown, setCountdown] = useState<number | null>(3)
+  const [restoring, setRestoring] = useState(Boolean(resume))
+  const [clarifyMode, setClarifyMode] = useState(false)
+  const [voiceConfig, setVoiceConfig] = useState<VoiceConfig | null>(null)
+  const [settings, setSettings] = useState<VoiceSettings>(() => ({ ...loadVoiceSettings(), enabled: setup.voice && loadVoiceSettings().enabled }))
+  const [fullscreen, toggleFullscreen] = useFullscreen()
 
-  const startedAt = useRef(Date.now())
-  const sessionId = useRef(uuidv4())
+  const startedAt = useRef(resume ? new Date(resume.startedAt).getTime() : Date.now())
+  const sessionId = useRef(resume?.id ?? uuidv4())
   const started = useRef(false)
   const finished = useRef(false)
   const warned = useRef<Set<number>>(new Set())
-  const listener = useRef<Listener | null>(null)
-  const cancelSpeech = useRef<() => void>(() => {})
-  const transcriptRef = useRef<HTMLDivElement>(null)
   const turnsRef = useRef<InterviewTurn[]>([])
-  const voiceRef = useRef(voiceOn)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const inputRef = useRef('')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const lastSpoken = useRef<number>(-1)
+  const mountedRef = useRef(true)
+  const turnStartedAt = useRef<number | null>(null)
+  const lastTurnMs = useRef<number | null>(null)
   turnsRef.current = turns
-  voiceRef.current = voiceOn
+  inputRef.current = input
+  const title = interviewerTitle(round)
+  const serverMode: 'premium' | 'browser' = voiceConfig?.tts.mode === 'premium' ? 'premium' : 'browser'
+  const voiceAllowed = voiceConfig ? voiceConfig.voice : true
+  const voiceOn = voiceAllowed && settings.enabled
+
+  useFocusMode(!unavailable)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  const updateSettings = (s: VoiceSettings) => {
+    setSettings(s)
+    saveVoiceSettings(s)
+  }
+
+  const persist = useCallback(
+    (history: InterviewTurn[]) => {
+      saveInterviewSessionTranscript({ id: sessionId.current, transcript: history, roundId: round.id, level: setup.level, personaId: persona.id, plannedMinutes: setup.minutes, startedAt: new Date(startedAt.current).toISOString() }).catch(() => {})
+      try {
+        sessionStorage.setItem(ACTIVE_MOCK_KEY, JSON.stringify({ setup, id: sessionId.current, startedAt: new Date(startedAt.current).toISOString() } satisfies ActiveMock))
+      } catch {
+        // ignore
+      }
+    },
+    [round.id, setup, persona.id],
+  )
 
   const remainingMinutes = useCallback(() => Math.max(0, Math.round((plannedMs - (Date.now() - startedAt.current)) / 60_000)), [plannedMs])
 
-  const say = useCallback((text: string) => {
-    if (!voiceRef.current) return
-    cancelSpeech.current()
-    cancelSpeech.current = speak(speakableText(text), { onStart: () => setSpeaking(true), onEnd: () => setSpeaking(false) })
+  const sendRef = useRef<(kind: InterviewTurn['kind'], overrides?: Partial<InterviewTurn>, opts?: { input?: 'voice' | 'text' }) => Promise<void>>(async () => {})
+  const nudgeRef = useRef<(level: 1 | 2) => void>(() => {})
+  const voiceListening = useRef(false)
+  const dictatedRef = useRef('')
+  const voice = useInterviewVoice({
+    serverMode,
+    settings: useMemo(() => ({ ...settings, enabled: voiceOn }), [settings, voiceOn]),
+    active: !unavailable && !ended && !finishing,
+    questionKey: turns.length ? `${turns.length}` : null,
+    hasDraft: Boolean(input.trim()) && !voiceListening.current && input.trim() !== dictatedRef.current.trim(),
+    onNudge: (level) => nudgeRef.current(level),
+    onAutoSend: (spoken) => void sendRef.current('answer', { content: spoken }, { input: 'voice' }),
+  })
+  voiceListening.current = voice.listening
+  dictatedRef.current = voice.transcript
+  useEffect(() => {
+    if (voice.listening) setInput(voice.transcript)
+  }, [voice.transcript, voice.listening])
+
+  useEffect(() => {
+    let cancelled = false
+    fetchVoiceConfig()
+      .then((c) => {
+        if (cancelled) return
+        setVoiceConfig(c)
+        setSettings((s) => ({ ...s, enabled: s.enabled && c.voice }))
+      })
+      .catch(() => {
+        if (!cancelled) setVoiceConfig(null)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const askInterviewer = useCallback(
     async (history: InterviewTurn[]) => {
       setThinking(true)
+      voice.setProcessing(true)
       setError(null)
+      turnStartedAt.current = performance.now()
       try {
         const raw = await chatWithAI({ messages: buildInterviewerMessages(setup, history, remainingMinutes()), json: true, temperature: 0.6 })
         const parsed = parseInterviewer(raw)
         const turn: InterviewTurn = { role: 'interviewer', content: parsed.say, stage: parsed.stage, question: parsed.question, note: parsed.note, at: Date.now() - startedAt.current }
-        setTurns([...history, turn])
-        say(parsed.say)
+        const next = [...history, turn]
+        setTurns(next)
+        persist(next)
         if (parsed.stage === 'done') setEnded(true)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'The interviewer could not respond. Try again.')
       } finally {
         setThinking(false)
+        voice.setProcessing(false)
       }
     },
-    [setup, remainingMinutes, say],
+    [setup, remainingMinutes, persist, voice],
   )
 
-  // Countdown before kickoff
+  // Kick off: restore or check AI, then let the interviewer open the round.
   useEffect(() => {
-    if (countdown === null) return
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
-      return () => clearTimeout(timer)
-    }
-    if (countdown === 0) {
-      const timer = setTimeout(() => {
-        setCountdown(null)
-        startedAt.current = Date.now() // reset start time when countdown ends
-      }, 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [countdown])
-
-  // Kick off: check AI, then let the interviewer open the round.
-  useEffect(() => {
-    if (countdown !== null) return // Wait for countdown to finish
     if (started.current) return
     started.current = true
     ;(async () => {
       const reason = await aiUnavailableReason()
       if (reason) {
         setUnavailable(reason)
+        setRestoring(false)
         return
       }
+      if (resume) {
+        const saved = await getInterviewSessionTranscript(resume.id).catch(() => undefined)
+        const history = saved?.transcript ?? []
+        setTurns(history)
+        lastSpoken.current = history.length - 1
+        setRestoring(false)
+        if (history.length === 0) await askInterviewer([])
+        else if (history[history.length - 1].role === 'candidate') await askInterviewer(history)
+        return
+      }
+      setRestoring(false)
       await askInterviewer([])
     })()
-  }, [countdown, askInterviewer])
+  }, [askInterviewer, resume])
 
-  // Auto-save transcript during the session
+  // Speak the interviewer's newest line, then hand over.
   useEffect(() => {
-    if (turns.length === 0 || finished.current) return
-    saveInterviewSessionTranscript({
-      id: sessionId.current,
-      transcript: turns,
-      roundId: round.id,
-      level: setup.level,
-      personaId: persona.id,
-      plannedMinutes: setup.minutes,
-      startedAt: new Date(startedAt.current).toISOString(),
-    }).catch(() => {})
-  }, [turns, round, setup, persona])
+    const idx = turns.length - 1
+    if (idx < 0 || idx <= lastSpoken.current) return
+    const t = turns[idx]
+    if (t.role !== 'interviewer') return
+    lastSpoken.current = idx
+    ;(async () => {
+      const result = await voice.speak(t.content, {
+        onStart: () => {
+          if (turnStartedAt.current) {
+            lastTurnMs.current = Math.round(performance.now() - turnStartedAt.current)
+            turnStartedAt.current = null
+          }
+        },
+      })
+      if (!mountedRef.current || turnsRef.current.length - 1 !== idx) return
+      if (turnStartedAt.current) {
+        lastTurnMs.current = Math.round(performance.now() - turnStartedAt.current)
+        turnStartedAt.current = null
+      }
+      if (t.stage === 'done') return
+      if (voiceOn && result.mode !== 'off' && voice.micSupported && !inputRef.current.trim()) voice.startListening('')
+    })()
+  }, [turns])
 
-  // Countdown with spoken warnings and auto wrap-up.
+  // Clock with quiet warnings and auto wrap-up.
   useEffect(() => {
     const tick = window.setInterval(() => {
       const left = plannedMs - (Date.now() - startedAt.current)
@@ -176,7 +272,7 @@ export default function InterviewSession({ setup, onEndSession, onCancel, onOpen
       for (const mark of [5, 1]) {
         if (minutesLeft === mark && left > 0 && !warned.current.has(mark)) {
           warned.current.add(mark)
-          setBanner(mark === 5 ? 'Five minutes left. Start wrapping up your current answer.' : 'One minute left. The interview will end automatically.')
+          setBanner(mark === 5 ? 'About five minutes left. The interviewer will start wrapping up.' : 'One minute left. The interview ends after your current answer.')
           window.setTimeout(() => setBanner(null), 8000)
         }
       }
@@ -184,72 +280,48 @@ export default function InterviewSession({ setup, onEndSession, onCancel, onOpen
     return () => window.clearInterval(tick)
   }, [plannedMs])
 
-  useEffect(() => {
-    if (transcriptRef.current) transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight
-  }, [turns, thinking, interim])
-
-  useEffect(
-    () => () => {
-      stopSpeaking()
-      listener.current?.stop()
+  const send = useCallback(
+    async (kind: InterviewTurn['kind'], overrides: Partial<InterviewTurn> = {}, opts: { input?: 'voice' | 'text' } = {}) => {
+      if (thinking || finishing || ended) return
+      voice.stopListening()
+      voice.cancelSpeech()
+      const content = (overrides.content ?? inputRef.current).trim()
+      const turn: InterviewTurn = { role: 'candidate', kind, at: Date.now() - startedAt.current, ...overrides, content }
+      if (!turn.content && !turn.code && !turn.diagram) return
+      const history = [...turnsRef.current, turn]
+      setTurns(history)
+      persist(history)
+      setInput('')
+      voice.setTranscript('')
+      setClarifyMode(false)
+      void opts
+      await askInterviewer(history)
     },
-    [],
+    [thinking, finishing, ended, voice, persist, askInterviewer],
   )
+  sendRef.current = send
 
-  const stopListening = () => {
-    listener.current?.stop()
-    listener.current = null
-    setListening(false)
-    setInterim('')
-  }
-
-  const toggleListening = () => {
-    if (listening) {
-      stopListening()
-      return
-    }
-    cancelSpeech.current()
-    const base = input
-    setError(null)
-    const started = listen({
-      onText: (finalText, interimText) => {
-        setInput(`${base}${base && !base.endsWith(' ') && finalText ? ' ' : ''}${finalText}`)
-        setInterim(interimText)
-      },
-      onEnd: (err) => {
-        setListening(false)
-        setInterim('')
-        listener.current = null
-        if (err) setError(err)
-      },
-    })
-    if (!started) {
-      setError('Dictation is not available in this browser. Chrome and Edge support it; you can always type.')
-      return
-    }
-    listener.current = started
-    setListening(true)
-  }
-
-  const send = async (kind: InterviewTurn['kind'], overrides: Partial<InterviewTurn> = {}) => {
-    if (thinking || finishing || ended) return
-    stopListening()
-    cancelSpeech.current()
-    const content = kind === 'hint' ? (input.trim() ? `${input.trim()} — could I get a hint?` : 'Could I get a hint?') : input.trim()
-    const turn: InterviewTurn = { role: 'candidate', content, kind, at: Date.now() - startedAt.current, ...overrides }
-    if (!turn.content && !turn.code && !turn.diagram) return
-    if (kind === 'hint') setHintsUsed((n) => n + 1)
+  nudgeRef.current = (level) => {
+    if (thinking || finishing || ended || !turnsRef.current.length) return
+    const line = level === 1 ? 'Take your time.' : 'Would you like me to repeat or clarify the question? Just say so, or carry on whenever you are ready.'
+    const turn: InterviewTurn = { role: 'interviewer', content: line, stage: 'follow_up', question: turnsRef.current.reduce((m, t) => Math.max(m, t.role === 'interviewer' ? t.question || 0 : 0), 0), note: '', at: Date.now() - startedAt.current }
     const history = [...turnsRef.current, turn]
     setTurns(history)
-    setInput('')
-    setPane('chat')
-    await askInterviewer(history)
+    persist(history)
   }
 
-  const shareCode = () => void send('code', { content: input.trim() || 'Here is my code so far.', code, language })
-  const shareDiagram = () => void send('diagram', { content: input.trim() || 'Here is my design so far.', diagram })
-
+  const shareCode = () => void send('code', { content: inputRef.current.trim() || 'Here is my code so far.', code, language })
+  const shareDiagram = () => void send('diagram', { content: inputRef.current.trim() || 'Here is my design so far.', diagram })
   const retryInterviewer = () => void askInterviewer(turnsRef.current)
+
+  const repeat = () => {
+    const last = [...turnsRef.current].reverse().find((t) => t.role === 'interviewer' && !RE_REPEAT.test(t.content))
+    if (!last) return
+    voice.stopListening()
+    void voice.speak(last.content).then((r) => {
+      if (voiceOn && r.mode !== 'off' && voice.micSupported && !inputRef.current.trim()) voice.startListening('')
+    })
+  }
 
   const finish = useCallback(
     async (auto = false) => {
@@ -258,83 +330,60 @@ export default function InterviewSession({ setup, onEndSession, onCancel, onOpen
       const answered = history.filter((t) => t.role === 'candidate').length
       if (!auto && answered === 0 && !window.confirm('You have not answered anything yet. End the interview anyway?')) return
       finished.current = true
-      stopListening()
-      cancelSpeech.current()
-      stopSpeaking()
+      voice.stopListening()
+      voice.cancelSpeech()
       setFinishing('Saving the transcript…')
       const elapsedMinutes = Math.max(1, Math.round((Date.now() - startedAt.current) / 60_000))
       const id = sessionId.current
-      await saveInterviewSessionTranscript({
-        id,
-        transcript: history,
-        roundId: round.id,
-        level: setup.level,
-        personaId: persona.id,
-        plannedMinutes: setup.minutes,
-        startedAt: new Date(startedAt.current).toISOString(),
-      })
+      await saveInterviewSessionTranscript({ id, transcript: history, roundId: round.id, level: setup.level, personaId: persona.id, plannedMinutes: setup.minutes, startedAt: new Date(startedAt.current).toISOString() })
+      clearActiveMock()
+      const hintsUsed = history.filter((t) => t.role === 'candidate' && (t.kind === 'hint' || /\bhint\b/i.test(t.content))).length
       const questionsAsked = history.reduce((max, t) => Math.max(max, t.role === 'interviewer' ? t.question || 0 : 0), 0)
-      const base: MockInterviewSummary = {
-        id,
-        date: new Date().toISOString(),
-        category: round.label,
-        difficulty: setup.level,
-        durationMinutes: elapsedMinutes,
-        strengths: [],
-        improvementAreas: [],
-        recommendedRevisionTopics: [],
-        roundId: round.id,
-        personaId: persona.id,
-        plannedMinutes: setup.minutes,
-        hintsUsed,
-        questionsAsked,
-      }
+      const base: MockInterviewSummary = { id, date: new Date().toISOString(), category: round.label, difficulty: setup.level, durationMinutes: elapsedMinutes, strengths: [], improvementAreas: [], recommendedRevisionTopics: [], roundId: round.id, personaId: persona.id, plannedMinutes: setup.minutes, hintsUsed, questionsAsked }
       if (answered === 0) {
         onEndSession({ ...base, incomplete: true, summary: 'The interview ended before any answer was given.' })
         return
       }
-      setFinishing('The hiring committee is reviewing your answers…')
+      setFinishing('Preparing your feedback…')
       try {
         const raw = await chatWithAI({ messages: buildScorecardMessages(setup, history, hintsUsed, elapsedMinutes), json: true, temperature: 0.2 })
         const card = normalizeScorecard(extractJsonObject<Record<string, unknown>>(raw), round)
-        onEndSession({
-          ...base,
-          strengths: card.strengths,
-          improvementAreas: card.improvements,
-          recommendedRevisionTopics: card.recommendedTopics,
-          overallScore: card.overall,
-          verdict: card.verdict,
-          summary: card.summary,
-          dimensions: card.dimensions,
-          modelAnswers: card.modelAnswers,
-          nextSteps: card.nextSteps,
-          rating: (Math.min(5, Math.max(1, Math.round(card.overall / 20))) || 1) as 1 | 2 | 3 | 4 | 5,
-        })
+        onEndSession({ ...base, strengths: card.strengths, improvementAreas: card.improvements, recommendedRevisionTopics: card.recommendedTopics, overallScore: card.overall, verdict: card.verdict, summary: card.summary, dimensions: card.dimensions, modelAnswers: card.modelAnswers, nextSteps: card.nextSteps, rating: (Math.min(5, Math.max(1, Math.round(card.overall / 20))) || 1) as 1 | 2 | 3 | 4 | 5 })
       } catch (err) {
         onEndSession({ ...base, incomplete: true, summary: `The scorecard could not be generated (${err instanceof Error ? err.message : 'AI error'}). The transcript is saved.` })
       }
     },
-    [round, setup, persona.id, hintsUsed, onEndSession],
+    [round, setup, persona.id, onEndSession, voice],
   )
 
-  // Time is up: let the interviewer's last words play, then score.
+  // Time is up: let the interviewer's last words play, then score once the learner is idle.
   useEffect(() => {
-    if (remaining <= 0 && !finished.current && !unavailable) void finish(true)
-  }, [remaining, finish, unavailable])
+    if (remaining > 0 || finished.current || unavailable) return
+    const timer = window.setInterval(() => {
+      if (!inputRef.current.trim() && !voiceListening.current && !thinking) void finish(true)
+    }, 2000)
+    return () => window.clearInterval(timer)
+  }, [remaining, finish, unavailable, thinking])
 
-  const busy = thinking || Boolean(finishing)
-  const urgency = remaining <= 60_000 ? 'is-critical' : remaining <= 5 * 60_000 ? 'is-warning' : ''
-  const currentQuestion = turns.reduce((max, t) => Math.max(max, t.role === 'interviewer' ? t.question || 0 : 0), 0)
-  const workLabel = round.design ? 'Whiteboard' : round.coding ? 'Editor' : 'Notes'
+  // The interviewer said goodbye: produce the scorecard once the farewell has been spoken.
+  useEffect(() => {
+    if (ended && voice.state !== 'speaking' && !finished.current) void finish(true)
+  }, [ended, voice.state, finish])
+
+  const cancel = () => {
+    if (turns.some((t) => t.role === 'candidate') && !window.confirm('Leave without feedback? This session will not be saved.')) return
+    voice.cancelSpeech()
+    voice.stopListening()
+    clearActiveMock()
+    onCancel()
+  }
 
   if (unavailable) {
     return (
       <div className="animate-rise max-w-xl mx-auto w-full surface rounded-2xl border border-border p-6 sm:p-8 text-center">
-        <div className="iv-avatar mx-auto" aria-hidden="true">
-          {persona.name[0]}
-        </div>
-        <h1 className="mt-4 text-2xl font-display font-bold">The interviewer needs AI</h1>
+        <h1 className="mt-2 text-2xl font-display font-bold">The interviewer needs AI</h1>
         <p className="mt-2 text-sm text-muted-foreground">{unavailable}</p>
+        <p className="mt-2 text-xs text-muted-foreground">Job-specific mock interviews (from a job workspace) run on a deterministic interviewer and do not need AI.</p>
         <div className="mt-5 flex flex-col sm:flex-row gap-2 justify-center">
           {onOpenSettings && (
             <button type="button" className="btn btn-primary" onClick={onOpenSettings}>
@@ -349,268 +398,151 @@ export default function InterviewSession({ setup, onEndSession, onCancel, onOpen
     )
   }
 
+  const busy = thinking || Boolean(finishing) || restoring
+  const lastInterviewer = [...turns].reverse().find((t) => t.role === 'interviewer')
+  const currentSay = restoring ? 'Restoring your interview…' : turns.length === 0 && thinking ? 'The interviewer is joining…' : lastInterviewer?.content ?? ''
+  const stage = lastInterviewer?.stage ? { label: STAGE_LABEL[lastInterviewer.stage], index: 0, total: 0 } : { label: 'Starting', index: 0, total: 0 }
+  const transcript: RoomTurn[] = turns.map((t, i) => ({ id: `${i}`, role: t.role, text: t.content, html: t.role === 'interviewer' ? renderMarkdownRich(t.content) : undefined, code: t.code, diagram: t.diagram, note: t.kind === 'code' ? 'shared code' : t.kind === 'diagram' ? 'shared a diagram' : t.kind === 'hint' ? 'asked for a hint' : undefined }))
+  const statusLine = voice.state === 'speaking' ? 'Interviewer speaking…' : voice.state === 'processing' || thinking ? 'Processing response…' : voice.state === 'listening' ? `Listening… ${settings.autoSend ? `pause for ${settings.endOfSpeechSec} seconds when you are done` : 'press the microphone when you are done'}` : ended ? 'The interview has ended.' : voiceOn ? 'Your turn. Speak, or type your answer.' : 'Your turn. Type your answer.'
+  const workLabel = round.design ? 'Whiteboard' : round.coding ? 'Code editor' : undefined
+
+  const composer = (
+    <form
+      className="room-composer"
+      onSubmit={(e) => {
+        e.preventDefault()
+        void send('answer')
+      }}
+    >
+      {voice.voiceError && (
+        <p className="room-voice-error" role="alert">
+          {voice.voiceError}{' '}
+          <button type="button" className="btn btn-link btn-sm" onClick={voice.clearVoiceError}>
+            Dismiss
+          </button>
+        </p>
+      )}
+      {voice.autoSendIn !== null && (
+        <p className="room-autosend" role="status">
+          Sending in {voice.autoSendIn}… Keep talking, edit the text, or{' '}
+          <button type="button" className="btn btn-link btn-sm" onClick={voice.cancelAutoSend}>
+            cancel
+          </button>
+        </p>
+      )}
+      <div className="room-composer-row">
+        {voiceOn && voice.micSupported && (
+          <button type="button" className={`room-mic${voice.listening ? ' is-live' : ''}`} onClick={() => (voice.listening ? voice.stopListening() : (voice.cancelSpeech(), voice.startListening(input)))} disabled={busy || ended} aria-pressed={voice.listening} title={voice.listening ? 'Stop listening' : 'Answer by voice'}>
+            <span className="room-mic-icon" aria-hidden="true" />
+            <span className="sr-only">{voice.listening ? 'Stop listening' : 'Answer by voice'}</span>
+          </button>
+        )}
+        <label className="room-composer-field">
+          <span className="sr-only">Your answer</span>
+          <textarea
+            ref={textareaRef}
+            className="input-field jiv-answer"
+            placeholder={clarifyMode ? 'What would you like clarified?' : voice.listening ? 'Listening… speak naturally; pauses are fine.' : ended ? 'The interview is over' : 'Think aloud: type or speak your answer'}
+            value={voice.listening && voice.interim ? `${input}${input && !input.endsWith(' ') ? ' ' : ''}${voice.interim}` : input}
+            onChange={(e) => {
+              if (voice.listening) voice.stopListening()
+              setInput(e.target.value)
+            }}
+            disabled={busy || ended}
+            rows={3}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault()
+                void send('answer')
+              }
+            }}
+          />
+        </label>
+      </div>
+      <div className="room-composer-actions">
+        <button type="submit" className="btn btn-primary" disabled={busy || ended || (!input.trim() && !voice.interim)}>
+          {clarifyMode ? 'Ask' : 'Send'}
+        </button>
+        {round.coding && (
+          <button type="button" className="btn btn-ghost btn-sm" disabled={busy || ended || !code.trim()} onClick={shareCode}>
+            Share code
+          </button>
+        )}
+        {round.design && (
+          <button type="button" className="btn btn-ghost btn-sm" disabled={busy || ended || !diagram.trim()} onClick={shareDiagram}>
+            Share diagram
+          </button>
+        )}
+        {error && !thinking && !finishing && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={retryInterviewer}>
+            Retry interviewer
+          </button>
+        )}
+        <span className="hidden sm:inline text-xs text-muted-foreground ml-auto">Ctrl/⌘ + Enter to send · feedback comes after the interview</span>
+      </div>
+    </form>
+  )
+
+  const workspace = round.coding && runnerLanguage ? <AlgoEditor initialLanguage={language} initialCode={code} onCodeChange={setCode} onLanguageChange={setLanguage} height="100%" /> : round.coding ? <textarea className="iv-scratch" value={code} onChange={(e) => setCode(e.target.value)} spellCheck={false} placeholder={`Write your ${(RUNNER_LANGUAGES.some((l) => l.id === language) ? language : language || 'code').toUpperCase()} here…`} aria-label="Code scratchpad" /> : round.design ? <MermaidEditor value={diagram} onChange={setDiagram} /> : undefined
+
   return (
-    <div className="animate-rise iv-shell">
-      <header className="iv-header surface">
-        <div className="iv-who">
-          <div className={`iv-avatar ${speaking ? 'is-speaking' : thinking ? 'is-thinking' : ''}`} aria-hidden="true">
-            {persona.name[0]}
-          </div>
-          <div className="min-w-0">
-            <p className="font-bold leading-tight truncate">
-              {persona.name} <span className="text-muted-foreground font-medium">· {persona.title}</span>
-            </p>
-            <p className="text-xs text-muted-foreground truncate">
-              {round.label} · {setup.level} · {setup.minutes} min{currentQuestion ? ` · Question ${currentQuestion}` : ''}
-              {hintsUsed ? ` · ${hintsUsed} hint${hintsUsed === 1 ? '' : 's'}` : ''}
-            </p>
-          </div>
-        </div>
-        <div className="iv-controls">
-          <span className={`iv-timer ${urgency}`} role="timer" aria-live="off" title="Time remaining">
-            {formatClock(remaining)}
-          </span>
-          {ttsSupported() && (
-            <button
-              type="button"
-              className={`iv-icon-btn ${voiceOn ? 'is-on' : ''}`}
-              onClick={() => {
-                if (voiceOn) cancelSpeech.current()
-                setVoiceOn((v) => !v)
-              }}
-              aria-pressed={voiceOn}
-              title={voiceOn ? 'Mute the interviewer' : 'Hear the interviewer'}
-            >
-              {voiceOn ? '🔊' : '🔇'}
-            </button>
-          )}
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            disabled={Boolean(finishing)}
-            onClick={() => {
-              if (turns.some((t) => t.role === 'candidate') && !window.confirm('Leave without a scorecard? This session will not be saved.')) return
-              stopSpeaking()
-              onCancel()
-            }}
-          >
-            Leave
-          </button>
-          <button type="button" className="btn btn-primary btn-sm" disabled={Boolean(finishing) || thinking} onClick={() => void finish(false)}>
-            {ended ? 'Get scorecard' : 'End & score'}
-          </button>
-        </div>
-      </header>
-
-      {banner && (
-        <div className="iv-banner" role="status">
-          ⏱ {banner}
-        </div>
-      )}
-      {error && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive flex flex-wrap items-center justify-between gap-2" role="alert">
-          <span>{error}</span>
-          {!thinking && !finishing && (
-            <button type="button" className="btn btn-ghost btn-sm" onClick={retryInterviewer}>
-              Retry
-            </button>
-          )}
-        </div>
-      )}
-
-      <div className="iv-tabs lg:hidden" role="tablist">
-        <button type="button" role="tab" aria-selected={pane === 'chat'} className={pane === 'chat' ? 'is-active' : ''} onClick={() => setPane('chat')}>
-          Conversation
-        </button>
-        <button type="button" role="tab" aria-selected={pane === 'work'} className={pane === 'work' ? 'is-active' : ''} onClick={() => setPane('work')}>
-          {workLabel}
-        </button>
-      </div>
-
-      <div className="iv-body">
-        <section className={`iv-chat surface ${pane === 'chat' ? '' : 'hidden lg:flex'}`} aria-label="Conversation">
-          <div ref={transcriptRef} className="iv-transcript">
-            {turns.length === 0 && thinking && <p className="text-sm text-muted-foreground text-center py-8">{persona.name} is joining the call…</p>}
-            {turns.map((t, i) => (
-              <div key={i} className={`iv-turn ${t.role === 'candidate' ? 'is-candidate' : 'is-interviewer'}`}>
-                <span className="iv-turn-who">{t.role === 'candidate' ? 'You' : persona.name}{t.kind === 'hint' ? ' · asked for a hint' : ''}</span>
-                {t.role === 'interviewer' ? (
-                  <div className="iv-bubble tutor-bubble prose-tiptap" dangerouslySetInnerHTML={{ __html: renderMarkdownRich(t.content) }} />
-                ) : (
-                  <div className="iv-bubble">
-                    {t.content && <p className="whitespace-pre-wrap">{t.content}</p>}
-                    {t.code && (
-                      <pre className="iv-code">
-                        <code>{t.code}</code>
-                      </pre>
-                    )}
-                    {t.diagram && (
-                      <pre className="iv-code">
-                        <code>{t.diagram}</code>
-                      </pre>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-            {thinking && turns.length > 0 && (
-              <div className="iv-turn is-interviewer">
-                <span className="iv-turn-who">{persona.name}</span>
-                <div className="iv-bubble iv-typing" aria-label="Interviewer is thinking">
-                  <span />
-                  <span />
-                  <span />
-                </div>
-              </div>
-            )}
-            {ended && !finishing && (
-              <div className="iv-ended">
-                The interview has ended. Get your scorecard to see how it went.
-                <button type="button" className="btn btn-primary btn-sm ml-3" onClick={() => void finish(false)}>
-                  Get scorecard
-                </button>
-              </div>
-            )}
-          </div>
-
-          <form
-            className="iv-composer"
-            onSubmit={(e) => {
-              e.preventDefault()
-              void send('answer')
-            }}
-          >
-            <div className="relative">
-              <textarea
-                ref={inputRef}
-                className="input-field iv-input"
-                placeholder={listening ? 'Listening… speak your answer' : ended ? 'The interview is over' : 'Think aloud: type or dictate your answer'}
-                value={interim ? `${input}${input && !input.endsWith(' ') ? ' ' : ''}${interim}` : input}
-                onChange={(e) => {
-                  if (!listening) setInput(e.target.value)
-                }}
-                disabled={busy || ended}
-                rows={3}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                    e.preventDefault()
-                    void send('answer')
-                  }
-                }}
-              />
-              {sttSupported() && (
-                <button
-                  type="button"
-                  className={`iv-mic ${listening ? 'is-live' : ''}`}
-                  onClick={toggleListening}
-                  disabled={busy || ended}
-                  aria-pressed={listening}
-                  title={listening ? 'Stop dictating' : 'Dictate your answer'}
-                >
-                  {listening ? '■' : '🎙'}
-                </button>
-              )}
+    <>
+      <InterviewRoom
+        ariaLabel="Mock interview session"
+        title={title}
+        subtitle={`${round.label} · ${setup.level} · ${setup.minutes} min · ${persona.blurb.split(',')[0]}`}
+        stage={stage}
+        remainingMs={remaining}
+        timeUp={remaining <= 0}
+        voiceState={thinking ? 'processing' : voice.state}
+        voiceMode={voice.mode}
+        voiceEnabled={voiceAllowed}
+        currentSay={currentSay}
+        transcript={transcript}
+        statusLine={statusLine}
+        controls={{
+          muted: !settings.enabled,
+          onToggleMute: () => {
+            if (settings.enabled) voice.cancelSpeech()
+            updateSettings({ ...settings, enabled: !settings.enabled })
+          },
+          captions: settings.captions,
+          onToggleCaptions: () => updateSettings({ ...settings, captions: !settings.captions }),
+          onRepeat: repeat,
+          onClarify: !ended
+            ? () => {
+                setClarifyMode(true)
+                textareaRef.current?.focus()
+              }
+            : undefined,
+          onLeave: cancel,
+          onEnd: () => void finish(false),
+          endLabel: ended ? 'Get feedback' : 'End interview',
+          disabled: Boolean(finishing) || restoring,
+          fullscreen,
+          onToggleFullscreen: toggleFullscreen,
+        }}
+        composer={composer}
+        workspace={workspace}
+        workspaceLabel={workLabel}
+        banner={
+          banner ? (
+            <div className="iv-banner" role="status">
+              {banner}
             </div>
-            <div className="iv-actions">
-              <button type="button" className="btn btn-ghost btn-sm" disabled={busy || ended || turns.length === 0} onClick={() => void send('hint')} title="Ask the interviewer for a nudge (counted on your scorecard)">
-                Ask for a hint
-              </button>
-              {round.coding && (
-                <button type="button" className="btn btn-ghost btn-sm" disabled={busy || ended || !code.trim()} onClick={shareCode}>
-                  Share code
-                </button>
-              )}
-              {round.design && (
-                <button type="button" className="btn btn-ghost btn-sm" disabled={busy || ended || !diagram.trim()} onClick={shareDiagram}>
-                  Share diagram
-                </button>
-              )}
-              <span className="hidden sm:inline text-xs text-muted-foreground ml-auto">Ctrl/⌘ + Enter to send</span>
-              <button type="submit" className="btn btn-primary btn-sm px-6" disabled={busy || ended || (!input.trim() && !interim)}>
-                Send
-              </button>
-            </div>
-          </form>
-        </section>
-
-        <aside className={`iv-work ${pane === 'work' ? '' : 'hidden lg:flex'}`} aria-label={workLabel}>
-          {round.coding && runnerLanguage ? (
-            <div className="iv-work-panel surface">
-              <div className="iv-work-head">
-                <span>Your editor</span>
-                <span className="text-xs text-muted-foreground">Run it, then share it with {persona.name}</span>
-              </div>
-              <AlgoEditor initialLanguage={language} initialCode={code} onCodeChange={setCode} onLanguageChange={setLanguage} height="100%" />
-            </div>
-          ) : round.coding ? (
-            <div className="iv-work-panel surface">
-              <div className="iv-work-head">
-                <span>{RUNNER_LANGUAGES.some((l) => l.id === language) ? 'Your editor' : `${language.toUpperCase()} scratchpad`}</span>
-                <span className="text-xs text-muted-foreground">Share it when it is ready</span>
-              </div>
-              <textarea className="iv-scratch" value={code} onChange={(e) => setCode(e.target.value)} spellCheck={false} placeholder={`Write your ${language.toUpperCase()} here…`} />
-            </div>
-          ) : round.design ? (
-            <div className="iv-work-panel surface">
-              <div className="iv-work-head">
-                <span>Whiteboard (Mermaid)</span>
-                <span className="text-xs text-muted-foreground">Sketch the architecture, then share it</span>
-              </div>
-              <div className="iv-board">
-                <MermaidEditor value={diagram} onChange={setDiagram} />
-              </div>
-            </div>
-          ) : (
-            <div className="iv-work-panel surface iv-tips">
-              <div className="iv-work-head">
-                <span>How to do well</span>
-              </div>
-              <ul>
-                {round.group === 'Behavioural' ? (
-                  <>
-                    <li>Answer with STAR: situation, task, action, result. Spend most of the time on the action.</li>
-                    <li>Say “I”, not “we”. The interviewer wants your specific contribution.</li>
-                    <li>Quantify the result and end with what you learned.</li>
-                    <li>Have two or three stories ready that show ownership, conflict and failure.</li>
-                  </>
-                ) : (
-                  <>
-                    <li>Start with the one-line answer, then the mechanism, then a real example.</li>
-                    <li>If you do not know, say what you do know and reason from first principles.</li>
-                    <li>Mention trade-offs and when you would not use the approach.</li>
-                    <li>Ask for a hint rather than guessing wildly; it costs less on the scorecard.</li>
-                  </>
-                )}
-              </ul>
-              <textarea className="iv-scratch mt-3" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Scratch notes for yourself (not shared)…" />
-            </div>
-          )}
-        </aside>
-      </div>
-
-      {countdown !== null && (
-        <div className="iv-overlay" role="alert" aria-live="polite">
-          <div className="iv-overlay-card surface" style={{ transform: `scale(${1 + (3 - countdown) * 0.1})`, transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
-            <h2 className="text-6xl font-black text-primary mb-2">
-              {countdown > 0 ? countdown : 'Go!'}
-            </h2>
-            <p className="font-bold">{persona.name} is ready for you.</p>
-            <p className="text-sm text-muted-foreground mt-1">Take a deep breath.</p>
-          </div>
-        </div>
-      )}
-
+          ) : null
+        }
+        error={error}
+        diagnostics={voiceConfig?.diagnostics ? <p className="room-diag">dev · tts {voice.lastLatency.ttsMs ?? '—'} ms · stt {voice.lastLatency.sttMs ?? '—'} ms · turn {lastTurnMs.current ?? '—'} ms · engine {voice.mode}</p> : null}
+      />
       {finishing && (
         <div className="iv-overlay" role="status" aria-live="polite">
           <div className="iv-overlay-card surface">
-            <div className="iv-avatar is-thinking mx-auto" aria-hidden="true">
-              {persona.name[0]}
-            </div>
-            <p className="mt-4 font-bold">{finishing}</p>
-            <p className="mt-1 text-sm text-muted-foreground">Scoring every dimension, writing model answers and picking topics to revise. This takes about half a minute.</p>
+            <p className="font-bold">{finishing}</p>
+            <p className="mt-1 text-sm text-muted-foreground">Reviewing every answer and writing specific feedback. This takes about half a minute.</p>
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }

@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import LockedFeature from './components/LockedFeature'
+import ResumeAnalysisView from './components/jobs/ResumeAnalysisView'
 import type { AppUser } from './lib/cloudSync'
 import { ApiError } from './lib/adminClient'
+import { fetchJobs, type LearnerJob } from './lib/jobs/client'
+import type { Suggestion } from './lib/jobs/resumeAnalysis'
 import { ROLE_CATEGORIES, labelOf } from './lib/jobs/taxonomy'
-import { deleteResume, fetchResume, fetchResumes, updateResume, uploadResume, type ResumeDetailDto, type ResumeMetaDto } from './lib/resume/client'
+import { deleteResume, fetchResume, fetchResumeAnalysis, fetchResumes, runResumeAnalysis, setSuggestionState, updateResume, uploadResume, type ResumeDetailDto, type ResumeMetaDto, type StoredAnalysisDto } from './lib/resume/client'
 
 interface ResumeWorkspaceProps {
   user: AppUser | null
@@ -12,6 +15,10 @@ interface ResumeWorkspaceProps {
   onUpgrade: () => void
   onToast: (message: string) => void
   onOpenJobs: () => void
+  /** Opens a job workspace (the comparison links back to the opening). */
+  onOpenJob?: (jobId: string) => void
+  /** Opens the learning tracks view (missing skills link to curriculum). */
+  onOpenTrack?: (trackId: string) => void
 }
 
 const formatDate = (iso: string) => {
@@ -20,8 +27,8 @@ const formatDate = (iso: string) => {
 }
 const kb = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`)
 
-/** Learner resume area: upload PDF/text resumes, keep versions, mark the current one, and inspect what was read from it. */
-export default function ResumeWorkspace({ user, features, onSignIn, onUpgrade, onToast, onOpenJobs }: ResumeWorkspaceProps) {
+/** Learner resume area: upload PDF/text resumes, keep versions, mark the current one, inspect what was read from it, and compare any version with any opening. */
+export default function ResumeWorkspace({ user, features, onSignIn, onUpgrade, onToast, onOpenJobs, onOpenJob, onOpenTrack }: ResumeWorkspaceProps) {
   const [list, setList] = useState<ResumeMetaDto[] | null>(null)
   const [selected, setSelected] = useState<ResumeDetailDto | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -32,6 +39,54 @@ export default function ResumeWorkspace({ user, features, onSignIn, onUpgrade, o
   const fileInput = useRef<HTMLInputElement>(null)
   const can = (key: string) => features.includes(key)
   const hasProfileFeature = features.includes('resume.profile')
+  // Compare with an opening: search Job Discovery, pick a job, run the resume-vs-job analysis with the selected version.
+  const [jobQuery, setJobQuery] = useState('')
+  const [jobResults, setJobResults] = useState<LearnerJob[] | null>(null)
+  const [jobSearchBusy, setJobSearchBusy] = useState(false)
+  const [compareJob, setCompareJob] = useState<LearnerJob | null>(null)
+  const [compare, setCompare] = useState<{ analysis: StoredAnalysisDto | null; busy: boolean; error: string | null; usage: { used: number; limit: number } | null }>({ analysis: null, busy: false, error: null, usage: null })
+
+  const searchJobs = async (q: string) => {
+    setJobSearchBusy(true)
+    try {
+      const res = await fetchJobs({ q: q.trim() || undefined, pageSize: 8 })
+      setJobResults(res.items)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not search jobs')
+    } finally {
+      setJobSearchBusy(false)
+    }
+  }
+  const pickJob = async (job: LearnerJob) => {
+    setCompareJob(job)
+    setCompare({ analysis: null, busy: false, error: null, usage: null })
+    try {
+      const existing = await fetchResumeAnalysis(job.id)
+      if (existing && (!selected || existing.resumeId === selected.id)) setCompare((c) => ({ ...c, analysis: existing }))
+    } catch {
+      // a missing previous analysis is not an error
+    }
+  }
+  const runCompare = async () => {
+    if (!compareJob || !selected) return
+    setCompare((c) => ({ ...c, busy: true, error: null }))
+    try {
+      const res = await runResumeAnalysis(compareJob.id, { resumeId: selected.id })
+      setCompare({ analysis: res.analysis, busy: false, error: null, usage: res.usage })
+      onToast(`Compared ${res.resume.title} with ${compareJob.title}`)
+    } catch (err) {
+      setCompare((c) => ({ ...c, busy: false, error: err instanceof ApiError ? err.message : 'Analysis failed' }))
+    }
+  }
+  const updateCompareSuggestion = async (s: Suggestion, state: 'saved' | 'dismissed' | 'completed' | null) => {
+    if (!compareJob || !compare.analysis) return
+    try {
+      const analysis = await setSuggestionState(compareJob.id, compare.analysis.id, s.id, state)
+      setCompare((c) => ({ ...c, analysis }))
+    } catch (err) {
+      setCompare((c) => ({ ...c, error: err instanceof Error ? err.message : 'Could not update the suggestion' }))
+    }
+  }
 
   const load = useCallback(async (selectId?: string) => {
     try {
@@ -157,6 +212,80 @@ export default function ResumeWorkspace({ user, features, onSignIn, onUpgrade, o
             )}
           </section>
         )}
+
+        {list && list.length > 0 && (
+          <section className="job-section" aria-labelledby="resume-compare">
+            <h3 id="resume-compare" className="job-section-title">
+              Compare with an opening <span className="job-personal-label">Personal to you</span>
+            </h3>
+            <p className="job-section-sub">Pick any opening from Job Discovery and compare {selected ? `“${selected.title}”` : 'the selected version'} with its requirements: demonstrated skills with resume evidence, missing or weak evidence, experience and project relevance, and grounded suggestions. The resume never leaves your account.</p>
+            {!can('jobs.resumeAnalysis') ? (
+              <LockedFeature title="Resume vs job description" description="Compare any resume version with any opening: evidence-based skill alignment, gaps mapped to the curriculum and improvement suggestions." onUpgrade={onUpgrade} signedIn compact />
+            ) : (
+              <>
+                <form
+                  className="mt-3 flex flex-wrap items-center gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    void searchJobs(jobQuery)
+                  }}
+                >
+                  <input className="input-field" style={{ maxWidth: 360 }} value={jobQuery} onChange={(e) => setJobQuery(e.target.value)} placeholder="Search openings by title, company or skill" aria-label="Search openings to compare" />
+                  <button type="submit" className="btn btn-ghost btn-sm" disabled={jobSearchBusy}>
+                    {jobSearchBusy ? 'Searching…' : 'Search openings'}
+                  </button>
+                  {compareJob && (
+                    <span className="text-sm">
+                      Selected: <strong>{compareJob.title}</strong>
+                      {compareJob.company?.name ? ` · ${compareJob.company.name}` : ''}
+                    </span>
+                  )}
+                </form>
+                {jobResults && (
+                  <ul className="resume-list mt-3" aria-label="Openings found">
+                    {jobResults.length === 0 && <li className="text-sm text-muted-foreground">No openings match that search.</li>}
+                    {jobResults.map((j) => (
+                      <li key={j.id} className={`resume-item${compareJob?.id === j.id ? ' is-selected' : ''}`}>
+                        <button type="button" className="resume-item-main" onClick={() => void pickJob(j)} aria-label={`Compare with ${j.title} at ${j.company?.name ?? 'company'}`}>
+                          <span className="resume-item-title">{j.title}</span>
+                          <span className="resume-item-meta">
+                            {j.company?.name ?? 'Company'} · {j.locationCity || j.region} · {j.workMode} · {j.requiredSkills.slice(0, 4).join(', ') || 'skills not listed'}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {compareJob && (
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <button type="button" className="btn btn-primary btn-sm" onClick={() => void runCompare()} disabled={compare.busy || !selected}>
+                      {compare.busy ? 'Comparing…' : compare.analysis ? `Compare again with “${selected?.title ?? 'this version'}”` : `Compare “${selected?.title ?? 'this version'}” with this opening`}
+                    </button>
+                    {onOpenJob && (
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => onOpenJob(compareJob.id)}>
+                        Open the job workspace
+                      </button>
+                    )}
+                    {compare.usage && <span className="job-source-note">Resume analyses today: {compare.usage.used} of {compare.usage.limit}.</span>}
+                  </div>
+                )}
+                {compare.error && (
+                  <p className="text-sm text-destructive mt-2" role="alert">
+                    {compare.error}
+                  </p>
+                )}
+                {compare.analysis && compareJob && (
+                  <>
+                    <p className="job-source-note mt-2">
+                      Compared {list.find((r) => r.id === compare.analysis?.resumeId)?.title ?? 'a resume version'} with {compareJob.title} · {formatDate(compare.analysis.updatedAt)}. It describes alignment with the listing, not your chances of being shortlisted.
+                    </p>
+                    <ResumeAnalysisView analysis={compare.analysis} onOpenTrack={(id) => onOpenTrack?.(id)} onUpdate={(s, state) => void updateCompareSuggestion(s, state)} onAddGaps={() => onOpenJob?.(compareJob.id)} />
+                  </>
+                )}
+              </>
+            )}
+          </section>
+        )}
       </div>
 
       <aside className="jobs-side" aria-label="Resume versions">
@@ -211,7 +340,7 @@ export default function ResumeWorkspace({ user, features, onSignIn, onUpgrade, o
         </div>
         <div className="jobs-panel">
           <div className="jobs-panel-title">Use it on a job</div>
-          <p className="jobs-panel-sub">Open any opening in Job Discovery and choose “Analyze resume for this job” to compare your current resume with its requirements.</p>
+          <p className="jobs-panel-sub">Compare any version with any opening below, or open an opening in Job Discovery and choose “Analyze resume for this job”.</p>
           <button type="button" className="btn btn-ghost btn-sm mt-3" onClick={onOpenJobs}>
             Go to Job Discovery
           </button>

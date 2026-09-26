@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import LockedFeature from '../LockedFeature'
+import InterviewTimeline from '../interview/InterviewTimeline'
 import { ApiError } from '../../lib/adminClient'
-import { compareAttempts, PROVENANCE_LABEL, SECTION_TITLES, type InterviewReport, type Rating, type SectionId, type Weakness } from '../../lib/interview/jobInterview'
+import { compareAttempts, PROVENANCE_LABEL, SECTION_TITLES, type InterviewReport, type QuestionFeedback, type Rating, type SectionId, type Weakness } from '../../lib/interview/jobInterview'
 import { recordInterviewPlan } from '../../lib/jobs/interviewClient'
 import { buildPreparationPlan, PLAN_DURATIONS, type PlanDuration, type PlanPreview } from '../../lib/jobs/prepPlan'
 import type { PrepBlueprint, PrepItem } from '../../lib/jobs/prepare'
@@ -40,7 +41,66 @@ function weaknessBlueprint(jobId: string, weaknesses: Weakness[]): PrepBlueprint
   return { version: 'interview-weaknesses', jobId, level: 'mid', mustPrepare: [], revise: [], alreadyStrong: [], dsa: { depth: 'none', why: '', items: [] }, frameworks: [], csFundamentals: [], systemDesign: { depth: 'none', why: '', items: [] }, projects: [], behavioral: [], interviewKit: [], missingInputs: [], plannable }
 }
 
-/** Evidence-based report: strong areas, needs improvement, missed concepts, communication, coding, design, behavioural, question-level feedback, weaknesses mapped to curriculum, plan preview and re-attempts. */
+/** Rating for a section from the qualities of its answers (evidence only). */
+function sectionRating(qs: QuestionFeedback[]): Rating {
+  const answered = qs.filter((q) => !q.skipped)
+  if (!answered.length) return 'not_observed'
+  const score = answered.reduce((s, q) => s + (q.quality === 'strong' ? 1 : q.quality === 'solid' ? 0.75 : q.quality === 'partial' ? 0.4 : 0), 0) / answered.length
+  return score >= 0.7 ? 'strong' : score >= 0.4 ? 'adequate' : 'weak'
+}
+
+function QuestionCard({ q, open, onToggle, onOpenTopic }: { q: QuestionFeedback; open: boolean; onToggle: () => void; onOpenTopic: (topicId: string) => void }) {
+  return (
+    <details className="jiv-q" open={open} onToggle={(e) => { if ((e.target as HTMLDetailsElement).open !== open) onToggle() }}>
+      <summary>
+        <span className={`jiv-quality is-${q.quality}`}>{QUALITY[q.quality]}</span>
+        <span className="jiv-q-prompt">{q.prompt}</span>
+        <span className="text-xs text-muted-foreground">
+          {q.sectionTitle} · {PROVENANCE_LABEL[q.provenance]}
+          {q.clarifications ? ` · ${q.clarifications} clarification${q.clarifications === 1 ? '' : 's'}` : ''}
+        </span>
+      </summary>
+      <div className="jiv-q-body">
+        <div>
+          <h5>Your answer</h5>
+          <pre className="jiv-answer-text">{q.skipped ? '(skipped)' : q.answer || '(empty)'}</pre>
+          {q.followUps.map((f, i) => (
+            <div key={i} className="mt-2">
+              <p className="text-xs font-semibold">Follow-up: {f.prompt}</p>
+              <pre className="jiv-answer-text">{f.answer || '(no answer)'}</pre>
+            </div>
+          ))}
+        </div>
+        <div className="room-fb">
+          <h5>What the interviewer was evaluating</h5>
+          <p className="text-sm">{q.evaluating.length ? q.evaluating.join(', ') : 'Clarity, structure and a concrete example.'}</p>
+          <h5 className="mt-2">What was demonstrated</h5>
+          <p className="text-sm">{q.strength ?? 'Nothing specific could be credited from this answer.'}</p>
+          <h5 className="mt-2">What was missing</h5>
+          <p className="text-sm">{q.weakness ?? 'Nothing was flagged.'}</p>
+          <h5 className="mt-2">Stronger reasoning approach</h5>
+          <p className="text-sm">{q.betterApproach}</p>
+          <h5 className="mt-2">Evidence observed</h5>
+          <ul className="jiv-list">
+            {q.evidence.map((e) => (
+              <li key={e}>{e}</li>
+            ))}
+          </ul>
+          {q.ref && (
+            <p className="text-sm mt-2">
+              <strong>Curriculum:</strong> {q.ref.trackTitle} → {q.ref.topicTitle}{' '}
+              <button type="button" className="btn btn-link btn-sm" onClick={() => onOpenTopic(q.ref!.topicId)} aria-label={`Open ${q.ref.topicTitle}`}>
+                Open
+              </button>
+            </p>
+          )}
+        </div>
+      </div>
+    </details>
+  )
+}
+
+/** Post-interview debrief: evidence-based, no score or hiring probability, with replay, weakness mapping and re-attempts. */
 export default function InterviewReportView({ session, previous, can, goals, roadmap, onOpenTopic, onAddPlan, onPracticeAgain, onPlanRecorded, onUpgrade, onBack }: Props) {
   const report: InterviewReport | null = session.report
   const [duration, setDuration] = useState<PlanDuration>(7)
@@ -50,8 +110,20 @@ export default function InterviewReportView({ session, previous, can, goals, roa
   const [openQ, setOpenQ] = useState<string | null>(null)
   const activeGoal = goals.find((g) => g.status === 'Active') || goals[0] || null
   const comparison = useMemo(() => (report && previous ? compareAttempts(previous.metrics, report.metrics) : null), [report, previous])
+  const grouped = useMemo(() => {
+    if (!report) return { strong: [] as QuestionFeedback[], weak: [] as QuestionFeedback[], resume: [] as QuestionFeedback[], problemSolving: 'not_observed' as Rating }
+    const scored = report.questions.filter((q) => q.sectionId !== 'intro' && q.sectionId !== 'wrapup')
+    const strong = scored.filter((q) => q.quality === 'strong' || q.quality === 'solid')
+    const weak = scored.filter((q) => q.skipped || q.quality === 'none' || q.quality === 'thin' || q.quality === 'partial')
+    const resume = report.questions.filter((q) => q.sectionId === 'resume')
+    const reasoning = scored.filter((q) => !q.skipped)
+    const withReasoning = reasoning.filter((q) => /trade-off discussed|code shared|diagram shared/.test(q.evidence.join(' ')) || q.conceptsHit.some((c) => /trade-off|complexity|edge cases|alternative|failure handling/.test(c)))
+    const problemSolving: Rating = !reasoning.length ? 'not_observed' : withReasoning.length / reasoning.length >= 0.6 ? 'strong' : withReasoning.length / reasoning.length >= 0.3 ? 'adequate' : 'weak'
+    return { strong, weak, resume, problemSolving }
+  }, [report])
   if (!report) return <p className="text-sm text-muted-foreground">No report for this interview.</p>
   const plannableWeaknesses = report.weaknesses.filter((w) => w.ref)
+  const minutes = session.durationSeconds ? Math.max(1, Math.round(session.durationSeconds / 60)) : session.config.minutes
 
   const makePreview = () => {
     if (!activeGoal) return
@@ -82,14 +154,16 @@ export default function InterviewReportView({ session, previous, can, goals, roa
               Interview report <span className="job-personal-label">Evidence-based</span>
             </h3>
             <p className="job-section-sub">
-              {session.plan.label} · {new Date(session.completedAt ?? session.startedAt).toLocaleString()} · {report.questionsAnswered} of {report.questionsTotal} questions answered · sections completed {report.sectionsCompleted.length}/{report.sectionsTotal}
+              {session.plan.label} · {new Date(session.completedAt ?? session.startedAt).toLocaleString()} · {minutes} min · {report.questionsAnswered} of {report.questionsTotal} questions answered · {report.followUpsAsked} follow-up{report.followUpsAsked === 1 ? '' : 's'}
+              {report.clarificationsAsked ? ` · ${report.clarificationsAsked} clarification${report.clarificationsAsked === 1 ? '' : 's'} asked` : ''} · {report.voiceUsed ? 'answered by voice' : 'answered in text'}
             </p>
           </div>
           <button type="button" className="btn btn-ghost btn-sm" onClick={onBack}>
             Back to interviews
           </button>
         </div>
-        <p className="mt-3 text-sm">{report.summary}</p>
+        <h4 className="prep-group-title mt-3">Overall interview summary</h4>
+        <p className="text-sm">{report.summary}</p>
         <p className="job-source-note">Statements below describe what your answers contained. There is no hiring probability or overall score by design.</p>
         {report.aiSummary && (
           <div className="ai-note" role="note">
@@ -99,7 +173,7 @@ export default function InterviewReportView({ session, previous, can, goals, roa
         )}
         <div className="jiv-two-col mt-3">
           <div>
-            <h4 className="prep-group-title">Strong areas</h4>
+            <h4 className="prep-group-title">Technical strengths</h4>
             {report.strongAreas.length ? (
               <ul className="jiv-list">
                 {report.strongAreas.map((s) => (
@@ -111,7 +185,7 @@ export default function InterviewReportView({ session, previous, can, goals, roa
             )}
           </div>
           <div>
-            <h4 className="prep-group-title">Needs improvement</h4>
+            <h4 className="prep-group-title">Technical weaknesses</h4>
             {report.needsImprovement.length ? (
               <ul className="jiv-list is-weak">
                 {report.needsImprovement.map((s) => (
@@ -169,6 +243,15 @@ export default function InterviewReportView({ session, previous, can, goals, roa
             </div>
             <p className="job-section-sub">{report.communication.note}</p>
           </section>
+          <section className="job-section" aria-labelledby="jiv-ps">
+            <h3 id="jiv-ps" className="job-section-title">
+              Problem-solving
+            </h3>
+            <div className="jiv-ratings">
+              <RatingRow label="Reasoning about trade-offs, complexity and failure" value={grouped.problemSolving} />
+            </div>
+            <p className="job-section-sub">Judged from whether answers reasoned about alternatives, costs, complexity, edge cases or failure modes, and from code or diagrams shared.</p>
+          </section>
           {report.coding && (
             <section className="job-section" aria-labelledby="jiv-coding">
               <h3 id="jiv-coding" className="job-section-title">
@@ -210,6 +293,19 @@ export default function InterviewReportView({ session, previous, can, goals, roa
               <p className="job-section-sub">{report.behavioral.note}</p>
             </section>
           )}
+          {grouped.resume.length > 0 && (
+            <section className="job-section" aria-labelledby="jiv-resume">
+              <h3 id="jiv-resume" className="job-section-title">
+                Resume and project discussion
+              </h3>
+              <div className="jiv-ratings">
+                <RatingRow label="Depth on your own projects" value={sectionRating(grouped.resume)} />
+              </div>
+              <p className="job-section-sub">
+                {grouped.resume.filter((q) => !q.skipped).length} of {grouped.resume.length} project questions answered; examples in {grouped.resume.filter((q) => /example given/.test(q.evidence.join(' '))).length}, decisions or trade-offs named in {grouped.resume.filter((q) => q.conceptsHit.some((c) => /decision|trade-off|alternative/.test(c))).length}.
+              </p>
+            </section>
+          )}
           {report.missedConcepts.length > 0 && (
             <section className="job-section" aria-labelledby="jiv-missed">
               <h3 id="jiv-missed" className="job-section-title">
@@ -225,67 +321,76 @@ export default function InterviewReportView({ session, previous, can, goals, roa
               </ul>
             </section>
           )}
+          <section className="job-section" aria-labelledby="jiv-answers">
+            <h3 id="jiv-answers" className="job-section-title">
+              Strong and weak answers
+            </h3>
+            <div className="jiv-two-col mt-2">
+              <div>
+                <h4 className="prep-group-title">Strong answers</h4>
+                {grouped.strong.length ? (
+                  <ul className="jiv-list">
+                    {grouped.strong.map((q) => (
+                      <li key={q.questionId}>
+                        <button type="button" className="cc-link" onClick={() => setOpenQ(q.questionId)}>
+                          {q.prompt.length > 110 ? `${q.prompt.slice(0, 110)}…` : q.prompt}
+                        </button>{' '}
+                        <span className="text-xs text-muted-foreground">· {q.sectionTitle}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No answer reached solid or strong yet.</p>
+                )}
+              </div>
+              <div>
+                <h4 className="prep-group-title">Weak answers</h4>
+                {grouped.weak.length ? (
+                  <ul className="jiv-list is-weak">
+                    {grouped.weak.map((q) => (
+                      <li key={q.questionId}>
+                        <button type="button" className="cc-link" onClick={() => setOpenQ(q.questionId)}>
+                          {q.prompt.length > 110 ? `${q.prompt.slice(0, 110)}…` : q.prompt}
+                        </button>{' '}
+                        <span className="text-xs text-muted-foreground">· {q.skipped ? 'skipped' : QUALITY[q.quality].toLowerCase()}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No thin, partial or skipped answers.</p>
+                )}
+              </div>
+            </div>
+          </section>
           <section className="job-section" aria-labelledby="jiv-questions">
             <h3 id="jiv-questions" className="job-section-title">
               Question-level feedback
             </h3>
-            <p className="job-section-sub">Question → your answer → evidence observed → strength → weakness → better approach → related curriculum. Recorded at the time you answered; never rewritten.</p>
+            <p className="job-section-sub">Question → your answer → what the interviewer was evaluating → what was demonstrated → what was missing → a stronger reasoning approach → curriculum mapping. Recorded at the time you answered; never rewritten.</p>
             <div className="jiv-qlist mt-3">
               {report.questions.map((q) => (
-                <details key={q.questionId} className="jiv-q" open={openQ === q.questionId} onToggle={(e) => setOpenQ((e.target as HTMLDetailsElement).open ? q.questionId : null)}>
-                  <summary>
-                    <span className={`jiv-quality is-${q.quality}`}>{QUALITY[q.quality]}</span>
-                    <span className="jiv-q-prompt">{q.prompt}</span>
-                    <span className="text-xs text-muted-foreground">{q.sectionTitle} · {PROVENANCE_LABEL[q.provenance]}</span>
-                  </summary>
-                  <div className="jiv-q-body">
-                    <div>
-                      <h5>Your answer</h5>
-                      <pre className="jiv-answer-text">{q.skipped ? '(skipped)' : q.answer || '(empty)'}</pre>
-                      {q.followUps.map((f, i) => (
-                        <div key={i} className="mt-2">
-                          <p className="text-xs font-semibold">Follow-up: {f.prompt}</p>
-                          <pre className="jiv-answer-text">{f.answer || '(no answer)'}</pre>
-                        </div>
-                      ))}
-                    </div>
-                    <div>
-                      <h5>Evidence observed</h5>
-                      <ul className="jiv-list">
-                        {q.evidence.map((e) => (
-                          <li key={e}>{e}</li>
-                        ))}
-                      </ul>
-                      {q.strength && (
-                        <p className="text-sm mt-2">
-                          <strong>Strength:</strong> {q.strength}
-                        </p>
-                      )}
-                      {q.weakness && (
-                        <p className="text-sm mt-1">
-                          <strong>Weakness:</strong> {q.weakness}
-                        </p>
-                      )}
-                      <p className="text-sm mt-1">
-                        <strong>Better approach:</strong> {q.betterApproach}
-                      </p>
-                      {q.ref && (
-                        <p className="text-sm mt-1">
-                          <strong>Related curriculum:</strong> {q.ref.trackTitle} → {q.ref.topicTitle}{' '}
-                          <button type="button" className="btn btn-link btn-sm" onClick={() => onOpenTopic(q.ref!.topicId)} aria-label={`Open ${q.ref.topicTitle}`}>
-                            Open
-                          </button>
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </details>
+                <QuestionCard key={q.questionId} q={q} open={openQ === q.questionId} onToggle={() => setOpenQ(openQ === q.questionId ? null : q.questionId)} onOpenTopic={onOpenTopic} />
               ))}
             </div>
           </section>
+          {report.timeline && report.timeline.length > 0 && (
+            <section className="job-section" aria-labelledby="jiv-replay">
+              <h3 id="jiv-replay" className="job-section-title">
+                Interview replay
+              </h3>
+              <p className="job-section-sub">Timeline of the interview with the transcript and feedback for each section. Audio is not stored; replay is the transcript and timing.</p>
+              {can('interview.replay') ? (
+                <div className="mt-3">
+                  <InterviewTimeline plan={session.plan} turns={session.turns} timeline={report.timeline} feedback={report.questions} startedAt={session.startedAt} onOpenTopic={onOpenTopic} />
+                </div>
+              ) : (
+                <LockedFeature title="Interview replay" description="Review the full transcript section by section with the feedback for each question." onUpgrade={onUpgrade} signedIn compact />
+              )}
+            </section>
+          )}
         </>
       ) : (
-        <LockedFeature title="Detailed feedback" description="Question-level evidence, strengths, weaknesses, better approaches, communication, coding and design breakdowns, and weakness mapping to your curriculum." onUpgrade={onUpgrade} signedIn />
+        <LockedFeature title="Detailed feedback" description="Question-level evidence, strengths, weaknesses, better approaches, communication, coding and design breakdowns, replay and weakness mapping to your curriculum." onUpgrade={onUpgrade} signedIn />
       )}
 
       {can('interview.curriculumMapping') && !session.entitlements.preview ? (
@@ -321,7 +426,7 @@ export default function InterviewReportView({ session, previous, can, goals, roa
           {plannableWeaknesses.length > 0 && (
             <div className="mt-4">
               <h4 className="prep-group-title">Add weaknesses to learning plan</h4>
-              <p className="job-section-sub">Schedules the mapped topics into your existing roadmap using your goal's hours per day and rest days. Steps already on your calendar or completed are skipped. Preview first, then confirm.</p>
+              <p className="job-section-sub">Schedules the mapped topics into your existing roadmap using your goal&apos;s hours per day and rest days. Steps already on your calendar or completed are skipped. Preview first, then confirm.</p>
               {!activeGoal ? (
                 <p className="text-sm mt-2">You need an active learning goal first (Goals &amp; Roadmap).</p>
               ) : (

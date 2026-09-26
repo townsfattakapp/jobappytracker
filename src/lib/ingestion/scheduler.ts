@@ -35,6 +35,13 @@ export interface SchedulerOptions {
   sleep?: (ms: number) => Promise<void>
   /** Run the lifecycle sweep after the sources (default true). */
   sweep?: boolean
+  /**
+   * Wall-clock budget for one pass in milliseconds (0 = unlimited). Sources are
+   * visited least-recently-run first; once the budget is spent the remaining
+   * sources are reported as skipped and picked up by the next pass, so a
+   * serverless cron with a function time limit still covers a large catalog.
+   */
+  budgetMs?: number
 }
 
 export interface ScheduledSourceOutcome {
@@ -52,6 +59,8 @@ export interface SchedulerReport {
   finishedAt: string
   sources: ScheduledSourceOutcome[]
   sweep: SweepResult | null
+  /** Sources left for the next pass because the time budget was spent. */
+  deferred: number
 }
 
 const TRANSIENT = /\b(timeout|timed out|ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|fetch failed|responded (429|5\d\d)|socket hang up|network)\b/i
@@ -85,10 +94,17 @@ export async function runScheduledIngestion(db: IngestionDb, opts: SchedulerOpti
   const lockTimeoutMs = opts.lockTimeoutMs ?? 15 * 60_000
   const startedAt = now()
   const where = opts.sourceIds?.length ? sql`${jobSources.id} in ${opts.sourceIds}` : and(eq(jobSources.status, 'active'), eq(jobSources.ingestionAllowed, true), eq(jobSources.scheduleEnabled, true), sql`${jobSources.provider} <> 'manual'`)
-  const sources = await db.select().from(jobSources).where(where).orderBy(jobSources.name)
+  const sources = (await db.select().from(jobSources).where(where).orderBy(jobSources.name)).sort((a, b) => (a.lastRunAt?.getTime() ?? 0) - (b.lastRunAt?.getTime() ?? 0))
   const outcomes: ScheduledSourceOutcome[] = []
+  const budgetMs = Math.max(0, opts.budgetMs ?? 0)
+  const passStart = Date.now()
+  let deferred = 0
 
   for (const source of sources) {
+    if (budgetMs && Date.now() - passStart >= budgetMs) {
+      deferred += 1
+      continue
+    }
     const t0 = Date.now()
     const token = await acquireSourceLock(db, source.id, now(), lockTimeoutMs)
     if (!token) {
@@ -128,5 +144,5 @@ export async function runScheduledIngestion(db: IngestionDb, opts: SchedulerOpti
   }
 
   const sweep = opts.sweep === false ? null : await sweepLifecycle(db, { now: now() })
-  return { startedAt: startedAt.toISOString(), finishedAt: now().toISOString(), sources: outcomes, sweep }
+  return { startedAt: startedAt.toISOString(), finishedAt: now().toISOString(), sources: outcomes, sweep, deferred }
 }

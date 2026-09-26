@@ -873,10 +873,10 @@ try {
   pass('AI gateway: admin sees provider health without keys, probes succeed on the fixture and fail with error ids elsewhere, policy edits are audited, learner chat routes through the gateway with usage accounting')
   } else console.log('SKIP: AI gateway block (E2E_SKIP=ai)')
   // ------------------------------------------------------------ Phase 6: job-specific mock interview
-  const ALL_FEATURES = ['jobs.discovery', 'jobs.personalizedFeed', 'jobs.advancedFilters', 'jobs.matching', 'jobs.curriculumGaps', 'resume.profile', 'jobs.resumeAnalysis', 'jobs.applicationStrategy', 'jobs.networkingBasic', 'jobs.referrals', 'jobs.outreachTracker', 'jobs.preparationBasic', 'jobs.preparation', 'jobs.interviewKit', 'jobs.readinessAdvanced', 'tracker.basic', 'mock.integrations', 'interview.jobPreview', 'interview.jobFull', 'interview.adaptive', 'interview.coding', 'interview.systemDesign', 'interview.feedbackDetailed', 'interview.curriculumMapping', 'interview.reattempt', 'interview.history', 'ai.highLimits']
+  const ALL_FEATURES = ['jobs.discovery', 'jobs.personalizedFeed', 'jobs.advancedFilters', 'jobs.matching', 'jobs.curriculumGaps', 'resume.profile', 'jobs.resumeAnalysis', 'jobs.applicationStrategy', 'jobs.networkingBasic', 'jobs.referrals', 'jobs.outreachTracker', 'jobs.preparationBasic', 'jobs.preparation', 'jobs.interviewKit', 'jobs.readinessAdvanced', 'tracker.basic', 'mock.integrations', 'interview.jobPreview', 'interview.jobFull', 'interview.adaptive', 'interview.coding', 'interview.systemDesign', 'interview.feedbackDetailed', 'interview.curriculumMapping', 'interview.reattempt', 'interview.history', 'interview.voice', 'interview.premiumVoice', 'interview.replay', 'ai.highLimits']
   // Admin enables the Phase 6 entitlements on the paid plan (plans are admin-managed; seeded rows predate these keys).
   assert.equal(await admin.evaluate((f) => fetch('/api/admin/plans/pro', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ features: f }) }).then((r) => r.status), ALL_FEATURES), 200)
-  assert.equal(await admin.evaluate(() => fetch('/api/admin/plans/free', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ features: ['jobs.discovery', 'tracker.basic', 'resume.profile', 'jobs.networkingBasic', 'jobs.preparationBasic', 'interview.jobPreview'] }) }).then((r) => r.status)), 200)
+  assert.equal(await admin.evaluate(() => fetch('/api/admin/plans/free', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ features: ['jobs.discovery', 'tracker.basic', 'resume.profile', 'jobs.networkingBasic', 'jobs.preparationBasic', 'interview.jobPreview', 'interview.voice'] }) }).then((r) => r.status)), 200)
   await learner.reload({ waitUntil: 'networkidle' })
   await waitForSession(learner)
   await learner.getByRole('button', { name: 'Job Discovery', exact: true }).click()
@@ -899,10 +899,20 @@ try {
   await learner.screenshot({ path: `${SHOTS}/learner-interview-setup.png`, fullPage: true })
   pass('Mock Interview for This Job derives a role- and level-specific configuration (difficulty, coding, design, resume projects) with an adaptable structure')
 
-  await learner.getByRole('button', { name: 'Start interview', exact: true }).click()
-  await learner.getByText(/Section 1 of \d+: Introduction/).waitFor()
-  await learner.getByText(/Question 1 of \d+ · Full interview/).waitFor()
+  // The interview room: device check first (fixture voice provider reports a premium voice; this flow runs in text so the room is deterministic without audio).
+  await learner.getByRole('region', { name: 'Device check' }).waitFor()
+  await learner.getByText(/Interviewer voice: Fixture voice/).waitFor()
+  await learner.getByRole('button', { name: 'Start in text only' }).click()
+  await learner.getByRole('region', { name: 'Mock interview session' }).waitFor()
+  await learner.locator('.room-stage-label').getByText('Introduction').waitFor()
+  await learner.waitForFunction(() => /Full interview/.test(document.querySelector('.room-sub')?.textContent || ''))
   await learner.getByRole('timer').waitFor()
+  const opening = (await learner.locator('#jiv-question-title').textContent()).trim()
+  assert.match(opening, /^Hi(, | [A-Za-z][A-Za-z'’-]+, )thanks for joining\./, `realistic opening without an email handle as a name (${opening.slice(0, 60)})`)
+  assert.match(opening, /around 30 minutes/)
+  assert.match(opening, /could you briefly introduce yourself/)
+  assert.equal(await learner.locator('.room-title').textContent(), 'Technical Interviewer')
+  assert.equal(await learner.getByRole('tablist', { name: 'Job workspace' }).count(), 0, 'job navigation is hidden during the interview')
   const sessionRow = (await pool.query('SELECT s.id, s.plan, s.status, s.mode FROM job_interview_sessions s JOIN users u ON u.id = s."userId" WHERE u.email = $1 AND s."jobId" = $2', [learnerEmail, jobId])).rows[0]
   assert.ok(sessionRow && sessionRow.status === 'active' && sessionRow.mode === 'full', 'session persisted server-side on start')
   const provenances = new Set(sessionRow.plan.questions.map((q) => q.provenance))
@@ -914,22 +924,37 @@ try {
   // Answer the interview through the UI; the first technical answer is thin on purpose to trigger a follow-up.
   const promptOf = async () => (await learner.locator('#jiv-question-title').textContent()).trim()
   let sawFollowUp = false
+  let sawClarification = false
   let thinUsed = false
   let answeredCount = 0
+  let wrapupTurns = 0
   for (let step = 0; step < 40; step++) {
     if (await learner.getByRole('heading', { name: 'Interview report' }).count()) break
     const titleEl = learner.locator('#jiv-question-title')
-    if (!(await titleEl.count())) {
+    if (!(await titleEl.count()) || !(await learner.locator('#jiv-answer').count())) {
       await learner.waitForTimeout(400)
       continue
     }
     const before = await promptOf()
-    const section = (await learner.getByText(/Section \d+ of \d+:/).textContent()).replace(/^.*: /, '')
-    const isFollowUp = (await learner.getByText('Follow-up', { exact: true }).count()) > 0
+    const section = (await learner.locator('.room-stage-label').textContent()).trim()
+    const isFollowUp = (await learner.getByRole('button', { name: 'Answer follow-up' }).count()) > 0
     let answer
     if (isFollowUp) {
       sawFollowUp = true
-      assert.match(before, /go one level deeper|trade-off|concrete example|Where does|How did .* come into it|explain .* to a teammate|complexity|inputs would break|decision|alternative|hardest problem|root cause|fix|rebuilt|teach you|outcome|measure|What breaks|differently|convinced|assumption|first ninety|What was|What did/, `follow-up reacts to the answer: ${before}`)
+      assert.ok(!/great|excellent|correct|you missed|you should study/i.test(before), `no praise or teaching mid-interview: ${before}`)
+      assert.match(before, /\?\s*$/, 'the follow-up is a question')
+      if (!sawClarification) {
+        assert.match(before, /^(Okay|I see|Alright|Understood|Thanks|Right)/, `a neutral acknowledgement precedes the follow-up: ${before}`)
+        // Ask for clarification first: the interviewer answers without counting it as the answer, and the follow-up stays pending.
+        sawClarification = true
+        await learner.locator('#jiv-answer').fill('Could you repeat that?')
+        await learner.getByRole('button', { name: 'Answer follow-up' }).click()
+        await learner.waitForFunction((prev) => document.querySelector('#jiv-question-title')?.textContent.trim() !== prev, before, { timeout: 20000 })
+        const clarified = await promptOf()
+        assert.match(clarified, /^(Of course|Sure|Certainly)\./, `repeat request is answered (${clarified.slice(0, 60)})`)
+        assert.equal(await learner.getByRole('button', { name: 'Answer follow-up' }).count(), 1, 'the follow-up is still pending after the clarification')
+        continue
+      }
       answer = 'Going deeper: I would start with the configuration and the data model, then check indexes and connection pooling, measure with metrics and for example compare p99 latency before and after; the trade-off is complexity against throughput.'
     } else if (/Introduction/.test(section)) answer = 'I am a backend developer with three years in Java and Spring Boot services on PostgreSQL, and I want to work on payments infrastructure at Acme.'
     else if (/Resume/.test(section)) answer = 'Inventory Tracker is a Spring Boot and PostgreSQL service deployed with Docker. I chose Spring Boot because of its ecosystem; the alternative was Node, but the trade-off was team familiarity. The hardest problem was a root cause in the connection pool; the fix was pool sizing and as a result latency dropped. I would redesign the batch jobs.'
@@ -940,16 +965,30 @@ try {
     else if (/Coding/.test(section)) answer = 'Approach: use a hash map in a single pass, storing each value and checking the complement. Time complexity O(n) and space complexity O(n). Edge cases: empty input, duplicates, negative numbers and very large inputs. Dry run: for input [2,7,11,15] with target 9 it returns [0,1].'
     else if (/System design/.test(section)) answer = 'Requirements first: create and read orders. The API exposes REST endpoints; the data model has orders and items; components are the API service, a cache and the database; request flow goes client to API to database with validation and logging at each hop; error handling returns typed errors and retries. The trade-off of caching is staleness.'
     else if (/Behavioural/.test(section)) answer = 'When our release failed last year, the situation was a broken payment job. I decided to own it: I investigated the logs, wrote a retry with backoff and paired with QA. As a result failures dropped 90% and we shipped on time. I learned to add alerts first.'
-    else answer = 'What does success look like in the first ninety days, and how is the team measuring reliability today?'
+    else {
+      // Wrap-up: the interviewer invites questions, answers a general one without company facts, then closes.
+      wrapupTurns += 1
+      assert.match(before, wrapupTurns === 1 ? /(That covers everything I wanted to discuss|That's everything from my side)\..*do you have any questions/ : /can't speak for .* process specifically.*(Anything else|anything else)/, `natural closing (${before.slice(0, 120)})`)
+      answer = wrapupTurns === 1 ? 'What are the next steps in the process?' : 'No, that is all from my side. Thank you.'
+    }
     await learner.locator('#jiv-answer').fill(answer)
-    await learner.getByRole('button', { name: isFollowUp ? 'Answer follow-up' : 'Submit answer' }).click()
-    answeredCount += 1
+    await learner.getByRole('button', { name: isFollowUp ? 'Answer follow-up' : /^(Send answer|Send)$/ }).click()
+    if (!/wrap-up/i.test(section)) answeredCount += 1
     await learner.waitForFunction((prev) => {
       const el = document.querySelector('#jiv-question-title')
       return !el || el.textContent.trim() !== prev || Array.from(document.querySelectorAll('h3')).some((h) => h.textContent.trim().startsWith('Interview report'))
     }, before, { timeout: 20000 })
   }
   assert.ok(sawFollowUp, 'the interviewer asked at least one follow-up in reaction to a thin answer')
+  assert.ok(sawClarification, 'a clarification request was handled mid-interview')
+  assert.equal(wrapupTurns, 2, 'the wrap-up took the candidate question and the closing')
+  const roomTurns = (await pool.query('SELECT turns FROM job_interview_sessions WHERE id = $1', [sessionRow.id])).rows[0].turns
+  assert.equal(roomTurns[0].kind, 'opening')
+  assert.ok(roomTurns.some((t) => t.kind === 'clarification_request') && roomTurns.some((t) => t.kind === 'clarification'), 'clarification stored as its own turn kinds')
+  assert.ok(roomTurns.some((t) => t.kind === 'transition') && roomTurns.some((t) => t.kind === 'candidate_question') && roomTurns.some((t) => t.kind === 'closing_answer'))
+  assert.equal(roomTurns[roomTurns.length - 1].kind, 'farewell')
+  assert.match(roomTurns[roomTurns.length - 1].text, /Thanks for your time\. We'll end the mock interview here\./)
+  for (const t of roomTurns.filter((x) => x.role === 'interviewer' && x.kind !== 'question' && x.kind !== 'opening')) assert.ok(!/\b(great|excellent|correct|you missed|you should study|hire)\b/i.test(`${t.lead ?? ''} ${t.text}`), `neutral interviewer: ${t.text}`)
   const followTurns = (await pool.query('SELECT turns FROM job_interview_sessions WHERE id = $1', [sessionRow.id])).rows[0].turns.filter((t) => t.kind === 'follow_up')
   assert.ok(followTurns.length >= 1)
   if (!SKIP.has('ai')) {
@@ -965,12 +1004,19 @@ try {
   await learner.getByRole('heading', { name: 'Question-level feedback' }).waitFor()
   await learner.locator('.jiv-q').first().locator('summary').click()
   await learner.getByText('Evidence observed').first().waitFor()
-  await learner.getByText('Better approach:').first().waitFor()
+  await learner.getByText('Stronger reasoning approach').first().waitFor()
   const completed = (await pool.query('SELECT s.id, s.status, s.report, s.turns, s."durationSeconds" FROM job_interview_sessions s WHERE s.id = $1', [sessionRow.id])).rows[0]
   assert.equal(completed.status, 'completed')
   assert.ok(completed.report.questions.length >= 5 && completed.report.questionsAnswered === answeredCount - completed.report.followUpsAsked, `report covers the answered questions (${completed.report.questionsAnswered}/${answeredCount})`)
+  assert.equal(completed.report.clarificationsAsked, 1, 'the clarification request is counted, not scored')
+  assert.ok(Array.isArray(completed.report.timeline) && completed.report.timeline.length >= 5 && completed.report.timeline[0].offsetMs === 0, 'replay timeline attached')
+  await learner.getByRole('heading', { name: 'Interview replay' }).waitFor()
+  await learner.getByRole('list', { name: 'Interview timeline' }).waitFor()
+  await learner.getByText('What the interviewer was evaluating').first().waitFor()
+  await learner.getByRole('heading', { name: 'Strong and weak answers' }).waitFor()
   assert.ok(completed.report.followUpsAsked >= 1)
-  assert.ok(completed.turns.filter((t) => t.role === 'candidate').every((t) => t.evidence && Array.isArray(t.evidence.conceptsHit)), 'evidence stored with every answer at answer time')
+  assert.ok(completed.turns.filter((t) => t.kind === 'answer' || t.kind === 'follow_up_answer').every((t) => t.evidence && Array.isArray(t.evidence.conceptsHit)), 'evidence stored with every answer at answer time')
+  assert.ok(completed.turns.filter((t) => t.kind === 'clarification_request' || t.kind === 'candidate_question').every((t) => !t.evidence), 'clarifications and candidate questions are never scored')
   assert.ok(completed.report.coding && completed.report.systemDesign && completed.report.behavioral, 'coding, design and behavioural breakdowns present')
   assert.ok(!/\bhire\b|hiring probab|% chance/i.test(JSON.stringify(completed.report)), 'no hiring probability or verdict')
   if (!SKIP.has('ai')) {
@@ -1049,8 +1095,8 @@ try {
   await learner.getByRole('button', { name: /Open report from/ }).first().click()
   await learner.getByRole('button', { name: 'Weak areas only' }).click()
   await learner.getByText(/Re-attempt: Weak areas/).waitFor()
-  await learner.getByRole('button', { name: 'Start weak areas re-attempt' }).click()
-  await learner.getByText(/Question 1 of \d+ · Weak areas re-attempt/).waitFor()
+  await learner.getByRole('button', { name: 'Start in text only' }).click()
+  await learner.waitForFunction(() => /Weak areas re-attempt/.test(document.querySelector('.room-sub')?.textContent || ''))
   const reattempt = (await pool.query('SELECT id, mode, "parentSessionId", plan FROM job_interview_sessions WHERE "userId" = (SELECT id FROM users WHERE email = $1) AND "jobId" = $2 AND status = $3', [learnerEmail, jobId, 'active'])).rows[0]
   assert.equal(reattempt.mode, 'weak_areas')
   assert.equal(reattempt.parentSessionId, sessionRow.id)
@@ -1058,15 +1104,17 @@ try {
   const repeatedKeys = reattempt.plan.questions.filter((q) => firstKeys.has(q.key) && !['intro', 'wrapup'].includes(q.key)).length
   assert.ok(repeatedKeys < reattempt.plan.questions.length - 2, `re-attempt rotates questions (${repeatedKeys} repeated of ${reattempt.plan.questions.length})`)
   await learner.locator('#jiv-answer').fill('I am back to practise the weak areas with more depth this time.')
-  await learner.getByRole('button', { name: 'Submit answer' }).click()
-  await learner.getByText(/Question 2 of \d+/).waitFor()
+  await learner.getByRole('button', { name: 'Send answer' }).click()
+  await learner.locator('.room-stage-count').getByText(/Stage 2 of \d+/).waitFor()
   await learner.reload({ waitUntil: 'networkidle' })
   await waitForSession(learner)
   await learner.getByRole('button', { name: 'Job Discovery', exact: true }).click()
   await learner.getByLabel('Search jobs').fill(companyName)
   await learner.getByRole('button', { name: `Backend Engineer II at ${companyName}` }).first().click()
   await learner.getByRole('tab', { name: 'Mock interview' }).click()
-  await learner.getByText(/Question 2 of \d+ · Weak areas re-attempt/).waitFor({ timeout: 20000 })
+  await learner.waitForFunction(() => /Weak areas re-attempt/.test(document.querySelector('.room-sub')?.textContent || ''), undefined, { timeout: 20000 })
+  await learner.locator('.room-stage-count').getByText(/Stage 2 of \d+/).waitFor()
+  await learner.getByText(/Interview restored where you left off/).waitFor()
   learner.once('dialog', (d) => d.accept())
   await learner.getByRole('button', { name: 'Leave' }).click()
   await learner.getByRole('heading', { name: 'Interview history' }).waitFor()

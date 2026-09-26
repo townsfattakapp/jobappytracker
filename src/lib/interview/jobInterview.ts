@@ -22,7 +22,10 @@ import type { ResumeProfile } from '../resume/extract'
  * company's real interview questions.
  */
 
-export const INTERVIEW_VERSION = 'jobiv-1'
+export const INTERVIEW_VERSION = 'jobiv-2'
+/** The wrap-up question; the transition before it says "That covers everything I wanted to discuss." */
+export const WRAPUP_PROMPT = 'Before we wrap up, do you have any questions you would like to ask me?'
+export const INTRO_PROMPT = 'To begin, could you briefly introduce yourself and walk me through your recent experience?'
 export const PRACTICE_LABEL = 'Recommended practice based on this role'
 
 export type InterviewMode = 'full' | 'weak_areas' | 'section' | 'missed_concepts' | 'preview'
@@ -178,27 +181,71 @@ export interface AnswerEvidence {
   quality: AnswerQuality
 }
 
+/**
+ * Candidate turns: answer, follow_up_answer, skip, clarification_request (repeat /
+ * clarify / assumption / thinking; never counted as an answer), candidate_question
+ * (during the wrap-up). Interviewer turns: opening, question (the prompt as it
+ * was voiced, possibly personalised from session memory), follow_up, transition
+ * (acknowledgement plus section change), clarification, nudge (silence
+ * prompts), closing_answer, farewell.
+ */
+export type TurnKind = 'answer' | 'skip' | 'follow_up' | 'follow_up_answer' | 'clarification_request' | 'candidate_question' | 'opening' | 'question' | 'transition' | 'clarification' | 'nudge' | 'closing_answer' | 'farewell'
+export const CANDIDATE_ANSWER_KINDS: TurnKind[] = ['answer', 'follow_up_answer']
+
+export interface TurnLatency {
+  /** Client-measured: speech-to-text finalisation, synthesis start, and the full learner-finishes → interviewer-speaks turn. */
+  sttMs?: number
+  ttsMs?: number
+  turnMs?: number
+  /** Server-measured processing time for the turn and the AI rephrasing inside it. */
+  serverMs?: number
+  aiMs?: number
+}
+
 export interface TurnRecord {
   id: string
   questionId: string
   role: 'candidate' | 'interviewer'
-  kind: 'answer' | 'skip' | 'follow_up' | 'follow_up_answer'
+  kind: TurnKind
   text: string
+  /** Interviewer follow-ups: the short acknowledgement spoken before the question ("Okay. Let's dig into that."). */
+  lead?: string
   code?: string | null
   language?: string | null
   diagram?: string | null
   intent?: FollowUpIntent
+  /** Clarification requests: what the candidate asked for. */
+  candidateIntent?: 'repeat' | 'clarify' | 'assumption' | 'thinking'
   evidence?: AnswerEvidence
   at: string
   /** Follow-ups: true when the wording was rephrased by the AI gateway; the deterministic wording is kept alongside. */
   aiRefined?: boolean
   deterministicText?: string
+  /** How the candidate produced the turn (voice-first interviews record this for the replay). */
+  input?: 'voice' | 'text'
+  latency?: TurnLatency
 }
+
+export type SessionPhase = 'interview' | 'closing' | 'ended'
 
 export interface SessionState {
   index: number
   followUps: Record<string, number>
   intents: Record<string, FollowUpIntent[]>
+  /** Conversation phase: interview → closing (candidate questions) → ended (farewell spoken; feedback available). Older rows have none and are treated as 'interview'. */
+  phase?: SessionPhase
+  /** Facts the learner stated, quoted back later ("Earlier you mentioned…"). */
+  memory?: { text: string; terms: string[]; questionId: string }[]
+  usedFacts?: string[]
+  /** Question ids dropped to keep the interview inside its time budget. */
+  dropped?: string[]
+  lastAck?: string | null
+  lastTransition?: string | null
+  clarifications?: Record<string, number>
+  nudges?: Record<string, number>
+  candidateQuestions?: number
+  /** Whether the learner ran the interview with voice; recorded for the report. */
+  voice?: boolean
 }
 
 export interface FollowUp {
@@ -223,6 +270,9 @@ export interface QuestionFeedback {
   answer: string
   skipped: boolean
   followUps: { prompt: string; answer: string }[]
+  /** What the interviewer was listening for (the question's expected concepts). */
+  evaluating: string[]
+  clarifications: number
   evidence: string[]
   strength: string | null
   weakness: string | null
@@ -270,9 +320,14 @@ export interface InterviewReport {
   questionsAnswered: number
   questionsTotal: number
   followUpsAsked: number
+  clarificationsAsked: number
   detailed: boolean
   /** Optional AI coaching note written from the evidence above (Phase 6.5). */
   aiSummary?: { text: string; provider: string; requestId: string } | null
+  /** Replay timeline (section → offset from the start), attached by the session service from stored turn timestamps. */
+  timeline?: { offsetMs: number; sectionId: SectionId; title: string; questionIds: string[]; turns: number }[]
+  /** Whether the learner answered by voice for at least one turn. */
+  voiceUsed?: boolean
 }
 
 export interface AttemptComparison {
@@ -497,16 +552,16 @@ function topicCandidates(item: ContextItem, depth: TechnicalDepth, difficulty: D
 }
 
 const CODING_BANK: { match: RegExp; key: string; prompt: string; concepts: string[]; tier: Difficulty }[] = [
-  { match: /array|hash|two pointer|prefix/i, key: 'two-sum', prompt: 'Given an array of integers and a target, return the indices of two numbers that add up to the target. Explain your approach before coding, then code it, then state complexity and edge cases.', concepts: ['hash map', 'single pass', 'time complexity', 'edge cases', 'dry run'], tier: 'foundational' },
-  { match: /string|sliding|window/i, key: 'longest-unique-substring', prompt: 'Find the length of the longest substring without repeating characters. Explain the approach, code it, and analyse complexity.', concepts: ['sliding window', 'set', 'time complexity', 'edge cases', 'dry run'], tier: 'standard' },
-  { match: /sort|interval|greedy/i, key: 'merge-intervals', prompt: 'Merge all overlapping intervals in a list. Explain the approach, code it, and analyse complexity.', concepts: ['sorting', 'merge', 'time complexity', 'edge cases', 'dry run'], tier: 'standard' },
-  { match: /recursion|backtrack|subset/i, key: 'subsets', prompt: 'Generate all subsets of a set of distinct integers. Explain the recursion, code it, and analyse complexity.', concepts: ['recursion', 'backtracking', 'time complexity', 'edge cases', 'dry run'], tier: 'foundational' },
-  { match: /tree|binary|bst/i, key: 'level-order', prompt: 'Return the level-order traversal of a binary tree as a list of levels. Explain, code, and analyse complexity.', concepts: ['queue', 'breadth-first', 'time complexity', 'edge cases', 'dry run'], tier: 'standard' },
-  { match: /graph|bfs|dfs/i, key: 'islands', prompt: 'Count the number of islands in a grid of land and water cells. Explain, code, and analyse complexity.', concepts: ['depth-first', 'visited', 'time complexity', 'edge cases', 'dry run'], tier: 'standard' },
-  { match: /dynamic|dp|memo/i, key: 'coin-change', prompt: 'Given coin denominations and an amount, return the fewest coins needed (or -1). Explain the recurrence, code it, and analyse complexity.', concepts: ['recurrence', 'memoization', 'time complexity', 'edge cases', 'dry run'], tier: 'advanced' },
-  { match: /heap|priority|top k|frequent/i, key: 'top-k-frequent', prompt: 'Return the k most frequent elements of an array. Explain, code, and analyse complexity.', concepts: ['heap', 'frequency map', 'time complexity', 'edge cases', 'dry run'], tier: 'standard' },
-  { match: /trie|prefix tree/i, key: 'trie-prefix', prompt: 'Implement a trie with insert and startsWith. Explain, code, and analyse complexity.', concepts: ['trie node', 'prefix', 'time complexity', 'edge cases', 'dry run'], tier: 'advanced' },
-  { match: /linked list|stack|queue/i, key: 'valid-parentheses', prompt: 'Check whether a string of brackets is balanced. Explain, code, and analyse complexity.', concepts: ['stack', 'matching', 'time complexity', 'edge cases', 'dry run'], tier: 'foundational' },
+  { match: /array|hash|two pointer|prefix/i, key: 'two-sum', prompt: 'Here is the problem. Given an array of integers and a target value, return the indices of the two numbers that add up to the target. Before you write anything, walk me through your approach.', concepts: ['hash map', 'single pass', 'time complexity', 'edge cases', 'dry run'], tier: 'foundational' },
+  { match: /string|sliding|window/i, key: 'longest-unique-substring', prompt: 'Here is the problem. Given a string, find the length of the longest substring that has no repeating characters. Talk me through your approach first, then code it.', concepts: ['sliding window', 'set', 'time complexity', 'edge cases', 'dry run'], tier: 'standard' },
+  { match: /sort|interval|greedy/i, key: 'merge-intervals', prompt: 'Here is the problem. You are given a list of intervals; merge every pair that overlaps and return the result. Walk me through how you would approach it before coding.', concepts: ['sorting', 'merge', 'time complexity', 'edge cases', 'dry run'], tier: 'standard' },
+  { match: /recursion|backtrack|subset/i, key: 'subsets', prompt: 'Here is the problem. Given a set of distinct integers, generate all of its subsets. Talk me through your approach before you start writing code.', concepts: ['recursion', 'backtracking', 'time complexity', 'edge cases', 'dry run'], tier: 'foundational' },
+  { match: /tree|binary|bst/i, key: 'level-order', prompt: 'Here is the problem. Given a binary tree, return its level-order traversal as a list of levels. Walk me through your approach first, then code it.', concepts: ['queue', 'breadth-first', 'time complexity', 'edge cases', 'dry run'], tier: 'standard' },
+  { match: /graph|bfs|dfs/i, key: 'islands', prompt: 'Here is the problem. You have a grid of land and water cells; count the number of islands, where an island is land connected horizontally or vertically. Talk me through your approach before coding.', concepts: ['depth-first', 'visited', 'time complexity', 'edge cases', 'dry run'], tier: 'standard' },
+  { match: /dynamic|dp|memo/i, key: 'coin-change', prompt: 'Here is the problem. Given coin denominations and a target amount, return the fewest coins that make the amount, or minus one if it cannot be made. Walk me through your approach before writing code.', concepts: ['recurrence', 'memoization', 'time complexity', 'edge cases', 'dry run'], tier: 'advanced' },
+  { match: /heap|priority|top k|frequent/i, key: 'top-k-frequent', prompt: 'Here is the problem. Given an array and a number k, return the k most frequent elements. Talk me through how you would approach it, then code it.', concepts: ['heap', 'frequency map', 'time complexity', 'edge cases', 'dry run'], tier: 'standard' },
+  { match: /trie|prefix tree/i, key: 'trie-prefix', prompt: 'Here is the problem. Implement a trie that supports inserting a word and checking whether any word starts with a given prefix. Walk me through the structure before you code it.', concepts: ['trie node', 'prefix', 'time complexity', 'edge cases', 'dry run'], tier: 'advanced' },
+  { match: /linked list|stack|queue/i, key: 'valid-parentheses', prompt: 'Here is the problem. Given a string of brackets, decide whether it is balanced. Walk me through your approach first, then code it.', concepts: ['stack', 'matching', 'time complexity', 'edge cases', 'dry run'], tier: 'foundational' },
 ]
 
 const TIER_ORDER: Difficulty[] = ['foundational', 'standard', 'advanced']
@@ -537,19 +592,19 @@ function designCandidates(context: InterviewContext): Candidate[] {
   const note = `${PRACTICE_LABEL}: ${depth} depth${ref ? `; ${ref.trackTitle} → ${ref.topicTitle}` : ''}`
   if (depth === 'basics') {
     return [
-      { key: 'design:basics:api', prompt: `Design the API and main components for ${domain} used by the ${context.job.title} team. Cover the endpoints, the data model, how components talk to each other, and how errors are handled. Sketch it if it helps.`, provenance: 'generated', sourceNote: note, expectedConcepts: ['requirements', 'api', 'data model', 'components', 'error handling'], ref, area: 'System design', tool: 'diagram' },
-      { key: 'design:basics:interaction', prompt: `Describe how a request flows through ${domain}: client, service, database and any cache. Where would you add validation and logging?`, provenance: 'generated', sourceNote: note, expectedConcepts: ['request flow', 'validation', 'database', 'cache', 'logging'], ref, area: 'System design', tool: 'diagram' },
+      { key: 'design:basics:api', prompt: `Let's design ${domain}. Start with the questions you would want answered before designing, then take me through the API and the main components. Sketch it if it helps.`, provenance: 'generated', sourceNote: note, expectedConcepts: ['requirements', 'api', 'data model', 'components', 'error handling'], ref, area: 'System design', tool: 'diagram' },
+      { key: 'design:basics:interaction', prompt: `Take one request through ${domain}, from the client to the data store and back. Tell me what you would want to know first, then walk me through the flow.`, provenance: 'generated', sourceNote: note, expectedConcepts: ['request flow', 'validation', 'database', 'cache', 'logging'], ref, area: 'System design', tool: 'diagram' },
     ]
   }
   if (depth === 'standard') {
     return [
-      { key: 'design:standard:service', prompt: `Design ${domain} for tens of thousands of users. Cover requirements, service boundaries, database choice, caching, reliability and the trade-offs you are making.`, provenance: 'generated', sourceNote: note, expectedConcepts: ['requirements', 'service boundaries', 'database choice', 'caching', 'load balancing', 'failure handling', 'trade-off'], ref, area: 'System design', tool: 'diagram' },
-      { key: 'design:standard:async', prompt: `Part of ${domain} must process work asynchronously. Design the queueing, retries and idempotency, and explain what happens when a consumer crashes mid-task.`, provenance: 'generated', sourceNote: note, expectedConcepts: ['queue', 'retry', 'idempotency', 'dead letter', 'monitoring', 'trade-off'], ref, area: 'System design', tool: 'diagram' },
+      { key: 'design:standard:service', prompt: `Design ${domain}. I'll keep the brief short on purpose: ask me about the requirements and scale you need, then take me through your design and the choices behind it.`, provenance: 'generated', sourceNote: note, expectedConcepts: ['requirements', 'service boundaries', 'database choice', 'caching', 'load balancing', 'failure handling', 'trade-off'], ref, area: 'System design', tool: 'diagram' },
+      { key: 'design:standard:async', prompt: `Part of ${domain} has to process work in the background rather than in the request. Ask me what you need to know, then design how that work is handed off and completed reliably.`, provenance: 'generated', sourceNote: note, expectedConcepts: ['queue', 'retry', 'idempotency', 'dead letter', 'monitoring', 'trade-off'], ref, area: 'System design', tool: 'diagram' },
     ]
   }
   return [
-    { key: 'design:senior:scale', prompt: `Design ${domain} at large scale across regions. Cover capacity, consistency model, replication, caching, observability and how the system degrades under partial failure.`, provenance: 'generated', sourceNote: note, expectedConcepts: ['capacity', 'consistency', 'replication', 'sharding', 'caching', 'observability', 'failure handling', 'trade-off'], ref, area: 'System design', tool: 'diagram' },
-    { key: 'design:senior:migration', prompt: `${domain[0].toUpperCase()}${domain.slice(1)} must move from a single database to a sharded setup without downtime. Design the migration and the rollback plan, and discuss consistency during the cut-over.`, provenance: 'generated', sourceNote: note, expectedConcepts: ['dual write', 'backfill', 'consistency', 'rollback', 'monitoring', 'trade-off'], ref, area: 'System design', tool: 'diagram' },
+    { key: 'design:senior:scale', prompt: `Design ${domain} that has to serve users in several regions. Ask me about the numbers and guarantees you need, then take me through the architecture and where it would hurt first.`, provenance: 'generated', sourceNote: note, expectedConcepts: ['capacity', 'consistency', 'replication', 'sharding', 'caching', 'observability', 'failure handling', 'trade-off'], ref, area: 'System design', tool: 'diagram' },
+    { key: 'design:senior:migration', prompt: `${domain[0].toUpperCase()}${domain.slice(1)} runs on a single database that is running out of headroom, and it cannot go down. Ask me what you need, then tell me how you would move it and what your plan is if the move goes wrong.`, provenance: 'generated', sourceNote: note, expectedConcepts: ['dual write', 'backfill', 'consistency', 'rollback', 'monitoring', 'trade-off'], ref, area: 'System design', tool: 'diagram' },
   ]
 }
 
@@ -711,8 +766,8 @@ export function composeInterview(context: InterviewContext, config: InterviewCon
   const codingPool = config.includeCoding ? codingCandidates(context, config.difficulty, language) : []
   const designPool = config.includeDesign ? designCandidates(context) : []
 
-  const intro: Candidate = { key: 'intro', prompt: `Tell me briefly about your background and what draws you to this ${context.job.title} role${context.job.companyName ? ` at ${context.job.companyName}` : ''}.`, provenance: 'generated', sourceNote: 'Opening', expectedConcepts: [], ref: null, area: 'Introduction' }
-  const wrapup: Candidate = { key: 'wrapup', prompt: 'That is all from my side. What questions do you have for me, and is there anything you would like to add about your answers?', provenance: 'generated', sourceNote: 'Wrap-up', expectedConcepts: [], ref: null, area: 'Wrap-up' }
+  const intro: Candidate = { key: 'intro', prompt: INTRO_PROMPT, provenance: 'generated', sourceNote: 'Opening', expectedConcepts: [], ref: null, area: 'Introduction' }
+  const wrapup: Candidate = { key: 'wrapup', prompt: WRAPUP_PROMPT, provenance: 'generated', sourceNote: 'Wrap-up', expectedConcepts: [], ref: null, area: 'Wrap-up' }
 
   const focused = (pool: (Candidate & { gap?: boolean })[]) => {
     if (opts.mode === 'weak_areas' && (opts.focusAreas?.length || opts.focusRefs?.length)) {
@@ -905,15 +960,27 @@ export function mergeEvidence(list: AnswerEvidence[]): AnswerEvidence | null {
 }
 
 /** The interviewer's reaction to an answer; null moves on to the next question. */
-export function decideFollowUp(question: InterviewQuestion, evidence: AnswerEvidence, asked: FollowUpIntent[], adaptive: boolean): FollowUp | null {
+const CLARIFY_PROMPTS = [
+  (q: InterviewQuestion) => `What specifically makes that the right choice for ${q.area}, compared with the obvious alternative?`,
+  () => 'Can you walk me through that in more detail? Start with what you would do first, and why.',
+  (q: InterviewQuestion) => `Say a bit more. In practice, how does that play out with ${q.area}?`,
+  () => 'Can you give me a concrete example of what you mean?',
+]
+
+export function decideFollowUp(question: InterviewQuestion, evidence: AnswerEvidence, asked: FollowUpIntent[], adaptive: boolean, seed = 0): FollowUp | null {
   if (!adaptive || asked.length >= question.maxFollowUps || question.kind === 'intro' || question.kind === 'wrapup') return null
   const has = (i: FollowUpIntent) => asked.includes(i)
   const missed = evidence.conceptsMissed.filter((c) => !['example', 'when it matters', 'dry run'].includes(c))
   if (evidence.gaveUp && !has('simplify')) {
     const c = missed[0] ?? question.area
-    return { intent: 'simplify', prompt: `No problem, let's simplify. Forget the full answer: how would you explain ${c} to a teammate in two sentences, and where does it show up in practice?` }
+    return { intent: 'simplify', prompt: `That's alright. Let's take a smaller piece of it: how would you explain ${c} to a teammate in two sentences, and where does it show up in practice?` }
   }
-  if ((evidence.quality === 'thin' || evidence.quality === 'none') && !has('clarify')) return { intent: 'clarify', prompt: 'Could you go one level deeper? Start with what you would do first and why, then what you would look at next.' }
+  const workShared = (question.kind === 'coding' && evidence.hasCode) || (question.kind === 'design' && evidence.hasDiagram)
+  if ((evidence.quality === 'thin' || evidence.quality === 'none') && !has('clarify') && !workShared) {
+    const named = evidence.conceptsHit[0]
+    if (named) return { intent: 'clarify', prompt: `You mentioned ${named}. What specifically makes ${named} suitable here, compared with the alternative you did not choose?` }
+    return { intent: 'clarify', prompt: CLARIFY_PROMPTS[Math.abs(seed) % CLARIFY_PROMPTS.length](question) }
+  }
   if (question.kind === 'coding') {
     if (!evidence.hasComplexity && !has('probe_missing')) return { intent: 'probe_missing', prompt: 'What is the time and space complexity of your approach, and could it be better?' }
     if (!evidence.hasEdgeCases && !has('challenge')) return { intent: 'challenge', prompt: 'Which inputs would break this? Think about empty input, duplicates and very large sizes, and say how your code handles each.' }
@@ -1007,10 +1074,13 @@ export function buildReport(plan: InterviewPlan, turns: TurnRecord[], entitlemen
   const sectionTitle = (id: SectionId) => plan.sections.find((s) => s.id === id)?.title ?? SECTION_TITLES[id]
   let answered = 0
   let followUpsAsked = 0
+  let clarificationsAsked = 0
   for (const q of plan.questions) {
     const ts = byQuestion.get(q.id) ?? []
-    if (!ts.length) continue
-    const candidateTurns = ts.filter((t) => t.role === 'candidate' && t.kind !== 'skip')
+    if (!ts.some((t) => t.role === 'candidate' && (CANDIDATE_ANSWER_KINDS.includes(t.kind) || t.kind === 'skip'))) continue
+    const candidateTurns = ts.filter((t) => t.role === 'candidate' && CANDIDATE_ANSWER_KINDS.includes(t.kind))
+    const clarifications = ts.filter((t) => t.kind === 'clarification_request').length
+    clarificationsAsked += clarifications
     const skipped = ts.some((t) => t.kind === 'skip') && !candidateTurns.length
     const evidence = mergeEvidence(candidateTurns.map((t) => t.evidence).filter((e): e is AnswerEvidence => Boolean(e))) ?? analyzeAnswer(q, { text: '' })
     if (!skipped) answered += 1
@@ -1037,6 +1107,8 @@ export function buildReport(plan: InterviewPlan, turns: TurnRecord[], entitlemen
       answer: main ? `${main.text}${main.code ? `\n\n\`\`\`${main.language || ''}\n${main.code}\n\`\`\`` : ''}${main.diagram ? `\n\nDiagram:\n\`\`\`mermaid\n${main.diagram}\n\`\`\`` : ''}` : '',
       skipped,
       followUps,
+      evaluating: q.expectedConcepts,
+      clarifications,
       evidence: evidenceLines,
       strength: skipped ? null : strengthText(q, evidence),
       weakness: weaknessText(q, evidence, skipped),
@@ -1072,7 +1144,7 @@ export function buildReport(plan: InterviewPlan, turns: TurnRecord[], entitlemen
 
   // Communication.
   const nonSkipped = scored.filter((f) => !f.skipped)
-  const avgWords = nonSkipped.length ? nonSkipped.reduce((s, f) => s + (byQuestion.get(f.questionId) ?? []).filter((t) => t.role === 'candidate').reduce((w, t) => w + (t.evidence?.words ?? 0), 0), 0) / nonSkipped.length : 0
+  const avgWords = nonSkipped.length ? nonSkipped.reduce((s, f) => s + (byQuestion.get(f.questionId) ?? []).filter((t) => t.role === 'candidate' && CANDIDATE_ANSWER_KINDS.includes(t.kind)).reduce((w, t) => w + (t.evidence?.words ?? 0), 0), 0) / nonSkipped.length : 0
   const thin = nonSkipped.filter((f) => f.quality === 'thin' || f.quality === 'none').length
   const withExample = nonSkipped.filter((f) => byQuestion.get(f.questionId)!.some((t) => t.evidence?.hasExample)).length
   const withReasoning = nonSkipped.filter((f) => byQuestion.get(f.questionId)!.some((t) => t.evidence?.hasTradeoff || t.evidence?.hasComplexity)).length
@@ -1131,7 +1203,8 @@ export function buildReport(plan: InterviewPlan, turns: TurnRecord[], entitlemen
     wmap.set(key, w)
   }
   const weaknesses = Array.from(wmap.values())
-  const sectionsCompleted = plan.sections.filter((s) => s.questionIds.some((id) => byQuestion.has(id))).map((s) => s.title)
+  const sectionsCompleted = plan.sections.filter((s) => s.questionIds.some((id) => (byQuestion.get(id) ?? []).some((t) => t.role === 'candidate'))).map((s) => s.title)
+  const voiceUsed = turns.some((t) => t.role === 'candidate' && t.input === 'voice')
   const summaryBits: string[] = []
   summaryBits.push(`${answered} of ${plan.questions.length} questions answered in ${timing.actualMinutes} of ${timing.plannedMinutes} planned minutes${followUpsAsked ? `, ${followUpsAsked} follow-up${followUpsAsked === 1 ? '' : 's'}` : ''}.`)
   if (strongAreas.length) summaryBits.push(`Demonstrated: ${strongAreas.slice(0, 3).join('; ')}.`)
@@ -1156,7 +1229,9 @@ export function buildReport(plan: InterviewPlan, turns: TurnRecord[], entitlemen
     questionsAnswered: answered,
     questionsTotal: plan.questions.length,
     followUpsAsked,
+    clarificationsAsked,
     detailed,
+    voiceUsed,
   }
 }
 

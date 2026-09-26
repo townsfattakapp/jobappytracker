@@ -1,4 +1,6 @@
 import AiConfigForm from '../../../components/admin/AiConfigForm'
+import VoiceConfigForm from '../../../components/admin/VoiceConfigForm'
+import { getVoicePolicy, TTS_ADAPTERS, voiceAvailability } from '../../../lib/server/tts'
 import { PageHeader, Pill, StatCard, formatDateTime } from '../../../components/admin/ui'
 import { ADAPTERS } from '../../../lib/ai/adapters'
 import { requireAdminPage } from '../../../lib/server/adminPage'
@@ -11,7 +13,7 @@ const LABEL = { healthy: 'Healthy', degraded: 'Degraded', not_configured: 'Not c
 
 export default async function AdminAiPage() {
   const actor = await requireAdminPage('admin', 'support')
-  const [policy, providers, usage, failures] = await Promise.all([getAiPolicy(), aiProviderHealth(), aiUsageSummary(7), recentAiFailures(20)])
+  const [policy, providers, usage, failures, voice] = await Promise.all([getAiPolicy(), aiProviderHealth(), aiUsageSummary(7), recentAiFailures(20), getVoicePolicy()])
   const configured = providers.filter((p) => p.configured)
   return (
     <>
@@ -113,6 +115,8 @@ export default async function AdminAiPage() {
       )}
       <h2 className="admin-section-title">Policy</h2>
       <AiConfigForm policy={policy} adapters={ADAPTERS.map((a) => ({ id: a.id, label: a.label, models: a.models, configured: a.isConfigured() }))} canEdit={actor.roles.includes('admin')} />
+      <h2 className="admin-section-title mt-8">Interviewer voice (mock interviews)</h2>
+      <VoiceConfigForm policy={voice} providers={TTS_ADAPTERS.map((a) => ({ id: a.id, label: a.label, configured: a.isConfigured(), voices: a.voices, defaultVoice: a.defaultVoice }))} availability={voiceAvailability(voice)} canEdit={actor.roles.includes('admin')} />
     </>
   )
 }

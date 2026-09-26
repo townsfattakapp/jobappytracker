@@ -45,6 +45,9 @@ export const FEATURES: FeatureDef[] = [
   { key: 'interview.curriculumMapping', label: 'Interview weakness mapping', description: 'Map interview weaknesses to curriculum topics and add them to the learning plan.' },
   { key: 'interview.reattempt', label: 'Interview re-attempts', description: 'Practice again: full, weak areas only, one section or missed concepts.' },
   { key: 'interview.history', label: 'Interview history', description: 'Attempt history per job with factual comparisons between attempts.' },
+  { key: 'interview.voice', label: 'Voice interviews', description: 'The interviewer speaks the questions and the learner can answer by microphone (browser speech; text always available).' },
+  { key: 'interview.premiumVoice', label: 'Premium interviewer voice', description: 'Server-side neural voice for the interviewer when a voice provider is configured; browser speech otherwise.' },
+  { key: 'interview.replay', label: 'Interview replay', description: 'Timeline and transcript of a completed interview with per-section feedback.' },
   { key: 'ai.highLimits', label: 'Higher AI usage limits', description: 'Larger daily AI allowance.' },
 ]
 
@@ -52,7 +55,7 @@ export const FEATURE_KEYS = FEATURES.map((f) => f.key)
 
 /** Default entitlements; admins override these in Platform settings. */
 export const DEFAULT_TIER_FEATURES: Record<'free' | 'pro', string[]> = {
-  free: ['jobs.discovery', 'tracker.basic', 'resume.profile', 'jobs.networkingBasic', 'jobs.preparationBasic', 'interview.jobPreview'],
+  free: ['jobs.discovery', 'tracker.basic', 'resume.profile', 'jobs.networkingBasic', 'jobs.preparationBasic', 'interview.jobPreview', 'interview.voice'],
   pro: FEATURE_KEYS,
 }
 

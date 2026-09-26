@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { aiUnavailableReason } from './lib/aiGatewayClient'
 import type { MockInterviewSummary } from './types'
-import { DURATIONS, LEVELS, PERSONAS, personaById, type Duration, type InterviewSetup, type Level } from './lib/interview/config'
+import { DURATIONS, interviewerTitle, LEVELS, PERSONAS, personaById, type Duration, type InterviewSetup, type Level } from './lib/interview/config'
 import { useInterviewRounds, useRoundById } from './lib/interview/hooks'
 import { sttSupported, ttsSupported } from './lib/interview/speech'
 import InterviewReport, { VerdictBadge } from './components/InterviewReport'
@@ -120,7 +120,7 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
   const report = reportId ? summaries.find((s) => s.id === reportId) || null : null
 
   const start = () => {
-    const setup: InterviewSetup = { roundId: round.id, level, minutes, personaId, voice: voice && ttsSupported() }
+    const setup: InterviewSetup = { roundId: round.id, level, minutes, personaId, voice }
     try {
       localStorage.setItem(SETUP_KEY, JSON.stringify(setup))
     } catch {
@@ -302,15 +302,13 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
           </div>
 
           <div className="mt-5">
-            <h2 className="iv-section-heading"><span className="iv-step">3</span> Pick your interviewer</h2>
+            <h2 className="iv-section-heading"><span className="iv-step">3</span> Interviewer style</h2>
+            <p className="text-xs text-muted-foreground mt-1">Your interviewer is the {interviewerTitle(round)} for this round; choose how demanding they are.</p>
             <div className="iv-persona-grid">
               {PERSONAS.map((p) => (
                 <button key={p.id} type="button" className={`iv-persona ${personaId === p.id ? 'is-active' : ''}`} onClick={() => setPersonaId(p.id)} aria-pressed={personaId === p.id}>
-                  <span className="iv-avatar is-small" aria-hidden="true">
-                    {p.name[0]}
-                  </span>
                   <span className="min-w-0">
-                    <span className="block font-semibold">{p.name}</span>
+                    <span className="block font-semibold">{p.id === 'supportive' ? 'Supportive' : p.id === 'bar-raiser' ? 'Demanding' : 'Standard'}</span>
                     <span className="block text-xs text-muted-foreground truncate">{p.title}</span>
                     <span className="block text-xs text-muted-foreground mt-1">{p.blurb}</span>
                   </span>
@@ -323,11 +321,8 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
         <aside className="iv-setup-side">
           <p className="iv-eyebrow">Your session</p>
           <h3 className="text-lg font-bold mt-2 mb-4">{round.label}</h3>
-          <div className="iv-avatar is-large" aria-hidden="true">
-            {persona.name[0]}
-          </div>
-          <p className="mt-3 font-bold">{persona.name}</p>
-          <p className="text-xs text-muted-foreground">{persona.title}</p>
+          <p className="mt-3 font-bold">{interviewerTitle(round)}</p>
+          <p className="text-xs text-muted-foreground">{persona.title} · {persona.id === 'supportive' ? 'supportive' : persona.id === 'bar-raiser' ? 'demanding' : 'standard'} style</p>
           <dl className="iv-setup-facts">
             <div>
               <dt>Round</dt>
@@ -347,10 +342,10 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
             </div>
           </dl>
           <label className="iv-toggle">
-            <input type="checkbox" checked={voice && ttsSupported()} disabled={!ttsSupported()} onChange={(e) => setVoice(e.target.checked)} />
-            <span>Interviewer speaks out loud{ttsSupported() ? '' : ' (not supported here)'}</span>
+            <input type="checkbox" checked={voice} onChange={(e) => setVoice(e.target.checked)} />
+            <span>Voice interview (the interviewer speaks; answer by microphone)</span>
           </label>
-          <p className="text-xs text-muted-foreground">{sttSupported() ? 'You can dictate answers with the microphone button.' : 'Dictation needs Chrome or Edge; typing always works.'}</p>
+          <p className="text-xs text-muted-foreground">{sttSupported() ? 'Voice, captions and text all work in the room; a device check runs there.' : ttsSupported() ? 'This browser can speak but not transcribe; you can type every answer.' : 'This browser has no speech support; the interview runs in text.'}</p>
           <button type="button" className="btn btn-primary w-full mt-4" onClick={start} disabled={aiReason !== null}>
             {aiReason === undefined ? 'Checking availability…' : 'Start interview'} <ArrowRight size={16} aria-hidden="true" />
           </button>
@@ -447,7 +442,7 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
                         <p className="font-semibold text-foreground truncate">{s.roundId ? r.label : s.category}</p>
                         <p className="text-xs text-muted-foreground">
                           {new Date(s.date).toLocaleDateString()} · {s.durationMinutes} min · {s.difficulty}
-                          {s.personaId ? ` · ${p.name}` : ''}
+                          {s.personaId ? ` · ${p.id === 'supportive' ? 'supportive' : p.id === 'bar-raiser' ? 'demanding' : 'standard'} style` : ''}
                         </p>
                       </div>
                       {typeof s.overallScore === 'number' && !s.incomplete ? (

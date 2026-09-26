@@ -162,9 +162,9 @@ export async function lifecycleCounts(): Promise<Record<string, number>> {
 }
 
 /** Scheduled pass over every enabled provider source with retries, overlap protection and the sweep; audited. */
-export async function runScheduler(actorId: string | null, opts: { sourceIds?: string[] }): Promise<SchedulerReport> {
+export async function runScheduler(actorId: string | null, opts: { sourceIds?: string[]; budgetMs?: number }): Promise<SchedulerReport> {
   const roleFamilies = await getRoleFamilyConfig()
-  const report = await runScheduledIngestion(db, { roleFamilies, triggeredBy: actorId ?? 'cron', sourceIds: opts.sourceIds })
-  await recordAudit({ actorId, action: 'ingestion.schedule', entityType: 'job_source', after: { sources: report.sources.map((s) => ({ id: s.sourceId, status: s.status, attempts: s.attempts, durationMs: s.durationMs, reason: s.reason ?? null })), sweep: report.sweep } })
+  const report = await runScheduledIngestion(db, { roleFamilies, triggeredBy: actorId ?? 'cron', sourceIds: opts.sourceIds, budgetMs: opts.budgetMs })
+  await recordAudit({ actorId, action: 'ingestion.schedule', entityType: 'job_source', after: { sources: report.sources.map((s) => ({ id: s.sourceId, status: s.status, attempts: s.attempts, durationMs: s.durationMs, reason: s.reason ?? null })), sweep: report.sweep, deferred: report.deferred } })
   return report
 }

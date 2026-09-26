@@ -33,7 +33,7 @@ export default function BookmarkletModal({ open, onClose }: BookmarkletModalProp
         aria-label="Close dialog"
         onClick={onClose}
       />
-      <div className="relative z-10 w-full max-w-lg rounded-2xl surface p-6 animate-slide-up bg-[hsl(var(--card))] border border-border shadow-2xl">
+      <div className="relative z-10 w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl surface p-6 animate-slide-up bg-[hsl(var(--card))] border border-border shadow-2xl">
         <div className="flex items-start justify-between mb-4">
           <div>
             <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">

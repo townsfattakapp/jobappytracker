@@ -1,21 +1,50 @@
-/** Thin wrappers over the browser speech APIs, with graceful no-ops where unsupported. */
+/**
+ * Browser speech APIs behind small abstractions.
+ *
+ * Text-to-speech here is the *browser fallback*; the interview room prefers
+ * the server voice (see voice.ts) and only uses `speak` when no premium
+ * provider is available or it fails. Speech recognition wraps the Web Speech
+ * API with pause tolerance: a short silence never ends the answer, the
+ * recogniser is restarted when the browser stops it early, and the caller is
+ * told about silence so it can detect the end of an answer or nudge gently.
+ */
 
 export function ttsSupported(): boolean {
-  return typeof window !== 'undefined' && 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined'
+  return typeof window !== 'undefined' && Boolean(window.speechSynthesis) && typeof SpeechSynthesisUtterance !== 'undefined'
 }
 
 let cachedVoice: SpeechSynthesisVoice | null | undefined
+let preferredVoiceUri: string | null = null
+
+export function browserVoices(): SpeechSynthesisVoice[] {
+  if (!ttsSupported()) return []
+  return window.speechSynthesis.getVoices().filter((v) => /^en/i.test(v.lang || ''))
+}
+
+/** Lets the learner pick a specific browser voice (voiceURI); null returns to the automatic choice. */
+export function setPreferredBrowserVoice(uri: string | null): void {
+  preferredVoiceUri = uri
+  cachedVoice = undefined
+}
 
 function pickVoice(): SpeechSynthesisVoice | null {
   if (cachedVoice !== undefined) return cachedVoice
   const voices = window.speechSynthesis.getVoices()
   if (!voices.length) return null
+  if (preferredVoiceUri) {
+    const chosen = voices.find((v) => v.voiceURI === preferredVoiceUri)
+    if (chosen) {
+      cachedVoice = chosen
+      return chosen
+    }
+  }
   const preferred = ['en-IN', 'en-GB', 'en-US', 'en-AU']
   const score = (v: SpeechSynthesisVoice) => {
     let s = 0
     const idx = preferred.findIndex((lang) => v.lang?.replace('_', '-').toLowerCase().startsWith(lang.toLowerCase()))
     if (idx >= 0) s += (preferred.length - idx) * 10
-    if (/google|microsoft|natural|premium|enhanced/i.test(v.name)) s += 5
+    if (/natural|neural|premium|enhanced|online/i.test(v.name)) s += 8
+    if (/google|microsoft/i.test(v.name)) s += 4
     if (v.localService === false) s += 2
     return s
   }
@@ -23,14 +52,23 @@ function pickVoice(): SpeechSynthesisVoice | null {
   return cachedVoice
 }
 
-if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+if (typeof window !== 'undefined' && window.speechSynthesis) {
   window.speechSynthesis.addEventListener?.('voiceschanged', () => {
     cachedVoice = undefined
   })
 }
 
-/** Speaks the text; resolves when finished or cancelled. */
-export function speak(text: string, opts: { onStart?: () => void; onEnd?: () => void } = {}): () => void {
+export interface SpeakOptions {
+  onStart?: () => void
+  onEnd?: () => void
+  /** Speaking rate multiplier; the interviewer default is slightly under normal. */
+  rate?: number
+  /** Milliseconds to wait for the synthesiser to start before treating the utterance as finished (headless or muted engines never fire onstart). */
+  startTimeoutMs?: number
+}
+
+/** Speaks the text with the browser synthesiser; returns a cancel function. Resolves callers even when the engine never starts. */
+export function speak(text: string, opts: SpeakOptions = {}): () => void {
   if (!ttsSupported() || !text.trim()) {
     opts.onEnd?.()
     return () => {}
@@ -40,15 +78,29 @@ export function speak(text: string, opts: { onStart?: () => void; onEnd?: () => 
   const utterance = new SpeechSynthesisUtterance(text)
   const voice = pickVoice()
   if (voice) utterance.voice = voice
-  utterance.rate = 1.02
+  utterance.rate = Math.min(1.3, Math.max(0.7, opts.rate ?? 0.95))
   utterance.pitch = 1
-  utterance.onstart = () => opts.onStart?.()
-  utterance.onend = () => opts.onEnd?.()
-  utterance.onerror = () => opts.onEnd?.()
+  let started = false
+  let ended = false
+  const finish = () => {
+    if (ended) return
+    ended = true
+    window.clearTimeout(watchdog)
+    opts.onEnd?.()
+  }
+  const watchdog = window.setTimeout(() => {
+    if (!started) finish()
+  }, opts.startTimeoutMs ?? 2500)
+  utterance.onstart = () => {
+    started = true
+    opts.onStart?.()
+  }
+  utterance.onend = finish
+  utterance.onerror = finish
   synth.speak(utterance)
   return () => {
     synth.cancel()
-    opts.onEnd?.()
+    finish()
   }
 }
 
@@ -65,6 +117,7 @@ interface SpeechRecognitionLike {
   onresult: ((event: { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null
   onerror: ((event: { error?: string }) => void) | null
   onend: (() => void) | null
+  onspeechstart?: (() => void) | null
   start: () => void
   stop: () => void
   abort: () => void
@@ -100,68 +153,139 @@ export function recognitionErrorMessage(code?: string): string | undefined {
   return 'Dictation stopped unexpectedly. Try the microphone again, or type your answer.'
 }
 
+/** Checks microphone permission and device without starting recognition. Releases the probe stream immediately. */
+export async function checkMicrophone(): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (typeof window === 'undefined') return { ok: false, message: 'Microphone checks need a browser.' }
+  const policy = (document as Document & { permissionsPolicy?: { allowsFeature: (feature: string) => boolean }; featurePolicy?: { allowsFeature: (feature: string) => boolean } }).permissionsPolicy || (document as Document & { featurePolicy?: { allowsFeature: (feature: string) => boolean } }).featurePolicy
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) return { ok: false, message: 'Microphone access needs a secure browser page (https or localhost). You can still type your answers.' }
+  if (policy && !policy.allowsFeature('microphone')) return { ok: false, message: 'This page’s permissions policy blocks the microphone. Reload the page, or open the site directly rather than in an embedded browser.' }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    stream.getTracks().forEach((track) => track.stop())
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, message: microphoneErrorMessage(error instanceof Error ? error.name : 'UnknownError') }
+  }
+}
+
+export interface ListenOptions {
+  /** Recognition language; defaults to the browser language when English, else en-IN. */
+  lang?: string
+  /** Called every second of silence with the milliseconds since speech was last heard (0 while the learner is talking). */
+  onSilence?: (silentMs: number, spokeSomething: boolean) => void
+  /** Milliseconds of silence after speech before the listener stops itself and reports end of speech. 0 disables. */
+  endOfSpeechMs?: number
+  onEndOfSpeech?: (finalText: string) => void
+  /** Skip the microphone probe (already checked by the device check). */
+  skipProbe?: boolean
+}
+
 /**
  * Starts dictation. `onText` receives the finalised text so far and the
- * current interim fragment; `onEnd` fires when the browser stops listening.
+ * current interim fragment; `onEnd` fires when listening stops for good.
+ * Browsers stop continuous recognition after a few seconds of silence or on
+ * a hiccup; the listener restarts it transparently so a pause to think never
+ * ends the answer. Only a manual stop, an unrecoverable error, or
+ * `endOfSpeechMs` of silence after speech ends the session.
  */
-export function listen(handlers: { onText: (finalText: string, interim: string) => void; onEnd: (error?: string) => void }): Listener | null {
+export function listen(handlers: { onText: (finalText: string, interim: string) => void; onEnd: (error?: string) => void }, options: ListenOptions = {}): Listener | null {
   const Ctor = recognitionCtor()
   if (!Ctor) return null
-  const rec = new Ctor()
-  rec.lang = navigator.language?.startsWith('en') ? navigator.language : 'en-IN'
-  rec.continuous = true
-  rec.interimResults = true
+  const lang = options.lang || (navigator.language?.startsWith('en') ? navigator.language : 'en-IN')
+  let rec: SpeechRecognitionLike | null = null
   let finalText = ''
+  let interim = ''
   let stopped = false
-  rec.onresult = (event) => {
-    let interim = ''
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const result = event.results[i]
-      const chunk = result[0]?.transcript || ''
-      if (result.isFinal) finalText += (finalText && !finalText.endsWith(' ') ? ' ' : '') + chunk.trim()
-      else interim += chunk
+  let restarts = 0
+  let spoke = false
+  let lastSpeechAt = Date.now()
+  const startedAt = Date.now()
+  const silenceTimer = window.setInterval(() => {
+    if (stopped) return
+    const silentMs = interim ? 0 : Date.now() - lastSpeechAt
+    options.onSilence?.(silentMs, spoke)
+    if (options.endOfSpeechMs && spoke && silentMs >= options.endOfSpeechMs) {
+      stopAll()
+      options.onEndOfSpeech?.(finalText)
+      handlers.onEnd()
     }
-    handlers.onText(finalText, interim)
-  }
-  rec.onerror = (event) => {
+  }, 1000)
+  const stopAll = () => {
     if (stopped) return
     stopped = true
-    handlers.onEnd(recognitionErrorMessage(event.error))
+    window.clearInterval(silenceTimer)
+    try {
+      rec?.stop()
+    } catch {
+      // ignore
+    }
   }
-  rec.onend = () => {
+  const fail = (message?: string) => {
     if (stopped) return
-    stopped = true
-    handlers.onEnd()
-  }
-  const fail = (message: string) => {
-    if (stopped) return
-    stopped = true
+    stopAll()
     handlers.onEnd(message)
   }
-  // Check capture separately so a rejected speech service is not incorrectly
-  // reported as denied microphone permission. Release the probe immediately.
+  const attach = () => {
+    const r = new Ctor()
+    r.lang = lang
+    r.continuous = true
+    r.interimResults = true
+    r.onresult = (event) => {
+      let chunkInterim = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i]
+        const chunk = result[0]?.transcript || ''
+        if (result.isFinal) finalText += (finalText && !finalText.endsWith(' ') ? ' ' : '') + chunk.trim()
+        else chunkInterim += chunk
+      }
+      interim = chunkInterim
+      if (chunkInterim.trim() || finalText.trim()) {
+        spoke = true
+        lastSpeechAt = Date.now()
+      }
+      handlers.onText(finalText, interim)
+    }
+    r.onerror = (event) => {
+      if (stopped) return
+      const code = event.error
+      // Silence and aborted recognisers are recoverable: restart and keep listening.
+      if (code === 'no-speech' || code === 'aborted') return
+      if (code === 'network' && restarts < 2 && Date.now() - startedAt > 3000) return
+      fail(recognitionErrorMessage(code))
+    }
+    r.onend = () => {
+      if (stopped) return
+      // The browser ended recognition (silence timeout or an internal reset). Keep listening.
+      if (restarts >= 40) {
+        fail('Dictation stopped after a long pause. Press the microphone to continue, or type your answer.')
+        return
+      }
+      restarts += 1
+      interim = ''
+      window.setTimeout(() => {
+        if (stopped) return
+        try {
+          attach()
+        } catch {
+          fail('Dictation could not be restarted. Press the microphone to continue, or type your answer.')
+        }
+      }, 150)
+    }
+    rec = r
+    r.start()
+  }
   const begin = async () => {
     if (stopped) return
-    const policy = (document as Document & { permissionsPolicy?: { allowsFeature: (feature: string) => boolean }; featurePolicy?: { allowsFeature: (feature: string) => boolean } }).permissionsPolicy
-      || (document as Document & { featurePolicy?: { allowsFeature: (feature: string) => boolean } }).featurePolicy
-    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-      fail('Microphone access needs a secure browser page. Open https://prep.evolw.in directly in Chrome, or type your answer.')
-      return
-    }
-    if (policy && !policy.allowsFeature('microphone')) {
-      fail('This page’s permissions policy blocks the microphone. Reload the page to get the latest version. If you are in a preview or embedded browser, open https://prep.evolw.in directly.')
-      return
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      stream.getTracks().forEach(track => track.stop())
-    } catch (error) {
-      fail(microphoneErrorMessage(error instanceof Error ? error.name : 'UnknownError'))
-      return
+    if (!options.skipProbe) {
+      const check = await checkMicrophone()
+      if (!check.ok) {
+        fail(check.message)
+        return
+      }
     }
     if (stopped) return
     try {
-      rec.start()
+      attach()
     } catch {
       fail('The microphone is available, but speech recognition could not start. Try again in Google Chrome, or type your answer.')
     }
@@ -171,13 +295,25 @@ export function listen(handlers: { onText: (finalText: string, interim: string) 
   return {
     stop: () => {
       if (stopped) return
-      stopped = true
-      try {
-        rec.stop()
-      } catch {
-        // ignore
-      }
+      stopAll()
       handlers.onEnd()
     },
   }
+}
+
+/**
+ * Pure end-of-answer detector shared by the listener and its tests: given the
+ * silence so far and whether speech was heard, says whether the answer looks
+ * finished. Brief pauses (under `endOfSpeechMs`) never count.
+ */
+export function answerLooksFinished(silentMs: number, spoke: boolean, endOfSpeechMs: number): boolean {
+  return endOfSpeechMs > 0 && spoke && silentMs >= endOfSpeechMs
+}
+
+/** Which silence nudge (if any) applies after `silentMs` without any speech. Thresholds of 0 disable a level. */
+export function silenceNudgeLevel(silentMs: number, spoke: boolean, thresholds: { thinkingMs: number; clarifyMs: number }): 0 | 1 | 2 {
+  if (spoke) return 0
+  if (thresholds.clarifyMs > 0 && silentMs >= thresholds.clarifyMs) return 2
+  if (thresholds.thinkingMs > 0 && silentMs >= thresholds.thinkingMs) return 1
+  return 0
 }
