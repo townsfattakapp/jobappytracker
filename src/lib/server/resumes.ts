@@ -65,8 +65,69 @@ export function sniffResume(bytes: Uint8Array, declaredType: string, filename: s
   throw new ValidationError('Upload a PDF (or plain text) resume; DOCX is not supported yet', 'file')
 }
 
+/**
+ * pdf.js evaluates `new DOMMatrix()` while its module loads and expects Node to get that class from the optional
+ * native package `@napi-rs/canvas`. In a serverless bundle that package (or its platform binary) is often missing,
+ * and the import then fails with "DOMMatrix is not defined" before a single byte is read. Text extraction never
+ * draws anything, so a plain 2-D affine matrix is all that is needed for it to load.
+ */
+export function ensureDomMatrix(): void {
+  const g = globalThis as { DOMMatrix?: unknown }
+  if (g.DOMMatrix) return
+  class DOMMatrixPolyfill {
+    a = 1
+    b = 0
+    c = 0
+    d = 1
+    e = 0
+    f = 0
+    readonly is2D = true
+    constructor(init?: number[] | DOMMatrixPolyfill) {
+      const m = Array.isArray(init) ? init : init ? [init.a, init.b, init.c, init.d, init.e, init.f] : null
+      if (m && m.length >= 6) [this.a, this.b, this.c, this.d, this.e, this.f] = m.slice(0, 6) as [number, number, number, number, number, number]
+    }
+    multiply(o: DOMMatrixPolyfill): DOMMatrixPolyfill {
+      return new DOMMatrixPolyfill([this.a * o.a + this.c * o.b, this.b * o.a + this.d * o.b, this.a * o.c + this.c * o.d, this.b * o.c + this.d * o.d, this.a * o.e + this.c * o.f + this.e, this.b * o.e + this.d * o.f + this.f])
+    }
+    private assign(o: DOMMatrixPolyfill): this {
+      this.a = o.a
+      this.b = o.b
+      this.c = o.c
+      this.d = o.d
+      this.e = o.e
+      this.f = o.f
+      return this
+    }
+    multiplySelf(o: DOMMatrixPolyfill): this {
+      return this.assign(this.multiply(o))
+    }
+    preMultiplySelf(o: DOMMatrixPolyfill): this {
+      return this.assign(o.multiply(this))
+    }
+    translate(tx = 0, ty = 0): DOMMatrixPolyfill {
+      return this.multiply(new DOMMatrixPolyfill([1, 0, 0, 1, tx, ty]))
+    }
+    scale(sx = 1, sy = sx): DOMMatrixPolyfill {
+      return this.multiply(new DOMMatrixPolyfill([sx, 0, 0, sy, 0, 0]))
+    }
+    inverse(): DOMMatrixPolyfill {
+      const det = this.a * this.d - this.b * this.c
+      if (!det) return new DOMMatrixPolyfill([NaN, NaN, NaN, NaN, NaN, NaN])
+      return new DOMMatrixPolyfill([this.d / det, -this.b / det, -this.c / det, this.a / det, (this.c * this.f - this.d * this.e) / det, (this.b * this.e - this.a * this.f) / det])
+    }
+    invertSelf(): this {
+      return this.assign(this.inverse())
+    }
+    transformPoint(p: { x: number; y: number }): { x: number; y: number } {
+      return { x: this.a * p.x + this.c * p.y + this.e, y: this.b * p.x + this.d * p.y + this.f }
+    }
+  }
+  g.DOMMatrix = DOMMatrixPolyfill
+}
+
 async function extractText(bytes: Uint8Array, kind: ResumeKind): Promise<string> {
   if (kind === 'text') return Buffer.from(bytes).toString('utf8')
+  ensureDomMatrix()
   const { PDFParse } = await import('pdf-parse')
   // pdf.js resolves its Node worker as "./pdf.worker.mjs" next to its own bundle; in a traced serverless bundle that
   // relative import is not always resolvable, so point it at the file explicitly when it is present.
