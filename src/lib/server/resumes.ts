@@ -1,4 +1,7 @@
 import { createHash } from 'node:crypto'
+import fs from 'node:fs'
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { and, desc, eq, sql } from 'drizzle-orm'
 import { db } from '../db'
 import { resumeAnalyses, resumeProfiles, resumes } from '../db/schema'
@@ -6,6 +9,7 @@ import { ValidationError } from '../jobs/normalize'
 import { ROLE_CATEGORY_IDS } from '../jobs/taxonomy'
 import type { ResumeAnalysisReport } from '../jobs/resumeAnalysis'
 import { EXTRACTOR_VERSION, extractResumeProfile, type ResumeProfile } from '../resume/extract'
+import { logEvent } from './log'
 
 /**
  * Resume storage and access. Every function takes the owner's user id and
@@ -64,6 +68,10 @@ export function sniffResume(bytes: Uint8Array, declaredType: string, filename: s
 async function extractText(bytes: Uint8Array, kind: ResumeKind): Promise<string> {
   if (kind === 'text') return Buffer.from(bytes).toString('utf8')
   const { PDFParse } = await import('pdf-parse')
+  // pdf.js resolves its Node worker as "./pdf.worker.mjs" next to its own bundle; in a traced serverless bundle that
+  // relative import is not always resolvable, so point it at the file explicitly when it is present.
+  const workerPath = path.join(process.cwd(), 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.mjs')
+  if (!PDFParse.setWorker() && fs.existsSync(workerPath)) PDFParse.setWorker(pathToFileURL(workerPath).href)
   const parser = new PDFParse({ data: bytes })
   try {
     const result = await parser.getText()
@@ -133,7 +141,9 @@ export async function uploadResume(userId: string, input: { bytes: Uint8Array; f
   const warnings: string[] = []
   try {
     text = await extractText(input.bytes, kind)
-  } catch {
+  } catch (error) {
+    // The cause is logged for operators (a missing worker file in a serverless bundle looks exactly like a scanned PDF to the learner otherwise).
+    logEvent('error', 'resume.extract_failed', { userId, kind, sizeBytes: input.bytes.length, error: error instanceof Error ? `${error.name}: ${error.message}`.slice(0, 300) : String(error).slice(0, 300) })
     warnings.push('The file could not be read as text; it is stored, but analysis needs a text-based PDF.')
   }
   const extracted = extractResumeProfile(text)
