@@ -803,13 +803,14 @@ try {
 
 
   // ------------------------------------------------------------ Company source catalog
+  const scheduledBefore = (await pool.query('SELECT count(*)::int AS n FROM job_sources WHERE slug LIKE $1 AND "scheduleEnabled" = true', ['catalog-%'])).rows[0].n
   const catalogPage = await admin.goto(`${BASE}/admin/catalog`, { waitUntil: 'networkidle' })
   assert.equal(catalogPage.status(), 200)
   await admin.getByRole('heading', { name: 'Company source catalog' }).waitFor()
   await admin.getByRole('button', { name: /Seed catalog|Refresh catalog/ }).click()
   await admin.getByText(/Seeded: \d+ companies created, \d+ refreshed/).waitFor({ timeout: 60000 })
   const catalogState = await admin.evaluate(() => fetch('/api/admin/catalog').then((r) => r.json()))
-  assert.ok(catalogState.total >= 50 && catalogState.total <= 60, `catalog size ${catalogState.total}`)
+  assert.ok(catalogState.total >= 50 && catalogState.total <= 200, `catalog size ${catalogState.total}`)
   assert.equal(catalogState.seeded, catalogState.total)
   assert.equal(catalogState.counts.Unsupported, catalogState.rows.filter((r) => !r.feed).length, 'portals without a public feed are Unsupported, never integrated')
   assert.ok(catalogState.rows.every((r) => r.careersUrl.startsWith('https://')), 'every company keeps its official careers link')
@@ -833,7 +834,7 @@ try {
   const growwJobs = (await pool.query("SELECT title, \"roleCategory\", status FROM jobs WHERE \"companyId\" = (SELECT id FROM companies WHERE \"catalogSlug\" = 'groww')")).rows
   assert.ok(growwJobs.every((j) => ['software-engineer', 'frontend', 'backend', 'full-stack', 'java', 'nodejs', 'react-nextjs', 'mobile', 'devops-cloud', 'data-analyst', 'data-scientist', 'data-engineer', 'ai-ml', 'cybersecurity'].includes(j.roleCategory)), 'only supported role families are stored; HR, finance and content roles are dropped as irrelevant')
   assert.equal((await pool.query("SELECT count(*)::int AS n FROM admin_audit_log WHERE action IN ('catalog.seed','catalog.verify','ingestion.run') AND \"actorId\" = $1", [adminUser.id])).rows[0].n >= 3, true)
-  assert.equal((await pool.query('SELECT count(*)::int AS n FROM job_sources WHERE slug LIKE $1 AND "scheduleEnabled" = true', ['catalog-%'])).rows[0].n, 0, 'seeding never adds sources to the scheduled pass by itself')
+  assert.equal((await pool.query('SELECT count(*)::int AS n FROM job_sources WHERE slug LIKE $1 AND "scheduleEnabled" = true', ['catalog-%'])).rows[0].n, scheduledBefore, 'seeding never adds sources to the scheduled pass by itself (an operator may already have scheduled some)')
   const scheduledOne = await admin.evaluate(() => fetch('/api/admin/catalog', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'schedule', enabled: true, slugs: ['groww'] }) }).then((r) => r.json()))
   assert.equal(scheduledOne.scheduled, 1)
   assert.equal(scheduledOne.status.rows.find((r) => r.slug === 'groww').scheduleEnabled, true)

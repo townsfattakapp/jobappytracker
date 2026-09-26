@@ -44,6 +44,9 @@ export interface IngestionResult {
 
 type SourceRow = typeof schema.jobSources.$inferSelect
 
+/** Runs still 'running' after this long were abandoned by a dead process. */
+export const ABANDONED_RUN_MS = 30 * 60_000
+
 const { jobs, jobSources, jobIngestionRuns, jobDuplicates } = schema
 
 function contentSignature(n: NormalizedJob): string {
@@ -55,6 +58,8 @@ export async function ingestSource(db: IngestionDb, source: SourceRow, opts: Ing
   const log: string[] = []
   const runId = crypto.randomUUID()
   const counters = { fetched: 0, created: 0, updated: 0, unchanged: 0, irrelevant: 0, duplicates: 0, expired: 0 }
+  // A process that died mid-run (timeout, deploy, killed CLI) leaves a 'running' row behind; close it so the panel stays truthful.
+  await db.update(jobIngestionRuns).set({ status: 'failed', error: 'abandoned: the process ended before the run finished', finishedAt: now }).where(and(eq(jobIngestionRuns.sourceId, source.id), eq(jobIngestionRuns.status, 'running'), lt(jobIngestionRuns.startedAt, new Date(now.getTime() - ABANDONED_RUN_MS))))
   await db.insert(jobIngestionRuns).values({ id: runId, sourceId: source.id, triggeredBy: opts.triggeredBy ?? null, startedAt: now, status: 'running' })
 
   const finish = async (status: 'success' | 'failed', error: string | null): Promise<IngestionResult> => {

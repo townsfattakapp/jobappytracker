@@ -84,7 +84,7 @@ export default function IngestionPanel({ providers, runs, canRun }: Props) {
           )}
         </div>
         {providers.length === 0 ? (
-          <EmptyState title="No provider sources yet" description="Add a source with a provider (Greenhouse, Lever, Ashby) under Job sources, assign its company and mark ingestion as allowed after checking the terms." />
+          <EmptyState title="No provider sources yet" description="Add a source with a provider (Greenhouse, Lever, Ashby, Amazon Jobs, Eightfold, Workday) under Job sources, assign its company and mark ingestion as allowed after checking the terms." />
         ) : (
           <div className="admin-health-grid">
             {providers.map((p) => (

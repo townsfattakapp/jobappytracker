@@ -160,12 +160,38 @@ export const CLOUD_CONFLICT_MESSAGE =
 
 const MAX_MERGE_ATTEMPTS = 3;
 
+/** Server actions accept 4 MB (next.config.ts); the learning history is added on top of the snapshot, so stop a little earlier. */
+export const CLOUD_SYNC_LIMIT_BYTES = 3_500_000;
+export const CLOUD_TOO_LARGE_MESSAGE = (bytes: number) =>
+  `Your data (${(bytes / 1_000_000).toFixed(1)} MB) is above the ${(CLOUD_SYNC_LIMIT_BYTES / 1_000_000).toFixed(1)} MB cloud sync limit. It stays saved on this device; export a backup from Settings and clear old history to resume syncing.`;
+
+/**
+ * Turns a failed sync into words a learner can act on. In production a server
+ * action that throws (or a request the server refused, e.g. an oversized body)
+ * reaches the browser as React's masked "Minified React error #441 … Server
+ * Components render" message, which says nothing useful.
+ */
+export function syncErrorMessage(err: unknown, fallback = 'Cloud sync failed'): string {
+  const message = err instanceof Error ? err.message : typeof err === 'string' ? err : '';
+  if (!message) return fallback;
+  if (/Minified React error #441|Server Components render|digest/i.test(message))
+    return 'The server could not save your data just now. Your work is kept on this device; use Retry sync, or export a backup from Settings if it keeps failing.';
+  if (/Not authenticated|Unauthorized/i.test(message)) return 'Your session has ended. Sign in again to resume cloud sync; your work is kept on this device.';
+  if (/Failed to fetch|NetworkError|Load failed|network/i.test(message)) return 'No connection to the server. Your work is kept on this device and will sync when you are back online.';
+  return message;
+}
+
 export function saveCloudState(
   userId: string,
   storage: Storage,
 ): Promise<void> {
   const serialized = JSON.stringify(storage);
   localStorage.setItem(pendingKey(userId), serialized);
+  if (serialized.length > CLOUD_SYNC_LIMIT_BYTES) {
+    const tooLarge = Promise.reject(new Error(CLOUD_TOO_LARGE_MESSAGE(serialized.length)));
+    tooLarge.catch(() => {});
+    return tooLarge;
+  }
   const operation = saveQueue
     .catch(() => {})
     .then(async () => {

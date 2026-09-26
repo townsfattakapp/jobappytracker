@@ -75,7 +75,7 @@ import { exportLocalHistory, importLocalHistory } from './db'
 import { javaDsaSeed } from './data/javaDsaSeed'
 import { engineeringLabsSeed } from './data/engineeringLabsSeed'
 import { systemDesignSeed } from './data/systemDesignSeed'
-import { CLOUD_MERGED_EVENT, getCurrentUser, loadCloudState, saveCloudState, signOut, type AppUser } from './lib/cloudSync'
+import { CLOUD_MERGED_EVENT, getCurrentUser, loadCloudState, saveCloudState, signOut, syncErrorMessage, type AppUser } from './lib/cloudSync'
 import Paywall from './components/Paywall'
 import GoalCurriculumEditor from './components/GoalCurriculumEditor'
 import { BILLING_CHANGED_EVENT, fetchBillingState, type BillingState } from './lib/billing/client'
@@ -533,7 +533,7 @@ export default function App() {
           setSyncError('')
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Cloud sync failed'
+        const message = syncErrorMessage(err, 'Cloud sync failed')
         if (!cancelled) {
           showToast(message)
           setSyncError(message)
@@ -561,8 +561,7 @@ export default function App() {
       saveCloudState(user.$id, snapshot)
         .then(() => setSyncError(''))
         .catch((err) => {
-          const message = err instanceof Error ? err.message : 'Cloud save failed'
-          setSyncError(message)
+          setSyncError(syncErrorMessage(err, 'Cloud save failed'))
         })
         .finally(() => setSyncing(false))
     }, 800)

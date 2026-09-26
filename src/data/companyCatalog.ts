@@ -3,21 +3,31 @@
  *
  * This is a catalog of companies and where their official listings come
  * from, not a list of jobs. Every entry keeps the official careers page.
- * A `feed` is present only where a public, documented job-board API exists
- * (Greenhouse Job Board API, Lever Postings API, Ashby Job Board API) AND
- * the board token answered a read-only probe on `verifiedAt` with listings
- * that belong to this company. Companies whose careers portal has no such
- * feed are stored as `Not configured` with `portal: 'careers-site'`; they
- * are never marked as integrated. No portal is scraped, no anti-bot
- * measure is bypassed and no third-party copies are used.
+ * A `feed` is present where one of these answered a read-only probe on
+ * `verifiedAt` with listings that belong to this company:
+ *   - a public, documented job-board API (Greenhouse Job Board API, Lever
+ *     Postings API, Ashby Job Board API), or
+ *   - the JSON endpoint the company's own careers site calls (Amazon Jobs
+ *     search, Eightfold-hosted sites such as Microsoft and Netflix, Workday
+ *     tenants such as Adobe, NVIDIA, Salesforce, PayPal, Autodesk and
+ *     Mastercard). These are unofficial and undocumented; the adapters read
+ *     them the same way a browser does, respect their page sizes, cap how
+ *     much they take per run and fail loudly when the shape changes.
+ * Companies whose careers portal offers neither (Google, Meta, Apple: HTML
+ * only, or requests from anything but their own page are rejected) are
+ * stored as `Not configured` with `portal: 'careers-site'`; they are never
+ * marked as integrated. No HTML is scraped, no anti-bot measure is bypassed
+ * and no third-party copies are used.
  */
-export type CatalogFeedProvider = 'greenhouse' | 'lever' | 'ashby'
+export type CatalogFeedProvider = 'greenhouse' | 'lever' | 'ashby' | 'amazon' | 'eightfold' | 'workday'
 export type IndiaRelevance = 'strong' | 'moderate' | 'international'
 
 export interface CatalogFeed {
   provider: CatalogFeedProvider
-  /** Board token (Greenhouse/Ashby) or site (Lever). */
+  /** Board token (Greenhouse/Ashby), site (Lever), "host|domain|api" (Eightfold), "host/tenant/site" (Workday) or "amazon.jobs". */
   token: string
+  /** Extra provider config merged into the source (search list, caps). */
+  config?: Record<string, unknown>
   /** Read-only probe against the official API that confirmed the token and the company identity. */
   verifiedAt: string
   jobsAtVerification: number
@@ -44,6 +54,8 @@ export const CATALOG_PROVENANCE = 'company-catalog-2026-09'
 const VERIFIED = '2026-09-25'
 /** Second read-only probe run (scratch/probe-feeds.log) that confirmed the boards added below. */
 const VERIFIED_2 = '2026-09-26'
+/** Third read-only probe run (scratch/probe-portals*.mjs) against the careers-site JSON endpoints. */
+const VERIFIED_3 = '2026-09-27'
 const ENG = ['software-engineer', 'backend', 'frontend', 'full-stack', 'devops-cloud']
 const ENG_DATA = [...ENG, 'data-engineer', 'data-scientist', 'ai-ml']
 const ENG_MOBILE = [...ENG, 'mobile']
@@ -51,24 +63,24 @@ const ALL = [...ENG_DATA, 'mobile', 'java', 'nodejs', 'react-nextjs', 'data-anal
 
 export const COMPANY_CATALOG: CatalogCompany[] = [
   // ---- Global product companies with large India engineering centres (careers portals, no public feed) ----
-  { slug: 'microsoft', name: 'Microsoft', website: 'https://www.microsoft.com/', careersUrl: 'https://careers.microsoft.com/', headquarters: 'Redmond, US · India: Hyderabad, Bengaluru, Noida', industry: 'Cloud, productivity, AI', indiaRelevance: 'strong', roleFamilies: ALL, feed: null, portal: 'careers-site' },
-  { slug: 'google', name: 'Google', website: 'https://www.google.com/', careersUrl: 'https://www.google.com/about/careers/applications/', headquarters: 'Mountain View, US · India: Bengaluru, Hyderabad, Pune', industry: 'Search, cloud, AI', indiaRelevance: 'strong', roleFamilies: ALL, feed: null, portal: 'careers-site' },
-  { slug: 'amazon', name: 'Amazon', website: 'https://www.amazon.com/', careersUrl: 'https://www.amazon.jobs/', headquarters: 'Seattle, US · India: Bengaluru, Hyderabad, Chennai', industry: 'E-commerce, cloud', indiaRelevance: 'strong', roleFamilies: ALL, feed: null, portal: 'careers-site' },
-  { slug: 'adobe', name: 'Adobe', website: 'https://www.adobe.com/', careersUrl: 'https://careers.adobe.com/', headquarters: 'San Jose, US · India: Noida, Bengaluru', industry: 'Creative and document software', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
+  { slug: 'microsoft', name: 'Microsoft', website: 'https://www.microsoft.com/', careersUrl: 'https://careers.microsoft.com/', headquarters: 'Redmond, US · India: Hyderabad, Bengaluru, Noida', industry: 'Cloud, productivity, AI', indiaRelevance: 'strong', roleFamilies: ALL, feed: { provider: 'eightfold', token: 'apply.careers.microsoft.com|microsoft.com|pcsx', verifiedAt: VERIFIED_3, jobsAtVerification: 807, note: 'Unofficial JSON behind jobs.careers.microsoft.com (Eightfold); 807 matches for "software engineer" worldwide and 236 India listings at verification.' }, portal: 'eightfold' },
+  { slug: 'google', name: 'Google', website: 'https://www.google.com/', careersUrl: 'https://www.google.com/about/careers/applications/', headquarters: 'Mountain View, US · India: Bengaluru, Hyderabad, Pune', industry: 'Search, cloud, AI', indiaRelevance: 'strong', roleFamilies: ALL, feed: null, portal: 'careers-site', notes: 'Google Careers renders listings as HTML only (its former public jobs API answers 404); no JSON feed to read, so the careers link is kept.' },
+  { slug: 'amazon', name: 'Amazon', website: 'https://www.amazon.com/', careersUrl: 'https://www.amazon.jobs/', headquarters: 'Seattle, US · India: Bengaluru, Hyderabad, Chennai', industry: 'E-commerce, cloud', indiaRelevance: 'strong', roleFamilies: ALL, feed: { provider: 'amazon', token: 'amazon.jobs', verifiedAt: VERIFIED_3, jobsAtVerification: 401, note: 'Unofficial JSON behind amazon.jobs search; 401 software-development listings in India at verification, other hubs are pulled with a per-country cap.' }, portal: 'amazon' },
+  { slug: 'adobe', name: 'Adobe', website: 'https://www.adobe.com/', careersUrl: 'https://careers.adobe.com/', headquarters: 'San Jose, US · India: Noida, Bengaluru', industry: 'Creative and document software', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: { provider: 'workday', token: 'adobe.wd5.myworkdayjobs.com/adobe/external_experienced', verifiedAt: VERIFIED_3, jobsAtVerification: 566, note: 'Unofficial Workday JSON; 566 postings, 89 in India at verification.' }, portal: 'workday' },
   { slug: 'atlassian', name: 'Atlassian', website: 'https://www.atlassian.com/', careersUrl: 'https://www.atlassian.com/company/careers', headquarters: 'Sydney, AU · India: Bengaluru', industry: 'Developer collaboration tools', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
-  { slug: 'salesforce', name: 'Salesforce', website: 'https://www.salesforce.com/', careersUrl: 'https://careers.salesforce.com/', headquarters: 'San Francisco, US · India: Hyderabad, Bengaluru', industry: 'CRM and enterprise cloud', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
+  { slug: 'salesforce', name: 'Salesforce', website: 'https://www.salesforce.com/', careersUrl: 'https://careers.salesforce.com/', headquarters: 'San Francisco, US · India: Hyderabad, Bengaluru', industry: 'CRM and enterprise cloud', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: { provider: 'workday', token: 'salesforce.wd12.myworkdayjobs.com/salesforce/External_Career_Site', verifiedAt: VERIFIED_3, jobsAtVerification: 1522, note: 'Unofficial Workday JSON; 1 522 postings, 116 in India at verification.' }, portal: 'workday' },
   { slug: 'oracle', name: 'Oracle', website: 'https://www.oracle.com/', careersUrl: 'https://www.oracle.com/careers/', headquarters: 'Austin, US · India: Bengaluru, Hyderabad', industry: 'Databases and cloud', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
   { slug: 'sap', name: 'SAP', website: 'https://www.sap.com/', careersUrl: 'https://jobs.sap.com/', headquarters: 'Walldorf, DE · India: Bengaluru', industry: 'Enterprise software', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
   { slug: 'servicenow', name: 'ServiceNow', website: 'https://www.servicenow.com/', careersUrl: 'https://careers.servicenow.com/', headquarters: 'Santa Clara, US · India: Hyderabad', industry: 'Workflow platform', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
   { slug: 'intuit', name: 'Intuit', website: 'https://www.intuit.com/', careersUrl: 'https://www.intuit.com/careers/', headquarters: 'Mountain View, US · India: Bengaluru', industry: 'Fintech software', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
   { slug: 'cisco', name: 'Cisco', website: 'https://www.cisco.com/', careersUrl: 'https://jobs.cisco.com/', headquarters: 'San Jose, US · India: Bengaluru', industry: 'Networking and security', indiaRelevance: 'strong', roleFamilies: [...ENG, 'cybersecurity'], feed: null, portal: 'careers-site' },
-  { slug: 'nvidia', name: 'NVIDIA', website: 'https://www.nvidia.com/', careersUrl: 'https://www.nvidia.com/en-in/about-nvidia/careers/', headquarters: 'Santa Clara, US · India: Bengaluru, Pune, Hyderabad', industry: 'GPUs and AI computing', indiaRelevance: 'strong', roleFamilies: [...ENG, 'ai-ml'], feed: null, portal: 'careers-site' },
+  { slug: 'nvidia', name: 'NVIDIA', website: 'https://www.nvidia.com/', careersUrl: 'https://www.nvidia.com/en-in/about-nvidia/careers/', headquarters: 'Santa Clara, US · India: Bengaluru, Pune, Hyderabad', industry: 'GPUs and AI computing', indiaRelevance: 'strong', roleFamilies: [...ENG, 'ai-ml'], feed: { provider: 'workday', token: 'nvidia.wd5.myworkdayjobs.com/nvidia/NVIDIAExternalCareerSite', verifiedAt: VERIFIED_3, jobsAtVerification: 2000, note: 'Unofficial Workday JSON; 2 000 postings at verification, capped per search.' }, portal: 'workday' },
   { slug: 'amd', name: 'AMD', website: 'https://www.amd.com/', careersUrl: 'https://www.amd.com/en/corporate/careers', headquarters: 'Santa Clara, US · India: Bengaluru, Hyderabad', industry: 'Semiconductors', indiaRelevance: 'strong', roleFamilies: [...ENG, 'ai-ml'], feed: null, portal: 'careers-site' },
   { slug: 'qualcomm', name: 'Qualcomm', website: 'https://www.qualcomm.com/', careersUrl: 'https://careers.qualcomm.com/', headquarters: 'San Diego, US · India: Hyderabad, Bengaluru, Chennai', industry: 'Wireless and semiconductors', indiaRelevance: 'strong', roleFamilies: ENG_MOBILE, feed: null, portal: 'careers-site' },
   { slug: 'uber', name: 'Uber', website: 'https://www.uber.com/', careersUrl: 'https://www.uber.com/careers/', headquarters: 'San Francisco, US · India: Bengaluru, Hyderabad', industry: 'Mobility platform', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
   { slug: 'walmart-global-tech', name: 'Walmart Global Tech', website: 'https://tech.walmart.com/', careersUrl: 'https://careers.walmart.com/', headquarters: 'Bentonville, US · India: Bengaluru, Chennai', industry: 'Retail technology', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
-  { slug: 'paypal', name: 'PayPal', website: 'https://www.paypal.com/', careersUrl: 'https://www.paypal.com/us/webapps/mpp/jobs', headquarters: 'San Jose, US · India: Bengaluru, Chennai, Hyderabad', industry: 'Payments', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
-  { slug: 'autodesk', name: 'Autodesk', website: 'https://www.autodesk.com/', careersUrl: 'https://www.autodesk.com/careers', headquarters: 'San Francisco, US · India: Bengaluru, Pune', industry: 'Design software', indiaRelevance: 'moderate', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
+  { slug: 'paypal', name: 'PayPal', website: 'https://www.paypal.com/', careersUrl: 'https://www.paypal.com/us/webapps/mpp/jobs', headquarters: 'San Jose, US · India: Bengaluru, Chennai, Hyderabad', industry: 'Payments', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: { provider: 'workday', token: 'paypal.wd1.myworkdayjobs.com/paypal/jobs', verifiedAt: VERIFIED_3, jobsAtVerification: 280, note: 'Unofficial Workday JSON; 280 postings at verification.' }, portal: 'workday' },
+  { slug: 'autodesk', name: 'Autodesk', website: 'https://www.autodesk.com/', careersUrl: 'https://www.autodesk.com/careers', headquarters: 'San Francisco, US · India: Bengaluru, Pune', industry: 'Design software', indiaRelevance: 'moderate', roleFamilies: ENG_DATA, feed: { provider: 'workday', token: 'autodesk.wd1.myworkdayjobs.com/autodesk/Ext', verifiedAt: VERIFIED_3, jobsAtVerification: 389, note: 'Unofficial Workday JSON; 389 postings at verification.' }, portal: 'workday' },
   { slug: 'palo-alto-networks', name: 'Palo Alto Networks', website: 'https://www.paloaltonetworks.com/', careersUrl: 'https://jobs.paloaltonetworks.com/', headquarters: 'Santa Clara, US · India: Bengaluru', industry: 'Cybersecurity', indiaRelevance: 'moderate', roleFamilies: [...ENG, 'cybersecurity'], feed: null, portal: 'careers-site' },
   { slug: 'booking-com', name: 'Booking.com', website: 'https://www.booking.com/', careersUrl: 'https://jobs.booking.com/', headquarters: 'Amsterdam, NL · India: Bengaluru', industry: 'Travel platform', indiaRelevance: 'moderate', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
   { slug: 'expedia-group', name: 'Expedia Group', website: 'https://www.expediagroup.com/', careersUrl: 'https://careers.expediagroup.com/', headquarters: 'Seattle, US · India: Gurugram, Bengaluru', industry: 'Travel platform', indiaRelevance: 'moderate', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
@@ -116,14 +128,14 @@ export const COMPANY_CATALOG: CatalogCompany[] = [
   { slug: 'ola', name: 'Ola', website: 'https://www.olacabs.com/', careersUrl: 'https://www.olacabs.com/careers', headquarters: 'Bengaluru, India', industry: 'Mobility', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
   { slug: 'makemytrip', name: 'MakeMyTrip', website: 'https://www.makemytrip.com/', careersUrl: 'https://careers.makemytrip.com/', headquarters: 'Gurugram, India', industry: 'Travel', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
   // ---- FAANG / MANG and other portal-only brands (official careers links; no public feed exists, nothing is scraped) ----
-  { slug: 'meta', name: 'Meta', website: 'https://about.meta.com/', careersUrl: 'https://www.metacareers.com/jobs', headquarters: 'Menlo Park, US · India: Bengaluru, Hyderabad, Gurugram', industry: 'Social platforms, AI', indiaRelevance: 'strong', roleFamilies: ALL, feed: null, portal: 'careers-site', notes: 'Meta Careers runs on its own portal.' },
-  { slug: 'apple', name: 'Apple', website: 'https://www.apple.com/', careersUrl: 'https://jobs.apple.com/en-in/search', headquarters: 'Cupertino, US · India: Bengaluru, Hyderabad', industry: 'Consumer hardware and software', indiaRelevance: 'strong', roleFamilies: ENG_MOBILE, feed: null, portal: 'careers-site', notes: 'Apple Jobs runs on its own portal.' },
-  { slug: 'netflix', name: 'Netflix', website: 'https://www.netflix.com/', careersUrl: 'https://explore.jobs.netflix.net/careers', headquarters: 'Los Gatos, US · India: Mumbai', industry: 'Streaming', indiaRelevance: 'moderate', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site', notes: 'Netflix Jobs runs on its own portal.' },
+  { slug: 'meta', name: 'Meta', website: 'https://about.meta.com/', careersUrl: 'https://www.metacareers.com/jobs', headquarters: 'Menlo Park, US · India: Bengaluru, Hyderabad, Gurugram', industry: 'Social platforms, AI', indiaRelevance: 'strong', roleFamilies: ALL, feed: null, portal: 'careers-site', notes: 'Meta Careers rejects requests that do not come from its own page (HTTP 400); nothing is bypassed, so the careers link is kept.' },
+  { slug: 'apple', name: 'Apple', website: 'https://www.apple.com/', careersUrl: 'https://jobs.apple.com/en-in/search', headquarters: 'Cupertino, US · India: Bengaluru, Hyderabad', industry: 'Consumer hardware and software', indiaRelevance: 'strong', roleFamilies: ENG_MOBILE, feed: null, portal: 'careers-site', notes: 'Apple Jobs exposes no JSON endpoint that could be read without emulating its page; the careers link is kept.' },
+  { slug: 'netflix', name: 'Netflix', website: 'https://www.netflix.com/', careersUrl: 'https://explore.jobs.netflix.net/careers', headquarters: 'Los Gatos, US · India: Mumbai', industry: 'Streaming', indiaRelevance: 'moderate', roleFamilies: ENG_DATA, feed: { provider: 'eightfold', token: 'explore.jobs.netflix.net|netflix.com|apply-v2', verifiedAt: VERIFIED_3, jobsAtVerification: 484, note: 'Unofficial JSON behind explore.jobs.netflix.net (Eightfold); 484 listings at verification.', config: { searches: [{ query: '', location: '' }], maxPerSearch: 600 } }, portal: 'eightfold' },
   { slug: 'linkedin', name: 'LinkedIn', website: 'https://www.linkedin.com/', careersUrl: 'https://careers.linkedin.com/', headquarters: 'Sunnyvale, US · India: Bengaluru', industry: 'Professional network', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
   { slug: 'goldman-sachs-engineering', name: 'Goldman Sachs Engineering', website: 'https://www.goldmansachs.com/', careersUrl: 'https://www.goldmansachs.com/careers/', headquarters: 'New York, US · India: Bengaluru, Hyderabad', industry: 'Financial services technology', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
   { slug: 'jpmorgan-technology', name: 'JPMorgan Chase Technology', website: 'https://www.jpmorganchase.com/', careersUrl: 'https://careers.jpmorgan.com/', headquarters: 'New York, US · India: Bengaluru, Mumbai, Hyderabad', industry: 'Financial services technology', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
   { slug: 'visa', name: 'Visa', website: 'https://www.visa.com/', careersUrl: 'https://www.visa.co.in/careers.html', headquarters: 'San Francisco, US · India: Bengaluru', industry: 'Payments network', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
-  { slug: 'mastercard', name: 'Mastercard', website: 'https://www.mastercard.com/', careersUrl: 'https://careers.mastercard.com/', headquarters: 'Purchase, US · India: Pune, Gurugram', industry: 'Payments network', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site' },
+  { slug: 'mastercard', name: 'Mastercard', website: 'https://www.mastercard.com/', careersUrl: 'https://careers.mastercard.com/', headquarters: 'Purchase, US · India: Pune, Gurugram', industry: 'Payments network', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: { provider: 'workday', token: 'mastercard.wd1.myworkdayjobs.com/mastercard/CorporateCareers', verifiedAt: VERIFIED_3, jobsAtVerification: 1043, note: 'Unofficial Workday JSON; 1 043 postings at verification.' }, portal: 'workday' },
 
   // ---- Global product companies whose public job-board feeds answered the 2026-09-26 probe ----
   { slug: 'databricks', name: 'Databricks', website: 'https://www.databricks.com/', careersUrl: 'https://www.databricks.com/company/careers', headquarters: 'San Francisco, US · India: Bengaluru', industry: 'Data and AI platform', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: { provider: 'greenhouse', token: 'databricks', verifiedAt: VERIFIED_2, jobsAtVerification: 888 }, portal: 'greenhouse' },

@@ -1,12 +1,19 @@
 import type { JobProvider } from '../types'
+import { amazonProvider } from './amazon'
 import { ashbyProvider } from './ashby'
+import { eightfoldProvider } from './eightfold'
 import { fixtureProvider } from './fixture'
 import { greenhouseProvider } from './greenhouse'
 import { leverProvider } from './lever'
+import { workdayProvider } from './workday'
 import { fixturesAllowed } from '../../server/stage'
 
-/** Registered providers. Adding a provider means adding one adapter file and one line here. */
-export const PROVIDERS: JobProvider[] = [greenhouseProvider, leverProvider, ashbyProvider, fixtureProvider]
+/**
+ * Registered providers. Adding a provider means adding one adapter file and one line here.
+ * Greenhouse, Lever and Ashby are documented public job-board APIs; Amazon Jobs, Eightfold and
+ * Workday are the JSON endpoints the companies' own careers pages call (unofficial, may change).
+ */
+export const PROVIDERS: JobProvider[] = [greenhouseProvider, leverProvider, ashbyProvider, amazonProvider, eightfoldProvider, workdayProvider, fixtureProvider]
 
 export const PROVIDER_IDS = ['manual', ...PROVIDERS.map((p) => p.id)] as const
 

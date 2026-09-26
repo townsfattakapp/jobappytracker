@@ -2,7 +2,9 @@
 // feed read-only, enable the scheduled pass for verified feeds, and run one
 // full ingestion pass so Job Discovery has real listings from day one.
 //
-//   node scripts/ops-seed-catalog.mjs --target=HOST:PORT/DATABASE [--admin-email=you@example.com] [--skip-ingest] [--ingest-only] [--parallel=6]
+//   node scripts/ops-seed-catalog.mjs --target=HOST:PORT/DATABASE [--admin-email=you@example.com] [--skip-ingest] [--ingest-only] [--parallel=6] [--only=amazon,microsoft]
+//
+// --only limits verification, scheduling and ingestion to those catalog slugs (seeding always covers the whole catalog).
 //
 // --ingest-only skips seeding / verification and only runs the pass over the
 // sources that are already scheduled; --parallel runs that many source groups
@@ -33,7 +35,7 @@ if (arg('target') !== target) {
 
 mkdirSync('scratch/ops-seed', { recursive: true })
 await build({
-  entryPoints: { catalog: 'src/lib/server/catalog.ts', scheduler: 'src/lib/ingestion/scheduler.ts', settings: 'src/lib/server/settings.ts', schema: 'src/lib/db/schema.ts', features: 'src/lib/entitlements/features.ts' },
+  entryPoints: { catalog: 'src/lib/server/catalog.ts', data: 'src/data/companyCatalog.ts', scheduler: 'src/lib/ingestion/scheduler.ts', settings: 'src/lib/server/settings.ts', schema: 'src/lib/db/schema.ts', features: 'src/lib/entitlements/features.ts' },
   outdir: 'scratch/ops-seed',
   bundle: true,
   platform: 'node',
@@ -55,6 +57,8 @@ globalThis.__opsDb = drizzle(pool, { schema })
 const db = globalThis.__opsDb
 
 const catalog = await import('../scratch/ops-seed/catalog.mjs')
+const { CATALOG_SOURCE_SLUG } = await import('../scratch/ops-seed/data.mjs')
+const only = arg('only') ? arg('only').split(',').map((v) => v.trim()).filter(Boolean) : undefined
 const { runScheduledIngestion } = await import('../scratch/ops-seed/scheduler.mjs')
 const { getRoleFamilyConfig } = await import('../scratch/ops-seed/settings.mjs')
 const { FEATURE_KEYS } = await import('../scratch/ops-seed/features.mjs')
@@ -87,16 +91,17 @@ try {
   if (!args.includes('--ingest-only')) {
     const seed = await catalog.seedCatalog(null)
     log(`catalog seeded: ${JSON.stringify(seed)}`)
-    const verified = await catalog.verifyCatalogFeeds(null, { timeoutMs: 20_000 })
+    const verified = await catalog.verifyCatalogFeeds(null, { timeoutMs: 20_000, slugs: only })
     const ok = verified.filter((v) => v.status === 'verified')
     log(`feeds verified: ${ok.length} ok, ${verified.length - ok.length} failed ${verified.filter((v) => v.status !== 'verified').map((v) => `${v.slug}(${v.httpStatus ?? v.note})`).join(' ')}`)
-    const scheduled = await catalog.scheduleCatalog(null, true)
+    const scheduled = await catalog.scheduleCatalog(null, true, only)
     log(`scheduled pass enabled for ${scheduled} sources`)
   }
 
   if (!args.includes('--skip-ingest')) {
     const roleFamilies = await getRoleFamilyConfig()
-    const enabled = await db.query.jobSources.findMany({ where: sql`${schema.jobSources.status} = 'active' and ${schema.jobSources.ingestionAllowed} = true and ${schema.jobSources.scheduleEnabled} = true and ${schema.jobSources.provider} <> 'manual'`, columns: { id: true } })
+    const onlySlugs = only ? sql` and ${schema.jobSources.slug} in ${only.map((slug) => CATALOG_SOURCE_SLUG(slug))}` : sql``
+    const enabled = await db.query.jobSources.findMany({ where: sql`${schema.jobSources.status} = 'active' and ${schema.jobSources.ingestionAllowed} = true and ${schema.jobSources.scheduleEnabled} = true and ${schema.jobSources.provider} <> 'manual'${onlySlugs}`, columns: { id: true } })
     const groups = Array.from({ length: parallel }, () => [])
     enabled.forEach((s, i) => groups[i % parallel].push(s.id))
     log(`ingesting ${enabled.length} scheduled sources in ${parallel} parallel group(s)`)

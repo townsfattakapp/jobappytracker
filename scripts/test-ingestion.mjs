@@ -174,6 +174,125 @@ test('Greenhouse and Ashby adapters map real payload shapes without network', as
   assert.ok(nl.requiredSkills.includes('React'))
 })
 
+test('Amazon Jobs adapter pages per country, caps India separately and maps the search.json shape', async () => {
+  const amazon = providers.providerById('amazon')
+  const calls = []
+  const job = (id, cc, title = 'Software Development Engineer') => ({ id_icims: id, title, description: '<p>Build distributed systems in Java on AWS.</p>', basic_qualifications: '<li>3+ years Java</li>', preferred_qualifications: '<li>Kubernetes</li>', normalized_location: cc === 'IND' ? 'Hyderabad, Telangana, IND' : 'Seattle, Washington, USA', city: cc === 'IND' ? 'Hyderabad' : 'Seattle', country_code: cc, posted_date: 'September 25, 2026', job_schedule_type: 'full-time', job_category: 'Software Development', job_path: `/en/jobs/${id}/sde`, url_next_step: `https://account.amazon.jobs/jobs/${id}/apply`, team: { label: 'team-aws' } })
+  const fetchImpl = async (url) => {
+    calls.push(url)
+    const u = new URL(url)
+    const cc = u.searchParams.get('country')
+    const offset = Number(u.searchParams.get('offset'))
+    const limit = Number(u.searchParams.get('result_limit'))
+    const total = cc === 'IND' ? 150 : 120
+    const jobs = Array.from({ length: Math.max(0, Math.min(limit, total - offset)) }, (_, i) => job(`${cc}-${offset + i}`, cc))
+    return { ok: true, status: 200, text: async () => JSON.stringify({ hits: total, jobs }) }
+  }
+  const raw = await amazon.fetchJobs({ id: 's', name: 'Amazon', provider: 'amazon', baseUrl: null, config: { countries: ['IND', 'USA'], categories: ['software-development'], perCountry: 50, indiaLimit: 150 } }, { fetch: fetchImpl, log: () => {} })
+  assert.equal(raw.filter((r) => r.countries[0] === 'India').length, 150, 'India takes its own limit')
+  assert.equal(raw.filter((r) => r.countries[0] === 'United States').length, 50, 'other countries stop at perCountry')
+  assert.ok(calls[0].includes('country=IND') && calls[0].includes('category%5B%5D=software-development') && calls[0].includes('result_limit=100'))
+  assert.equal(raw[0].externalId, 'IND-0')
+  assert.equal(raw[0].sourceUrl, 'https://www.amazon.jobs/en/jobs/IND-0/sde')
+  assert.equal(raw[0].applyUrl, 'https://account.amazon.jobs/jobs/IND-0/apply')
+  assert.ok(raw[0].descriptionHtml.includes('Basic qualifications') && raw[0].descriptionHtml.includes('Kubernetes'))
+  assert.equal(raw[0].postedAt.slice(0, 10), '2026-09-25')
+  const n = normalize.normalizeRawJob(raw[0])
+  assert.equal(n.region, 'india')
+  assert.equal(n.roleCategory, 'software-engineer')
+  await assert.rejects(() => amazon.fetchJobs({ id: 's', name: 'x', provider: 'amazon', baseUrl: null, config: { countries: ['../x'] } }, { fetch: fetchImpl, log: () => {} }), /country/)
+  await assert.rejects(() => amazon.fetchJobs({ id: 's', name: 'x', provider: 'amazon', baseUrl: null, config: {} }, { fetch: async () => ({ ok: true, status: 200, text: async () => '<html>' }), log: () => {} }), /did not return JSON/)
+})
+
+test('Eightfold adapter reads both API flavours, pages by 10, fetches details and keeps only described jobs', async () => {
+  const eightfold = providers.providerById('eightfold')
+  const calls = []
+  const pcsxFetch = async (url) => {
+    calls.push(url)
+    const u = new URL(url)
+    if (u.pathname === '/api/pcsx/search') {
+      const start = Number(u.searchParams.get('start'))
+      const location = u.searchParams.get('location')
+      const count = location === 'India' ? 12 : 25
+      const positions = Array.from({ length: Math.max(0, Math.min(10, count - start)) }, (_, i) => ({ id: 1000 + start + i + (location === 'India' ? 0 : 500), name: 'Principal Software Engineer', locations: [location === 'India' ? 'India, Karnataka, Bangalore' : 'Redmond, Washington, United States'], standardizedLocations: [location === 'India' ? 'Bengaluru, KA, IN' : 'Redmond, WA, US'], postedTs: 1789465589, department: 'Software Engineering', workLocationOption: location === 'India' ? 'onsite' : 'hybrid', positionUrl: `/careers/job/${1000 + start + i}` }))
+      return { ok: true, status: 200, text: async () => JSON.stringify({ status: 200, data: { positions, count } }) }
+    }
+    if (u.pathname === '/api/pcsx/position_details') {
+      const id = Number(u.searchParams.get('position_id'))
+      return { ok: true, status: 200, text: async () => JSON.stringify({ data: { id, name: 'Principal Software Engineer', jobDescription: id % 7 === 0 ? '' : '<p>Design services in C# and Azure for Microsoft 365.</p>', location: 'India, Karnataka, Bangalore', locations: ['India, Karnataka, Bangalore'], publicUrl: `https://apply.careers.microsoft.com/careers/job/${id}`, workLocationOption: 'onsite', displayJobId: `2000${id}`, postedTs: 1789465589 } }) }
+    }
+    throw new Error(`unexpected url ${url}`)
+  }
+  const raw = await eightfold.fetchJobs({ id: 's', name: 'Microsoft', provider: 'eightfold', baseUrl: null, config: { host: 'apply.careers.microsoft.com', domain: 'microsoft.com', api: 'pcsx', searches: [{ query: '', location: 'India' }, { query: 'software engineer', location: '' }], maxPerSearch: 20, concurrency: 3 } }, { fetch: pcsxFetch, log: () => {} })
+  const searchCalls = calls.filter((c) => c.includes('/api/pcsx/search'))
+  assert.equal(searchCalls.length, 2 + 2, 'India: 12 → 2 pages; worldwide: 25 capped at 20 → 2 pages')
+  assert.ok(searchCalls[0].includes('domain=microsoft.com') && searchCalls[0].includes('num=10') && searchCalls[0].includes('location=India'))
+  const ids = raw.map((r) => Number(r.externalId))
+  assert.equal(new Set(ids).size, ids.length, 'no duplicate positions across searches')
+  assert.ok(raw.every((r) => r.descriptionHtml.length > 0), 'positions without a description are dropped')
+  assert.equal(raw.length, 27, '12 India + 20 capped worldwide positions, minus the 5 whose detail had no description')
+  const first = raw.find((r) => r.externalId === '1000')
+  assert.equal(first.sourceUrl, 'https://apply.careers.microsoft.com/careers/job/1000')
+  assert.equal(first.workplaceType, 'onsite')
+  assert.equal(first.raw.displayJobId, '20001000')
+  assert.equal(first.postedAt, '2026-09-15T09:46:29.000Z')
+  const n = normalize.normalizeRawJob(first)
+  assert.equal(n.region, 'india')
+  assert.equal(n.locationCountry, 'India')
+
+  const v2Fetch = async (url) => {
+    const u = new URL(url)
+    if (u.pathname === '/api/apply/v2/jobs') return { ok: true, status: 200, text: async () => JSON.stringify({ count: 1, positions: [{ id: 790318478981, name: 'Senior Software Engineer, Streaming', location: 'Mumbai,India', locations: ['Mumbai,India'], work_location_option: 'remote', t_create: 1789430400, canonicalPositionUrl: 'https://explore.jobs.netflix.net/careers/job/790318478981', department: 'Engineering', job_description: '' }] }) }
+    if (u.pathname === '/api/apply/v2/jobs/790318478981') return { ok: true, status: 200, text: async () => JSON.stringify({ id: 790318478981, name: 'Senior Software Engineer, Streaming', job_description: '<p>Own playback services in Java and Kotlin.</p>', location: 'Mumbai,India', locations: ['Mumbai,India'], work_location_option: 'remote', t_create: 1789430400, canonicalPositionUrl: 'https://explore.jobs.netflix.net/careers/job/790318478981' }) }
+    throw new Error(`unexpected url ${url}`)
+  }
+  const netflix = await eightfold.fetchJobs({ id: 's', name: 'Netflix', provider: 'eightfold', baseUrl: null, config: { host: 'explore.jobs.netflix.net', domain: 'netflix.com', api: 'apply-v2', searches: [{ query: '', location: '' }] } }, { fetch: v2Fetch, log: () => {} })
+  assert.equal(netflix.length, 1)
+  assert.equal(netflix[0].workplaceType, 'remote')
+  assert.equal(netflix[0].sourceUrl, 'https://explore.jobs.netflix.net/careers/job/790318478981')
+  assert.equal(normalize.normalizeRawJob(netflix[0]).workMode, 'remote')
+  await assert.rejects(() => eightfold.fetchJobs({ id: 's', name: 'x', provider: 'eightfold', baseUrl: null, config: { host: 'not a host', domain: 'x.com' } }, { fetch: v2Fetch, log: () => {} }), /invalid host/)
+  await assert.rejects(() => eightfold.fetchJobs({ id: 's', name: 'x', provider: 'eightfold', baseUrl: null, config: { host: 'a.example.com', domain: 'x.com', api: 'pcsx' } }, { fetch: async () => ({ ok: true, status: 200, text: async () => JSON.stringify({ data: {} }) }), log: () => {} }), /no positions array/)
+})
+
+test('Workday adapter posts paged searches, deduplicates, fetches jobPostingInfo and maps the country', async () => {
+  const workday = providers.providerById('workday')
+  const calls = []
+  const fetchImpl = async (url, init = {}) => {
+    calls.push({ url, method: init.method || 'GET', body: init.body ? JSON.parse(init.body) : null })
+    if (url.endsWith('/wday/cxs/adobe/external_experienced/jobs')) {
+      const body = JSON.parse(init.body)
+      const india = Boolean(body.appliedFacets?.locationCountry)
+      const total = india ? 25 : 30
+      const postings = Array.from({ length: Math.max(0, Math.min(body.limit, total - body.offset)) }, (_, i) => ({ title: 'Machine Learning Engineer', externalPath: `/job/${india ? 'Noida' : 'San-Jose'}/ML-Engineer_R${(india ? 100 : 200) + body.offset + i}`, locationsText: india ? 'Noida' : 'San Jose', postedOn: 'Posted 2 Days Ago', bulletFields: [`R${(india ? 100 : 200) + body.offset + i}`] }))
+      // The text search overlaps with the facet search on one posting.
+      if (!india && body.offset === 0) postings[0] = { title: 'Machine Learning Engineer', externalPath: '/job/Noida/ML-Engineer_R100', locationsText: 'Noida', bulletFields: ['R100'] }
+      return { ok: true, status: 200, text: async () => JSON.stringify({ total, jobPostings: postings, facets: [] }) }
+    }
+    const m = url.match(/\/job\/(Noida|San-Jose)\/ML-Engineer_(R\d+)$/)
+    if (m) return { ok: true, status: 200, text: async () => JSON.stringify({ jobPostingInfo: { title: 'Machine Learning Engineer', jobDescription: '<p>Train models in Python and PyTorch for Firefly.</p>', location: m[1] === 'Noida' ? 'Noida' : 'San Jose', additionalLocations: m[1] === 'Noida' ? ['Bangalore'] : [], postedOn: 'Posted 2 Days Ago', startDate: '2026-09-24', timeType: 'Full time', jobReqId: m[2], country: { descriptor: m[1] === 'Noida' ? 'India' : 'United States of America', id: 'x' }, externalUrl: `https://adobe.wd5.myworkdayjobs.com/external_experienced${new URL(url).pathname.replace('/wday/cxs/adobe/external_experienced', '')}` } }) }
+    throw new Error(`unexpected url ${url}`)
+  }
+  const raw = await workday.fetchJobs({ id: 's', name: 'Adobe', provider: 'workday', baseUrl: null, config: { host: 'adobe.wd5.myworkdayjobs.com', tenant: 'adobe', site: 'external_experienced', searches: [{ label: 'India', appliedFacets: { locationCountry: ['c4f78be1a8f14da0ab49ce1162348a5e'] } }, { label: 'ml', searchText: 'machine learning' }], maxPerSearch: 30, concurrency: 4 } }, { fetch: fetchImpl, log: () => {} })
+  const lists = calls.filter((c) => c.method === 'POST')
+  assert.equal(lists.length, 2 + 2, 'India 25 → 2 pages of 20; text 30 → 2 pages')
+  assert.deepEqual(lists[0].body, { appliedFacets: { locationCountry: ['c4f78be1a8f14da0ab49ce1162348a5e'] }, limit: 20, offset: 0, searchText: '' })
+  assert.equal(raw.length, 25 + 30 - 1, 'the overlapping posting is taken once')
+  const r100 = raw.find((r) => r.externalId === 'R100')
+  assert.deepEqual(r100.countries, ['India'])
+  assert.deepEqual(r100.locations, ['Bangalore'])
+  assert.equal(r100.employmentType, 'Full time')
+  assert.equal(r100.postedAt, '2026-09-24T00:00:00.000Z')
+  assert.equal(r100.sourceUrl, 'https://adobe.wd5.myworkdayjobs.com/external_experienced/job/Noida/ML-Engineer_R100')
+  const n = normalize.normalizeRawJob(r100)
+  assert.equal(n.region, 'india')
+  assert.equal(n.roleCategory, 'ai-ml')
+  assert.ok(n.requiredSkills.includes('Python'))
+  const us = normalize.normalizeRawJob(raw.find((r) => r.externalId === 'R201'))
+  assert.equal(us.region, 'international')
+  await assert.rejects(() => workday.fetchJobs({ id: 's', name: 'x', provider: 'workday', baseUrl: null, config: { host: 'adobe.wd5.myworkdayjobs.com', tenant: '../x', site: 'y' } }, { fetch: fetchImpl, log: () => {} }), /config.tenant/)
+})
+
 test('ingestion is idempotent, updates changed listings, records irrelevant ones and marks vanished listings stale', async () => {
   const { client, db } = await freshDb()
   try {

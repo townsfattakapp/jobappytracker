@@ -48,8 +48,10 @@ test('catalog data: 50–200 companies, unique official identities, valid role f
     assert.ok(['strong', 'moderate', 'international'].includes(c.indiaRelevance))
     assert.ok(c.roleFamilies.length > 0 && c.roleFamilies.every((f) => ROLE_CATEGORY_IDS.includes(f)), `${c.slug} role families valid`)
     if (c.feed) {
-      assert.ok(['greenhouse', 'lever', 'ashby'].includes(c.feed.provider), 'only public, documented job-board APIs')
-      assert.match(c.feed.token, /^[a-z0-9-]+$/i)
+      assert.ok(['greenhouse', 'lever', 'ashby', 'amazon', 'eightfold', 'workday'].includes(c.feed.provider), 'documented board APIs or a careers site JSON endpoint')
+      const TOKEN_SHAPE = { greenhouse: /^[a-z0-9-]+$/i, lever: /^[a-z0-9-]+$/i, ashby: /^[a-z0-9-]+$/i, amazon: /^amazon\.jobs$/, eightfold: /^[a-z0-9.-]+\|[a-z0-9.-]+\|(pcsx|apply-v2)$/, workday: /^[a-z0-9.-]+\.myworkdayjobs\.com\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/ }
+      assert.match(c.feed.token, TOKEN_SHAPE[c.feed.provider], `${c.slug} token shape for ${c.feed.provider}`)
+      if (['amazon', 'eightfold', 'workday'].includes(c.feed.provider)) assert.match(c.feed.note ?? '', /[Uu]nofficial/, `${c.slug} says the endpoint is unofficial`)
       assert.match(c.feed.verifiedAt, /^\d{4}-\d{2}-\d{2}$/, `${c.slug} carries a verification date`)
       assert.ok(Number.isInteger(c.feed.jobsAtVerification) && c.feed.jobsAtVerification >= 0)
       assert.equal(c.portal, c.feed.provider)
@@ -77,10 +79,19 @@ test('seeding is idempotent, marks unsupported portals Not configured with the c
     assert.equal(status.seeded, COMPANY_CATALOG.length)
     const unsupported = status.rows.filter((r) => !r.feed)
     assert.ok(unsupported.every((r) => r.status === 'Unsupported' && r.ingestionAllowed === false && r.verificationStatus === 'unsupported' && r.careersUrl.startsWith('https://')))
-    const ms = (await client.query("select provider, notes, \"ingestionAllowed\" from job_sources where slug = $1", [CATALOG_SOURCE_SLUG('microsoft')])).rows[0]
-    assert.equal(ms.provider, 'manual')
-    assert.match(ms.notes, /Not configured/)
-    assert.equal(ms.ingestionAllowed, false)
+    const gg = (await client.query("select provider, notes, \"ingestionAllowed\" from job_sources where slug = $1", [CATALOG_SOURCE_SLUG('google')])).rows[0]
+    assert.equal(gg.provider, 'manual')
+    assert.match(gg.notes, /Not configured/)
+    assert.equal(gg.ingestionAllowed, false)
+    const ms = (await client.query("select provider, notes, config, \"ingestionAllowed\" from job_sources where slug = $1", [CATALOG_SOURCE_SLUG('microsoft')])).rows[0]
+    assert.equal(ms.provider, 'eightfold')
+    assert.match(ms.notes, /unofficial/)
+    assert.deepEqual(ms.config, { host: 'apply.careers.microsoft.com', domain: 'microsoft.com', api: 'pcsx' })
+    const nf = (await client.query("select provider, config from job_sources where slug = $1", [CATALOG_SOURCE_SLUG('netflix')])).rows[0]
+    assert.deepEqual(nf.config, { host: 'explore.jobs.netflix.net', domain: 'netflix.com', api: 'apply-v2', searches: [{ query: '', location: '' }], maxPerSearch: 600 })
+    const ad = (await client.query("select provider, config from job_sources where slug = $1", [CATALOG_SOURCE_SLUG('adobe')])).rows[0]
+    assert.deepEqual(ad.config, { host: 'adobe.wd5.myworkdayjobs.com', tenant: 'adobe', site: 'external_experienced' })
+    assert.equal((await client.query("select provider from job_sources where slug = $1", [CATALOG_SOURCE_SLUG('amazon')])).rows[0].provider, 'amazon')
     const configured = status.rows.filter((r) => r.feed)
     assert.ok(configured.every((r) => r.status === 'Configured' && r.ingestionAllowed && r.verificationStatus === 'verified'))
     const gl = (await client.query("select provider, config, \"autoPublish\", \"scheduleEnabled\" from job_sources where slug = $1", [CATALOG_SOURCE_SLUG('gitlab')])).rows[0]
@@ -88,6 +99,11 @@ test('seeding is idempotent, marks unsupported portals Not configured with the c
     assert.deepEqual(gl.config, { board: 'gitlab' })
     assert.equal(gl.scheduleEnabled, false, 'verified sources are not scheduled until an admin opts in')
     assert.equal(gl.autoPublish, true)
+    // A portal that was seeded as unsupported before the catalog gained a feed for it is configured on re-seed (no admin decision existed).
+    await client.query('update job_sources set provider = $2, type = $3, config = $4, "ingestionAllowed" = false, "autoPublish" = false, "verificationStatus" = $5, "verifiedAt" = null, "lastVerifiedJobCount" = null where slug = $1', [CATALOG_SOURCE_SLUG('adobe'), 'manual', 'career_page', '{}', 'unsupported'])
+    await catalog.seedCatalog('admin')
+    const adobe = (await client.query('select provider, type, config, "ingestionAllowed", "autoPublish", "verificationStatus", "lastVerifiedJobCount" from job_sources where slug = $1', [CATALOG_SOURCE_SLUG('adobe')])).rows[0]
+    assert.deepEqual({ ...adobe, config: adobe.config.host }, { provider: 'workday', type: 'ats_api', config: 'adobe.wd5.myworkdayjobs.com', ingestionAllowed: true, autoPublish: true, verificationStatus: 'verified', lastVerifiedJobCount: 566 })
     assert.equal(await catalog.scheduleCatalog('admin', true), COMPANY_CATALOG.filter((c) => c.feed).length)
     assert.equal((await client.query('select count(*)::int as n from job_sources where slug like $1 and "scheduleEnabled" = true', ['catalog-%'])).rows[0].n, COMPANY_CATALOG.filter((c) => c.feed).length)
     assert.equal(await catalog.scheduleCatalog('admin', false), COMPANY_CATALOG.filter((c) => c.feed).length)
@@ -100,7 +116,7 @@ test('seeding is idempotent, marks unsupported portals Not configured with the c
     assert.equal(kept.ingestionAllowed, false)
     assert.equal((await catalog.catalogStatus()).rows.find((r) => r.slug === 'gitlab').status, 'Not configured')
     const audit = (await client.query("select count(*)::int as n from admin_audit_log where action='catalog.seed'")).rows[0].n
-    assert.equal(audit, 3)
+    assert.equal(audit, 4, 'three seeds in this test plus the re-seed after the portal gained a feed')
   } finally {
     await client.close()
   }

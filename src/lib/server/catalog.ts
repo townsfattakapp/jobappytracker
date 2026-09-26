@@ -5,6 +5,9 @@ import { CATALOG_PROVENANCE, CATALOG_SOURCE_SLUG, COMPANY_CATALOG, type CatalogC
 import { recordAudit } from './audit'
 import { runSourceIngestion } from './ingestion'
 import { logEvent } from './log'
+import { eightfoldSearchUrl, parseEightfoldToken } from '../ingestion/providers/eightfold'
+import { BROWSER_HEADERS } from '../ingestion/providers/shared'
+import { parseWorkdayToken, workdayListRequest } from '../ingestion/providers/workday'
 
 /**
  * Company source catalog: idempotent seeding of curated companies and their
@@ -15,7 +18,7 @@ import { logEvent } from './log'
  *   Configured     verified public feed, ingestion allowed, never run yet
  *   Healthy        last ingestion run succeeded
  *   Degraded       last ingestion run failed, or the feed stopped answering
- *   Unsupported    the careers portal has no public feed JobAppy can use
+ *   Unsupported    the careers portal has neither a public feed nor a readable JSON endpoint
  *   Not configured supported provider but the feed is not verified / not allowed
  */
 export type CatalogStatus = 'Configured' | 'Healthy' | 'Degraded' | 'Unsupported' | 'Not configured'
@@ -52,9 +55,14 @@ export interface CatalogRow {
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null)
 
-function feedConfig(entry: CatalogCompany): Record<string, unknown> {
+/** Providers that read a careers site's own (unofficial) JSON endpoint rather than a documented board API. */
+export const SITE_PROVIDERS = new Set<CatalogFeedProvider>(['amazon', 'eightfold', 'workday'])
+
+export function feedConfig(entry: CatalogCompany): Record<string, unknown> {
   if (!entry.feed) return {}
-  return entry.feed.provider === 'lever' ? { site: entry.feed.token } : { board: entry.feed.token }
+  const { provider, token, config } = entry.feed
+  const base = provider === 'lever' ? { site: token } : provider === 'amazon' ? {} : provider === 'eightfold' ? parseEightfoldToken(token) : provider === 'workday' ? parseWorkdayToken(token) : { board: token }
+  return { ...base, ...(config ?? {}) }
 }
 
 /** Upserts catalog companies and their sources. Never touches admin-created companies or jobs; re-running only refreshes catalog fields. */
@@ -80,9 +88,9 @@ export async function seedCatalog(actorId: string | null): Promise<{ companiesCr
       type: supported ? 'ats_api' : 'career_page',
       baseUrl: entry.careersUrl,
       termsUrl: null,
-      // Public, documented job-board APIs intended for embedding a company's own listings; nothing else is ingested.
+      // Documented job-board APIs, or the JSON endpoint the company's own careers site calls; HTML is never scraped.
       ingestionAllowed: supported,
-      notes: entry.feed ? `Official ${entry.feed.provider} job board (${entry.feed.token}); verified ${entry.feed.verifiedAt} with ${entry.feed.jobsAtVerification} listing(s).${entry.feed.note ? ` ${entry.feed.note}` : ''}` : `Not configured: ${entry.name} publishes openings on its own careers portal (${entry.careersUrl}); no public feed JobAppy can use. ${entry.notes ?? ''}`.trim(),
+      notes: entry.feed ? `${SITE_PROVIDERS.has(entry.feed.provider) ? `Careers-site JSON endpoint (${entry.feed.provider}, unofficial)` : `Official ${entry.feed.provider} job board`} (${entry.feed.token}); verified ${entry.feed.verifiedAt} with ${entry.feed.jobsAtVerification} listing(s).${entry.feed.note ? ` ${entry.feed.note}` : ''}` : `Not configured: ${entry.name} publishes openings on its own careers portal (${entry.careersUrl}); no public feed JobAppy can use. ${entry.notes ?? ''}`.trim(),
       provider: entry.feed ? entry.feed.provider : 'manual',
       config: feedConfig(entry),
       companyId: company.id,
@@ -96,7 +104,11 @@ export async function seedCatalog(actorId: string | null): Promise<{ companiesCr
       lastVerifiedJobCount: entry.feed ? entry.feed.jobsAtVerification : null,
       updatedAt: now,
     }
-    if (existing) {
+    if (existing && existing.provider === 'manual' && entry.feed) {
+      // The catalog gained a feed for a portal that was unsupported: configure it like a new source (there was no admin decision to keep).
+      await db.update(jobSources).set({ ...sourceValues, status: 'active' }).where(eq(jobSources.id, existing.id))
+      out.sourcesUpdated += 1
+    } else if (existing) {
       // Keep admin decisions (status, ingestionAllowed, autoPublish) and run history; refresh catalog facts only.
       await db.update(jobSources).set({ name: sourceValues.name, baseUrl: sourceValues.baseUrl, notes: sourceValues.notes, provider: sourceValues.provider, config: sourceValues.config, companyId: sourceValues.companyId, catalogPortal: sourceValues.catalogPortal, verificationStatus: existing.verificationStatus === 'unverified' ? sourceValues.verificationStatus : existing.verificationStatus, verifiedAt: existing.verifiedAt ?? sourceValues.verifiedAt, verificationNote: existing.verificationNote ?? sourceValues.verificationNote, lastVerifiedJobCount: existing.lastVerifiedJobCount ?? sourceValues.lastVerifiedJobCount, updatedAt: now }).where(eq(jobSources.id, existing.id))
       out.sourcesUpdated += 1
@@ -110,10 +122,31 @@ export async function seedCatalog(actorId: string | null): Promise<{ companiesCr
   return out
 }
 
-const PROBES: Record<CatalogFeedProvider, (token: string) => string> = {
-  greenhouse: (t) => `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(t)}/jobs`,
-  lever: (t) => `https://api.lever.co/v0/postings/${encodeURIComponent(t)}?mode=json&limit=1`,
-  ashby: (t) => `https://api.ashbyhq.com/posting-api/job-board/${encodeURIComponent(t)}`,
+interface Probe {
+  url: string
+  init?: RequestInit
+  /** Listing count reported by the feed, or null when the shape is unknown. */
+  count: (body: unknown) => number | null
+}
+
+const jobsLength = (body: unknown): number | null => (Array.isArray(body) ? body.length : Array.isArray((body as { jobs?: unknown[] })?.jobs) ? (body as { jobs: unknown[] }).jobs.length : null)
+const numberOrNull = (v: unknown): number | null => (v !== null && v !== undefined && Number.isFinite(Number(v)) ? Number(v) : null)
+const API_HEADERS = { accept: 'application/json', 'user-agent': 'JobAppy-catalog-verify/1.0 (+https://prep.evolw.in)' }
+
+/** Read-only, one-listing probes: documented board APIs for the first three, the careers sites' own JSON endpoints for the rest. */
+export const PROBES: Record<CatalogFeedProvider, (token: string) => Probe> = {
+  greenhouse: (t) => ({ url: `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(t)}/jobs`, init: { headers: API_HEADERS }, count: jobsLength }),
+  lever: (t) => ({ url: `https://api.lever.co/v0/postings/${encodeURIComponent(t)}?mode=json&limit=1`, init: { headers: API_HEADERS }, count: jobsLength }),
+  ashby: (t) => ({ url: `https://api.ashbyhq.com/posting-api/job-board/${encodeURIComponent(t)}`, init: { headers: API_HEADERS }, count: jobsLength }),
+  amazon: () => ({ url: 'https://www.amazon.jobs/en/search.json?offset=0&result_limit=1&sort=recent&country=IND&category%5B%5D=software-development', init: { headers: BROWSER_HEADERS }, count: (b) => numberOrNull((b as { hits?: unknown })?.hits) }),
+  eightfold: (t) => {
+    const cfg = parseEightfoldToken(t)
+    return { url: eightfoldSearchUrl(cfg, { query: '', location: '' }, 0, 1), init: { headers: BROWSER_HEADERS }, count: (b) => numberOrNull(cfg.api === 'pcsx' ? (b as { data?: { count?: unknown } })?.data?.count : (b as { count?: unknown })?.count) }
+  },
+  workday: (t) => {
+    const req = workdayListRequest(parseWorkdayToken(t), { label: 'probe' }, 0, 1)
+    return { url: req.url, init: { ...req.init, headers: { ...BROWSER_HEADERS, ...(req.init.headers as Record<string, string>) } }, count: (b) => numberOrNull((b as { total?: unknown })?.total) }
+  },
 }
 
 export interface VerifyResult {
@@ -137,10 +170,11 @@ export async function verifyCatalogFeeds(actorId: string | null, opts: { fetchIm
     if (!source) continue
     let result: VerifyResult
     try {
-      const res = await fetchImpl(PROBES[entry.feed.provider](entry.feed.token), { headers: { accept: 'application/json', 'user-agent': 'JobAppy-catalog-verify/1.0 (+https://prep.evolw.in)' }, signal: AbortSignal.timeout(opts.timeoutMs ?? 15_000) })
+      const probe = PROBES[entry.feed.provider](entry.feed.token)
+      const res = await fetchImpl(probe.url, { ...(probe.init ?? {}), signal: AbortSignal.timeout(opts.timeoutMs ?? 15_000) })
       if (res.ok) {
-        const body = (await res.json().catch(() => null)) as { jobs?: unknown[] } | unknown[] | null
-        const count = Array.isArray(body) ? body.length : Array.isArray((body as { jobs?: unknown[] })?.jobs) ? (body as { jobs: unknown[] }).jobs.length : null
+        const body = (await res.json().catch(() => null)) as unknown
+        const count = probe.count(body)
         result = { slug: entry.slug, provider: entry.feed.provider, status: 'verified', httpStatus: res.status, count, note: `Feed answered ${res.status} with ${count ?? 'an unknown number of'} listing(s).` }
       } else result = { slug: entry.slug, provider: entry.feed.provider, status: 'failed', httpStatus: res.status, count: null, note: `Feed answered ${res.status}.` }
     } catch (error) {
