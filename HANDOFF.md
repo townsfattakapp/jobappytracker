@@ -1,4 +1,50 @@
-﻿# Phase 10 — voice-first interview room on the existing mock interview system — 2026-09-26 IST
+﻿# Phase 11 — production deployment, live job catalog and resume comparison — 2026-09-26 IST
+
+**Deployed.** Commit `4803608` on `main` (GitHub `townsfattakapp/jobappytracker`) was built by Vercel (team Evolw, project `job-appy`, Hobby plan) and is live at https://prep.evolw.in (aliases `job-appy.vercel.app`, `job-appy-evolw.vercel.app`). The hosted Tiger Cloud database was already migrated through `0012` before this phase (preflight: ledger 13 / journal 13 / pending 0; no migration was run here). The production database now holds the seeded company catalog and the first ingestion pass; see the numbers below.
+
+## What was done in production (all through the application's own code)
+
+- **Admin access**: the admin role was granted to `business.vishwas24@gmail.com` in `user_roles` (`scripts/ops-seed-catalog.mjs --admin-email`). `/admin` opens for that account; the `PLATFORM_ADMINS` environment variable is *not* set (see "What the operator must still do").
+- **Paid plan**: the `pro` plan's feature list gained `interview.voice`, `interview.premiumVoice`, `interview.replay` (the three keys added by Phase 10). Prices are still the development fixtures (₹199 / ₹1 990 per month / year); review `/admin/plans` before promoting `/pricing`.
+- **Catalog**: 168 companies and 168 sources seeded (`company-catalog-2026-09`); 118 of the 119 feeds verified live (MongoDB's probe timed out once and stays "Degraded" until an admin presses Verify on `/admin/catalog`); the scheduled pass is enabled for the 118 verified sources.
+- **First ingestion pass** (`--ingest-only --parallel=6`, 875 s against the hosted database): 117 sources succeeded, 0 failed, 1 skipped (a lock left by the timed-out first attempt, released automatically after 15 minutes). **4 424 published jobs**: international on-site 2 178, international remote 1 720, international hybrid 247, India on-site 233, India remote 38, India hybrid 8. Largest sources: OpenAI 350, Anthropic 220, Databricks 191, Cloudflare 183, Roblox 152, Stripe 145, Okta 130, Airwallex 126, Affirm 119, Binance 116.
+- **Live checks after the deploy**: see the smoke table in the summary message of this session (config, job list, India / remote / search filters, pricing, `/admin` 404 for anonymous callers, cron route 404 without a secret, voice route 401 when signed out).
+
+## Job Discovery data: what is real and what is not
+
+Every listing comes from a company's own public job-board API (Greenhouse Job Board API, Lever Postings API, Ashby Job Board API), verified read-only on 2026-09-26 (`scratch/probe-feeds.log`), normalised by the existing engine (role classification, region, work mode, remote eligibility; non-engineering roles are dropped as irrelevant), de-duplicated and refreshed by the scheduler. Nothing is scraped and no listing is invented. **FAANG / MANG** (Meta, Apple, Amazon, Netflix, Google, Microsoft) plus LinkedIn, Goldman Sachs, JPMorgan, Visa, Mastercard, Adobe, Atlassian, Salesforce, Oracle, SAP, Uber, PayPal and the large Indian consumer brands (Flipkart, PhonePe, Razorpay, Swiggy, Zomato, Zoho, Zerodha…) publish only on their own portals: they are in the catalog with official careers links and are shown as "Unsupported" on `/admin/catalog`; their openings are **not** in the feed. Adding them would mean scraping portals against their terms, which this product deliberately does not do. India-based listings are therefore a minority (279 of 4 424) until more India-headquartered companies with public feeds are added; the feed ranking still puts India and remote-eligible roles first for learners who prefer India.
+
+## Scheduled refresh
+
+`vercel.json` schedules `GET /api/cron/ingestion` daily at 01:15 UTC and `GET /api/cron/reminders` at 03:30 UTC (the Hobby plan allows two daily crons). Each ingestion pass visits the least-recently-run sources inside a 240-second budget (`INGESTION_PASS_BUDGET_MS`, function `maxDuration` 300) and defers the rest to the next pass; the lifecycle sweep marks listings stale after 7 days and expires them after 21. **The cron is inert until `CRON_SECRET` is set in Vercel** (the route answers 404 without it) — the attempt to add it from this session was blocked by the tool permission system, so the operator must add it (any long random string) and redeploy. Until then, refresh manually: `/admin/ingestion` → "Run scheduled pass now", or `node scripts/ops-seed-catalog.mjs --target=<host:port/db> --ingest-only --parallel=6` with the production `DATABASE_URL` and `DATABASE_SSL_CA`.
+
+## Resume: versions and comparison with any opening
+
+Resume versions were already private and owner-scoped (bytes in `resumes.content`, cross-account 404). New in this phase: the Resume workspace has **"Compare with an opening"** — search Job Discovery, pick an opening, and run the resume-vs-job analysis with the *selected* version (not only the current one); the report (strong matches with quoted resume lines, missing or weak evidence mapped to curriculum, skills table, experience and project relevance, suggestions with save / dismiss / done) renders in place with a link into the job workspace. `ResumeAnalysisView` moved to `src/components/jobs/ResumeAnalysisView.tsx` and is shared with the job workspace. Browser-checked locally (`scratch/career-os/resume-compare.png`): search → pick → compare → report → open job workspace; usage counter increments; free plan sees the locked panel.
+
+## Checks run before the push
+
+```text
+npx tsc --noEmit → exit 0 · eslint src + new scripts → exit 0
+test:ingestion 11/11 · test:catalog 3/3 · test:scheduler 4/4 · test:matching 5/5 · test:jobs:domain 11/11 · test:interview:room 14/14 · test:interviews 9/9 · test:ai 7/7 · test:billing:phase5 7/7 · test:security 3/3 · test:monitoring 1/1
+ops seed rehearsal on the local PGlite database: 119 feeds verified, 4 540 published jobs in 168 s
+Vercel build of 4803608: Ready (1 m 51 s), aliased to prep.evolw.in
+```
+The Phase 10 e2e suites (room 12/12, jobs 77/77, journey 11/11) ran before the catalog, scheduler and resume-panel changes; the scheduler change is covered by `test:scheduler`, the catalog by `test:catalog` and the live seed, the resume panel by the browser check above. `npm run build` was not re-run locally after those last changes; the Vercel production build is the build evidence.
+
+## What the operator must still do (cannot be done from this session)
+
+1. **Vercel → Settings → Environment Variables (Production)**: add `CRON_SECRET` (random, 32+ chars) so the daily ingestion and reminder crons run; optionally `PLATFORM_ADMINS=business.vishwas24@gmail.com` (the database role already grants admin); `GROQ_API_KEY` or `GEMINI_API_KEY` (or another provider) for AI follow-up rephrasing, coach notes and the general AI mock rounds — without one, job interviews run fully on the deterministic interviewer and general rounds show "The interviewer needs AI"; `RAZORPAY_WEBHOOK_SECRET` (keys are present, the webhook secret is not) before selling passes; `RESEND_API_KEY` or `SMTP_URL` + `EMAIL_FROM` for verification and reminder emails; a voice provider key (`OPENAI_API_KEY`, `GOOGLE_TTS_API_KEY`, or `ELEVENLABS_API_KEY` + `ELEVENLABS_VOICE_ID`) if the premium interviewer voice should be real — and listen to it before enabling `interview.premiumVoice` for a plan. Redeploy after adding variables.
+2. `/admin/plans`: set the real prices and Razorpay plan ids; review `/pricing` copy.
+3. `/admin/catalog`: press Verify for MongoDB; review the 50 "Unsupported" portal-only companies.
+4. Consider Vercel Pro if more than one ingestion pass per day or longer functions are needed; on Hobby the two crons run once a day.
+5. The production `users` table still contains six synthetic accounts from an earlier billing e2e run (`billing-e2e-*@example.invalid`, `dbg-*@example.invalid`); delete them from `/admin/users` if unwanted. They were left untouched here.
+
+## NOT TESTED in production
+
+Signed-in flows (job workspace, resume comparison, mock interview room, admin pages) were verified locally only; in production only anonymous endpoints were exercised because no test account was created there. Payments (Razorpay live), email, AI providers and the premium voice are not configured in production and were not tested.
+
+# Phase 10 — voice-first interview room on the existing mock interview system — 2026-09-26 IST
 
 Nothing deployed; no production or hosted-database change; no migration (all new state lives in the existing `jsonb` columns of `job_interview_sessions` and in `platform_settings`). Docker was not available on this machine, so the local database for this phase is an embedded PGlite exposed over the PostgreSQL wire protocol (`scripts/dev-pglite-server.mjs`, `npm run db:dev:pglite`, data in `scratch/pglite-dev`); it needs `npm install --no-save @electric-sql/pglite-socket` (deliberately not added to `package.json`). Another session was working in the same tree (its edits to `AuthPanel.tsx`, `BookmarkletModal.tsx`, `MobileNav.tsx`, `style.css`, `scripts/audit-*.mjs` and a `next start` on port 3000 were left untouched); this phase ran its own dev server on port 3001 (`AI_FIXTURE=1 TTS_FIXTURE=1`). Architecture: `docs/career-os-architecture.md` section 7c.1. Left running at hand-off for manual review: the phase's dev server on http://localhost:3001 (pid in `scratch/local-dev.pid`) and the PGlite database server (pid in `scratch/pglite-dev.pid`); stop them with `taskkill /PID <pid> /T /F`. The other session's `next start` on port 3000 was not touched.
 
