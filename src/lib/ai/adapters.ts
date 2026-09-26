@@ -9,7 +9,7 @@ function classify(status: number, text: string): AiError {
   if (status === 429) return new AiError('rate_limit', 'provider is rate limiting', status, retryAfter ? Number(retryAfter[1]) * 1000 : null)
   if (status === 408 || status === 504) return new AiError('timeout', `provider timed out (${status})`, status)
   if (status >= 500) return new AiError('server', `provider error ${status}`, status)
-  if (status === 400 && /model/i.test(text)) return new AiError('server', `model rejected: ${text.slice(0, 120)}`, status)
+  if ((status === 400 || status === 404) && (/model/i.test(text) || /not_found/i.test(text))) return new AiError('validation', `model unavailable: ${text.slice(0, 120)}`, status)
   return new AiError('server', `provider responded ${status}: ${text.slice(0, 160)}`, status)
 }
 
@@ -84,7 +84,7 @@ export const geminiAdapter: AiAdapter = {
   },
 }
 
-export const groqAdapter = openAiCompatible('groq', 'Groq', 'https://api.groq.com/openai/v1/chat/completions', 'GROQ_API_KEY', ['llama-3.3-70b-versatile', 'openai/gpt-oss-120b', 'llama-3.1-8b-instant'])
+export const groqAdapter = openAiCompatible('groq', 'Groq', 'https://api.groq.com/openai/v1/chat/completions', 'GROQ_API_KEY', ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'])
 export const mistralAdapter = openAiCompatible('mistral', 'Mistral', 'https://api.mistral.ai/v1/chat/completions', 'MISTRAL_API_KEY', ['mistral-small-latest', 'open-mistral-nemo'])
 export const openRouterAdapter = openAiCompatible('openrouter', 'OpenRouter', (process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/$/, '') + '/chat/completions', 'OPENROUTER_API_KEY', [(process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct').trim()], { 'HTTP-Referer': 'https://prep.evolw.in', 'X-Title': 'JobAppy' })
 export const openAiAdapter = openAiCompatible('openai', 'OpenAI', 'https://api.openai.com/v1/chat/completions', 'OPENAI_API_KEY', ['gpt-4o-mini', 'gpt-4.1-mini'])
