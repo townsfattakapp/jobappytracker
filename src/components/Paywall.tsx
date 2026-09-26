@@ -10,10 +10,12 @@ interface PaywallProps {
   email: string
   onPurchased: (entitlement: Entitlement) => void
   onSignOut: () => void
+  /** When set, the learner can keep using the free plan (job discovery and tracker) instead of paying now. */
+  onContinueFree?: () => void
 }
 
 /** Full-screen gate for signed-in accounts without an active pass. */
-export default function Paywall({ billing, email, onPurchased, onSignOut }: PaywallProps) {
+export default function Paywall({ billing, email, onPurchased, onSignOut, onContinueFree }: PaywallProps) {
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const lapsed = Boolean(billing.entitlement?.endsAt)
@@ -49,10 +51,16 @@ export default function Paywall({ billing, email, onPurchased, onSignOut }: Payw
           Signed in as <span className="font-semibold text-foreground">{email}</span>.
         </p>
 
-        <PlanCards onSelect={(plan) => void choose(plan)} busyPlanId={busy} disabled={Boolean(busy) || !billing.configured} compact />
-        {!billing.configured && (
-          <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm">Payments are being set up on this deployment. Please check back soon.</p>
-        )}
+        <a href="/pricing" className="btn btn-primary w-full">
+          See plans and upgrade
+        </a>
+        <details className="admin-details mt-4">
+          <summary>Prepaid passes (legacy)</summary>
+          <div className="mt-3">
+            <PlanCards onSelect={(plan) => void choose(plan)} busyPlanId={busy} disabled={Boolean(busy) || !billing.configured} compact />
+            {!billing.configured && <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm">Card payments for passes are not configured on this deployment.</p>}
+          </div>
+        </details>
         {error && (
           <p className="mt-3 text-sm text-destructive" role="alert">
             {error}
@@ -72,6 +80,11 @@ export default function Paywall({ billing, email, onPurchased, onSignOut }: Payw
         <p className="mt-5 text-[11px] text-muted-foreground">
           Payments are processed by Razorpay; card details never touch our servers. AI features use your own OpenAI or Groq key, stored encrypted in your account.
         </p>
+        {onContinueFree && (
+          <button type="button" onClick={onContinueFree} className="mt-4 w-full btn btn-ghost">
+            Continue on the free plan: job discovery and application tracker
+          </button>
+        )}
         <button type="button" onClick={onSignOut} className="mt-4 w-full text-center text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
           Sign out
         </button>

@@ -6,7 +6,11 @@ export function productionDatabaseConfig(env) {
 
   // Resolve URL SSL options first: pg otherwise replaces an explicit CA with
   // the sslmode options from the connection string.
-  const config = new pg.Client({ connectionString, ssl: true }).connectionParameters;
+  // Hosted databases always use TLS. A loopback target (local staging rehearsal) may opt out with sslmode=disable.
+  const url = new URL(connectionString);
+  const loopback = ['127.0.0.1', 'localhost', '::1'].includes(url.hostname.toLowerCase());
+  const sslOff = loopback && url.searchParams.get('sslmode') === 'disable';
+  const config = new pg.Client({ connectionString, ssl: sslOff ? false : true }).connectionParameters;
   if (env.DATABASE_SSL_CA) {
     config.ssl = {
       ...(typeof config.ssl === 'object' ? config.ssl : {}),
@@ -21,6 +25,7 @@ export function productionDatabaseConfig(env) {
 export function migrationFailureMessage(error) {
   const seen = new Set();
   let code;
+  const original = error;
   while (error && !seen.has(error)) {
     seen.add(error);
     if (typeof error.code === 'string' && /^[A-Z0-9_]+$/.test(error.code)) code = error.code;
@@ -36,5 +41,7 @@ export function migrationFailureMessage(error) {
     ECONNREFUSED: 'Check the database endpoint, port, and network access from Vercel.',
     ETIMEDOUT: 'Check database network access from Vercel and the direct connection endpoint.',
   };
-  return `Migration failed${code ? ` (${code})` : ''}. ${hints[code] || 'Check the migration database configuration, connectivity, and database server logs.'}`;
+  error = original;
+  const message = typeof error?.message === 'string' && !/postgres(ql)?:\/\//i.test(error.message) ? ` ${error.message.slice(0, 160)}` : '';
+  return `Migration failed${code ? ` (${code})` : ''}.${message} ${hints[code] || (/does not support SSL/i.test(message) ? 'The target refuses TLS; for a loopback staging copy add ?sslmode=disable to the URL.' : 'Check the migration database configuration, connectivity, and database server logs.')}`;
 }

@@ -36,6 +36,62 @@
       "when": 1790300000001,
       "tag": "0004_curriculum_tracks",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790300000002,
+      "tag": "0005_career_os_phase1",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790300000003,
+      "tag": "0006_career_os_phase2",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790300000004,
+      "tag": "0007_career_os_phase3",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790300000005,
+      "tag": "0008_career_os_phase4",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790300000006,
+      "tag": "0009_career_os_phase5",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790300000007,
+      "tag": "0010_career_os_phase6",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790300000008,
+      "tag": "0011_career_os_phase65",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790300000009,
+      "tag": "0012_career_os_catalog",
+      "breakpoints": true
     }
   ]
 }

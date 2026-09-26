@@ -17,7 +17,7 @@ import {
   allTopics,
 } from "./lib/learningPlan";
 import { buildTopicTasks, topicStepDefs } from "./lib/roadmapGenerator";
-import { useCurriculum } from "./lib/curriculum/registry";
+import { useCurriculum } from "./lib/curriculum/useCurriculum";
 import type { PickerContext } from "./components/LearningTaskPicker";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

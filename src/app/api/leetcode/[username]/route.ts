@@ -33,7 +33,7 @@ export async function GET(_req: Request, context: { params: Promise<{ username: 
         Referer: 'https://leetcode.com',
         'User-Agent': 'Mozilla/5.0 (compatible; PrepByEvolw/1.0)',
       },
-      body: JSON.stringify({ query: QUERY, variables: { username, limit: 20 } }),
+      body: JSON.stringify({ query: QUERY, variables: { username, limit: 50 } }),
       signal: AbortSignal.timeout(15_000),
       cache: 'no-store',
     })

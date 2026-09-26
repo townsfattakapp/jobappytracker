@@ -73,6 +73,12 @@ export async function getSystemDesignAttemptDetails(exerciseId: string): Promise
   return attempts || []
 }
 
+export async function deleteSystemDesignAttemptDetail(exerciseId: string, attemptId: string): Promise<void> {
+  const attempts = await getSystemDesignAttemptDetails(exerciseId)
+  const filtered = attempts.filter(a => a.id !== attemptId)
+  await set(`system-design-${exerciseId}`, filtered)
+}
+
 /** Fired on window after cloud history lands in IndexedDB, so open pages can reload their attempt lists. */
 export const HISTORY_IMPORTED_EVENT = 'jobappy:history-imported'
 

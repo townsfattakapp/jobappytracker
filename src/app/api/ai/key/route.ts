@@ -18,7 +18,7 @@ export async function PUT(req: Request) {
   const body = (await req.json().catch(() => null)) as { provider?: unknown; key?: unknown } | null
   const provider = body?.provider
   const key = typeof body?.key === 'string' ? body.key.trim() : ''
-  if (!isProvider(provider)) return NextResponse.json({ error: 'Choose Groq or OpenAI.' }, { status: 400 })
+  if (!isProvider(provider)) return NextResponse.json({ error: 'Choose Groq, OpenAI, Google Gemini, Mistral or OpenRouter.' }, { status: 400 })
   if (!key) return NextResponse.json({ error: 'Paste your API key.' }, { status: 400 })
   if (key.length > 400) return NextResponse.json({ error: 'That key is too long.' }, { status: 400 })
 

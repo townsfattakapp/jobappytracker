@@ -13,7 +13,7 @@ export interface AiStatus {
   status?: 'active' | 'expired'
   available: boolean
   serverConfigured: boolean
-  userKey: { provider: 'groq' | 'openai'; hint: string } | null
+  userKey: { provider: string; hint: string } | null
   reason: string | null
 }
 
@@ -62,7 +62,7 @@ export class AiRequestError extends Error {
   }
 }
 
-export async function chatWithAI(options: { messages: AIMessage[]; temperature?: number; json?: boolean; provider?: 'openai' | 'groq' | 'auto' }): Promise<string> {
+export async function chatWithAI(options: { messages: AIMessage[]; temperature?: number; json?: boolean; provider?: 'openai' | 'groq' | 'gemini' | 'mistral' | 'openrouter' | 'auto' }): Promise<string> {
   let response: Response
   try {
     response = await fetch('/api/ai/chat', {

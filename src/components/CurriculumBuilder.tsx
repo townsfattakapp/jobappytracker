@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { CurriculumTrack, GoalTrack } from '../types'
-import { searchCurriculum, trackCategories, tracksByFamily, useCurriculum } from '../lib/curriculum/registry'
+import { searchCurriculum, trackCategories, tracksByFamily } from '../lib/curriculum/registry'
+import { useCurriculum } from '../lib/curriculum/useCurriculum'
 import { estimateDays, estimateTrack } from '../lib/roadmapGenerator'
 import { addCustomTopic, PERSONAL_TRACK_ID } from '../lib/curriculum/personal'
 import { countTrack } from '../data/curriculum/define'

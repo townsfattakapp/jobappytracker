@@ -5,6 +5,7 @@ import { db } from '../db'
 import { subscriptions, users } from '../db/schema'
 import { computeEntitlement, extendedUntil, type Entitlement } from '../billing/entitlement'
 import { planById } from '../billing/plan'
+import { resolvePlanForUser } from './subscriptions'
 
 /** Emails that always have access (operators, testers): BILLING_ALLOWLIST="a@x.com,b@y.com". */
 function allowlisted(email: string | null | undefined): boolean {
@@ -33,7 +34,15 @@ export async function getEntitlement(userId: string, email?: string | null): Pro
     userEmail = user?.email
   }
   const { paidUntil, planId } = await paidState(userId)
-  return computeEntitlement(paidUntil, planId, new Date(), allowlisted(userEmail))
+  const legacy = computeEntitlement(paidUntil, planId, new Date(), allowlisted(userEmail))
+  if (legacy.access) return legacy
+  // A verified subscription on a non-default plan grants the same access as a pass.
+  const resolved = await resolvePlanForUser(db, userId, userEmail, new Date())
+  if (resolved.source === 'subscription' && !resolved.plan.isDefault) {
+    const end = resolved.accessEndsAt ? new Date(resolved.accessEndsAt) : null
+    return { status: 'active', access: true, endsAt: end ? end.toISOString() : null, daysLeft: end ? Math.max(1, Math.ceil((end.getTime() - Date.now()) / 86_400_000)) : 30, planId: resolved.plan.id }
+  }
+  return legacy
 }
 
 /**

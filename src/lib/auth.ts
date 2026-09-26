@@ -23,6 +23,23 @@ const googleClientSecret = (process.env.GOOGLE_CLIENT_SECRET || "").trim()
 /** True when Google sign-in is configured for this deployment. */
 export const googleEnabled = Boolean(googleClientId && googleClientSecret)
 
+import { checkAuthRateLimit, checkSignupRateLimit, recordAuthFailure, recordAuthSuccess } from "./server/rateLimit"
+
+function extractClientIp(req?: any): string {
+  if (!req) return 'unknown'
+  if (typeof req.headers?.get === 'function') {
+    const fwd = req.headers.get('x-forwarded-for')
+    if (fwd) return fwd.split(',')[0].trim()
+    return req.headers.get('x-real-ip') || 'unknown'
+  }
+  if (req.headers && typeof req.headers === 'object') {
+    const fwd = req.headers['x-forwarded-for']
+    if (typeof fwd === 'string') return fwd.split(',')[0].trim()
+    return req.headers['x-real-ip'] || 'unknown'
+  }
+  return 'unknown'
+}
+
 const providers: NextAuthConfig["providers"] = [
   Credentials({
     credentials: {
@@ -31,11 +48,20 @@ const providers: NextAuthConfig["providers"] = [
       mode: {},
       name: {},
     },
-    authorize: async (credentials) => {
+    authorize: async (credentials, req) => {
       const email = String(credentials?.email || "").trim().toLowerCase()
       const password = String(credentials?.password || "")
       const mode = credentials?.mode === "signup" ? "signup" : "signin"
       const name = String(credentials?.name || "").trim()
+      const clientIp = extractClientIp(req)
+
+      if (mode === "signup") {
+        const signupLimit = checkSignupRateLimit(clientIp)
+        if (!signupLimit.allowed) throw new AuthError("rate_limited")
+      } else {
+        const signinLimit = checkAuthRateLimit(clientIp, email)
+        if (!signinLimit.allowed) throw new AuthError("rate_limited")
+      }
 
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new AuthError("invalid_email")
       if (password.length < MIN_PASSWORD_LENGTH) throw new AuthError("weak_password")
@@ -78,9 +104,16 @@ const providers: NextAuthConfig["providers"] = [
         return { id: created.id, email: created.email, name: created.name }
       }
 
-      if (!existing) throw new AuthError("no_account")
+      if (!existing) {
+        recordAuthFailure(clientIp, email)
+        throw new AuthError("no_account")
+      }
       if (!existing.passwordHash) throw new AuthError("password_not_set")
-      if (!(await verifyPassword(password, existing.passwordHash))) throw new AuthError("bad_credentials")
+      if (!(await verifyPassword(password, existing.passwordHash))) {
+        recordAuthFailure(clientIp, email)
+        throw new AuthError("bad_credentials")
+      }
+      recordAuthSuccess(clientIp, email)
       if (!existing.emailVerified && mustVerify) throw new AuthError(EMAIL_NOT_VERIFIED)
       return { id: existing.id, email: existing.email, name: existing.name }
     },

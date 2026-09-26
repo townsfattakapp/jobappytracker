@@ -1,4 +1,5 @@
 import type { SystemDesignExercise } from '../types'
+import { additionalSystemDesignExercises } from './systemDesignGuides'
 
 export const systemDesignSeed: SystemDesignExercise[] = [
   {
@@ -56,5 +57,6 @@ export const systemDesignSeed: SystemDesignExercise[] = [
     difficulty: 'Easy',
     tags: ['OOP', 'Database Schema'],
     status: 'Unattempted'
-  }
+  },
+  ...additionalSystemDesignExercises,
 ]

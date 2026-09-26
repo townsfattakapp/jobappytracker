@@ -1,0 +1,66 @@
+import assert from 'node:assert/strict'
+import { chromium } from 'playwright'
+
+const browser = await chromium.launch()
+const page = await browser.newPage()
+const errors = []
+page.on('pageerror', error => errors.push(error.message))
+
+try {
+  await page.goto('http://localhost:3000/app')
+  await page.getByRole('button', { name: 'Continue offline (local only)' }).click()
+  // Existing learners should receive new content without losing their progress.
+  await page.evaluate(() => {
+    const key = 'job-app-tracker-v2'
+    const state = JSON.parse(localStorage.getItem(key) || '{}')
+    state.systemDesignExercises = [{ id: 'sd-design-a-url-shortener', title: 'Design a URL Shortener', type: 'HLD', difficulty: 'Easy', tags: ['Caching'], status: 'Solved' }]
+    localStorage.setItem(key, JSON.stringify(state))
+  })
+  await page.reload()
+  const openWorkspace = () => page.getByRole('button', { name: 'System Design', exact: true }).click()
+  await openWorkspace()
+  await page.getByText('19 of 19 exercises', { exact: true }).waitFor()
+  await page.getByLabel('Exercise status', { exact: true }).selectOption('Solved')
+  await page.getByText('1 of 19 exercises', { exact: true }).waitFor()
+  await page.getByLabel('Exercise status', { exact: true }).selectOption('All')
+  await page.getByLabel('Exercise type', { exact: true }).selectOption('LLD')
+  await page.getByLabel('Exercise difficulty', { exact: true }).selectOption('Easy')
+  await page.getByText('4 of 19 exercises', { exact: true }).waitFor()
+  await page.getByLabel('Search system design exercises').fill('Hash Map')
+  await page.getByText('1 of 19 exercises', { exact: true }).waitFor()
+  await page.getByRole('button', { name: 'List view', exact: true }).click()
+  await page.getByRole('cell', { name: 'Design an LRU Cache', exact: true }).waitFor()
+  await page.getByLabel('Search system design exercises').fill('no-such-exercise')
+  await page.getByRole('button', { name: 'Clear filters' }).click()
+  await page.getByText('19 of 19 exercises', { exact: true }).waitFor()
+  await page.getByRole('cell', { name: 'Design a Vending Machine', exact: true }).getByRole('button').click()
+  await page.getByRole('heading', { name: 'Problem brief', exact: true }).waitFor()
+  await page.getByText('Need a hint?', { exact: true }).click()
+  await page.getByText(/Start with states and permitted transitions/).waitFor()
+  await page.getByLabel('Requirements & Assumptions', { exact: true }).fill('One purchase at a time; cancel returns all credit.')
+  await page.getByLabel('Classes, Responsibilities & Invariants', { exact: true }).fill('Inventory owns stock; credit cannot become negative.')
+  await page.getByLabel('Interface Contracts', { exact: true }).fill('purchase(itemId): DispenseResult')
+  await page.getByLabel('Design Trade-offs & Test Cases', { exact: true }).fill('Test cancellation and unavailable change.')
+  await page.getByLabel('Implementation Code / Interfaces', { exact: true }).fill('class VendingMachine {}')
+  assert.equal(await page.getByLabel('Outcome', { exact: true }).inputValue(), 'Needs Review')
+  await page.getByRole('button', { name: 'Save Attempt', exact: true }).click()
+  await page.getByText('Inventory owns stock; credit cannot become negative.', { exact: false }).last().waitFor()
+  await page.reload()
+  await openWorkspace()
+  await page.getByLabel('Exercise status', { exact: true }).selectOption('Attempted')
+  await page.getByText('1 of 19 exercises', { exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Grid view', exact: true }).click()
+  await page.getByRole('button', { name: /Design a Vending Machine LLD/ }).click()
+  await page.getByText('purchase(itemId): DispenseResult', { exact: false }).last().waitFor()
+  await page.getByText('Test cancellation and unavailable change.', { exact: false }).last().waitFor()
+  await page.getByRole('button', { name: /Back/ }).first().click()
+  await page.getByRole('button', { name: /1\. Design a URL Shortener/ }).click()
+  await page.getByText(/Assume 1 million new links per day/).waitFor()
+  await page.getByLabel('Data Model & DB Schema', { exact: true }).waitFor()
+  await page.setViewportSize({ width: 390, height: 844 })
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true)
+  assert.deepEqual(errors, [])
+  console.log('System Design passed: seed migration, paths, filters, HLD/LLD guides, attempt persistence, and mobile layout.')
+} finally {
+  await browser.close()
+}

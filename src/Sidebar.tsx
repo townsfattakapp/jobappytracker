@@ -2,6 +2,7 @@ import BrandLogo from './components/BrandLogo'
 import type { AppUser } from './lib/cloudSync'
 
 export type ViewMode =
+  | 'home'
   | 'today'
   | 'board'
   | 'list'
@@ -15,11 +16,15 @@ export type ViewMode =
   | 'systemDesign'
   | 'topicWorkspace'
   | 'settings'
+  | 'jobs'
+  | 'jobDetail'
+  | 'resume'
 
 export const NAV_SECTIONS: { category: string; items: { id: ViewMode; label: string; icon: string }[] }[] = [
   {
     category: 'Career Plan',
     items: [
+      { id: 'home', label: 'Command Center', icon: '🏠' },
       { id: 'today', label: 'Today', icon: '☀️' },
       { id: 'roadmap', label: 'Goals & Roadmap', icon: '🗺️' },
       { id: 'tracks', label: 'Explore', icon: '🧭' },
@@ -28,6 +33,8 @@ export const NAV_SECTIONS: { category: string; items: { id: ViewMode; label: str
   {
     category: 'Job Tracker',
     items: [
+      { id: 'jobs', label: 'Job Discovery', icon: '🔎' },
+      { id: 'resume', label: 'Resume', icon: '📄' },
       { id: 'dashboard', label: 'Dashboard', icon: '📊' },
       { id: 'board', label: 'Kanban Board', icon: '🗂️' },
       { id: 'list', label: 'Applications', icon: '📋' },
@@ -50,7 +57,9 @@ export const NAV_SECTIONS: { category: string; items: { id: ViewMode; label: str
 
 /** Views that are reached from another view and should highlight their parent in navigation. */
 export function navParent(view: ViewMode): ViewMode {
-  return view === 'topicWorkspace' ? 'tracks' : view
+  if (view === 'topicWorkspace') return 'tracks'
+  if (view === 'jobDetail') return 'jobs'
+  return view
 }
 
 interface SidebarProps {
@@ -63,9 +72,13 @@ interface SidebarProps {
   syncError: string
   onSignIn: () => void
   onSignOut: () => void
+  /** Views to leave out of navigation (feature flags). */
+  hiddenViews?: ViewMode[]
+  /** Set when the signed-in account may open the admin control center. */
+  adminHref?: string | null
 }
 
-export default function Sidebar({ view, setView, theme, setTheme, user, syncing, syncError, onSignIn, onSignOut }: SidebarProps) {
+export default function Sidebar({ view, setView, theme, setTheme, user, syncing, syncError, onSignIn, onSignOut, hiddenViews = [], adminHref = null }: SidebarProps) {
   const active = navParent(view)
 
   return (
@@ -87,7 +100,7 @@ export default function Sidebar({ view, setView, theme, setTheme, user, syncing,
                 {section.category}
               </h3>
               <div className="flex flex-col gap-1.5">
-                {section.items.map((item) => (
+                {section.items.filter((item) => !hiddenViews.includes(item.id)).map((item) => (
                   <button
                     key={item.id}
                     type="button"
@@ -138,6 +151,17 @@ export default function Sidebar({ view, setView, theme, setTheme, user, syncing,
             </span>
             Settings
           </button>
+          {adminHref && (
+            <a
+              href={adminHref}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-all duration-200"
+            >
+              <span className="w-5 text-center" aria-hidden="true">
+                🛡️
+              </span>
+              Admin panel
+            </a>
+          )}
         </div>
 
         {user ? (
@@ -166,7 +190,7 @@ export default function Sidebar({ view, setView, theme, setTheme, user, syncing,
           <div className="p-3 bg-muted/50 rounded-xl border border-border/50">
             <p className="text-xs font-semibold text-foreground mb-1">Local only</p>
             <p className="text-xs text-muted-foreground mb-2">Data stays in this browser.</p>
-            <button type="button" onClick={onSignIn} className="btn btn-primary btn-sm w-full">
+            <button type="button" onClick={onSignIn} className="btn btn-primary btn-sm w-full" aria-label="Sign in">
               Sign in to sync
             </button>
           </div>

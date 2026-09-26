@@ -9,7 +9,8 @@ import type {
   SystemDesignExercise,
 } from "../types";
 import { activities, activityApplies, findTopicRef } from "../lib/learningPlan";
-import { searchCurriculum, tracksByFamily, useCurriculum, type TopicRef } from "../lib/curriculum/registry";
+import { searchCurriculum, tracksByFamily, type TopicRef } from "../lib/curriculum/registry";
+import { useCurriculum } from "../lib/curriculum/useCurriculum";
 
 export interface PickerContext {
   date: string;

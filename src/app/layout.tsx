@@ -1,4 +1,5 @@
 import '../style.css'
+import '../careerOs.css'
 import type { Metadata, Viewport } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import { Providers } from './providers'

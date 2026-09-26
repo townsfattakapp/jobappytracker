@@ -8,6 +8,7 @@ import InterviewReport, { VerdictBadge } from './components/InterviewReport'
 import { deleteInterviewSessionTranscript } from './db'
 import { ArrowRight, Check, Code2, Search, Mic, Clock3 } from 'lucide-react'
 import type { InterviewRound } from './lib/interview/config'
+import type { HistoryItem } from './lib/server/interviews'
 
 interface MockInterviewWorkspaceProps {
   summaries: MockInterviewSummary[]
@@ -17,6 +18,9 @@ interface MockInterviewWorkspaceProps {
   openReportId?: string | null
   onReportClosed?: () => void
   onDeleteInterview?: (id: string) => void
+  /** Job-specific interview attempts (Phase 6), opened in the job workspace. */
+  jobInterviews?: HistoryItem[]
+  onOpenJob?: (jobId: string) => void
 }
 
 const SETUP_KEY = 'prep-mock-setup'
@@ -76,7 +80,7 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   'Learning tracks': 'Practise a focused interview based on a learning track.',
 }
 
-export default function MockInterviewWorkspace({ summaries, onStartSession, onOpenSettings, openReportId, onReportClosed, onDeleteInterview }: MockInterviewWorkspaceProps) {
+export default function MockInterviewWorkspace({ summaries, onStartSession, onOpenSettings, openReportId, onReportClosed, onDeleteInterview, jobInterviews = [], onOpenJob }: MockInterviewWorkspaceProps) {
   const allRounds = useInterviewRounds()
   const groups = useMemo(() => Array.from(new Set(allRounds.map(categoryFor))), [allRounds])
 
@@ -355,6 +359,27 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
       </section>}
 
       {/* History */}
+      {section === 'history' && jobInterviews.length > 0 && (
+        <section className="surface rounded-2xl border border-border p-4" aria-labelledby="job-iv-title">
+          <h2 id="job-iv-title" className="font-bold">Job-specific interviews</h2>
+          <p className="text-xs text-muted-foreground">Evidence-based attempts run from a job workspace. Reports and re-attempts live with the job.</p>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {jobInterviews.slice(0, 8).map((h) => (
+              <li key={h.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span>
+                  <strong>{h.job.title}</strong>{h.job.companyName ? ` · ${h.job.companyName}` : ''} · {new Date(h.completedAt ?? h.startedAt).toLocaleDateString()} · {h.label}
+                  {h.status === 'completed' ? ` · ${h.metrics.filter((m) => m.total > 0 && m.demonstrated / m.total >= 0.6).length}/${h.metrics.length} areas demonstrated` : ` · ${h.status}`}
+                </span>
+                {h.jobId && onOpenJob && (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => onOpenJob(h.jobId!)}>
+                    Open job
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {section === 'history' && <section className="flex flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 className="text-xl font-semibold text-foreground">Your interviews</h2>

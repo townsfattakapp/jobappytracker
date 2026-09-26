@@ -703,6 +703,11 @@ export default function Landing() {
             <a href="#product">Product</a>
             <a href="#pricing">Pricing</a>
             <a href="#faq">FAQ</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
+            <a href="/refund">Refund Policy</a>
+            <a href="/contact">Contact</a>
+            <a href="/data-deletion">Data Controls</a>
             <a href="/app?mode=signin">Sign in</a>
           </nav>
           <p className="lp-footer-credit">

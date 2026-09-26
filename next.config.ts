@@ -11,7 +11,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  serverExternalPackages: ['pg'],
+  serverExternalPackages: ['pg', 'pdf-parse'],
   output: 'standalone',
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }]

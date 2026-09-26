@@ -1,15 +1,17 @@
-import { useSyncExternalStore } from 'react'
 import type { CurriculumCategory, CurriculumLevel, CurriculumModule, CurriculumSubtopic, CurriculumTopic, CurriculumTrack } from '../../types'
-import { allCurriculums } from '../../data/curriculum'
+import { coreCurriculums } from '../../data/curriculum/core'
+import { libraryManifestTracks } from '../../data/curriculum/manifest'
+import { loadLibraryTrack } from '../../data/curriculum/loaders'
 
 /**
  * The single place the app reads learning tracks from. It composes:
- * - built-in tracks shipped with the app (`src/data/curriculum`),
+ * - 10 core built-in tracks shipped with the app (`src/data/curriculum/core`),
+ * - 147 library tracks indexed via lightweight manifest and lazy-loaded on demand,
  * - shared tracks published by curriculum admins (fetched from the API),
  * - the learner's personal tracks (part of their synced storage).
  *
  * Components subscribe with `useCurriculum()`; plain functions use
- * `getCurriculum()`. Nothing else should import `allCurriculums` directly.
+ * `getCurriculum()`.
  */
 
 export interface TopicRef {
@@ -34,6 +36,7 @@ export interface CurriculumSnapshot {
 
 let shared: CurriculumTrack[] = []
 let personal: CurriculumTrack[] = []
+const dynamicallyLoadedTracks = new Map<string, CurriculumTrack>()
 let version = 0
 let snapshot: CurriculumSnapshot | null = null
 const listeners = new Set<() => void>()
@@ -41,8 +44,14 @@ const listeners = new Set<() => void>()
 function build(): CurriculumSnapshot {
   const ids = new Set<string>()
   const tracks: CurriculumTrack[] = []
-  // Personal overrides shared overrides builtin when ids collide (a personal copy of a shared track).
-  for (const list of [personal, shared, allCurriculums]) {
+  // Personal overrides shared overrides dynamic full tracks overrides core overrides manifest stubs.
+  for (const list of [
+    personal,
+    shared,
+    Array.from(dynamicallyLoadedTracks.values()),
+    coreCurriculums,
+    libraryManifestTracks,
+  ]) {
     for (const track of list) {
       if (!track || ids.has(track.id) || track.status === 'archived') continue
       ids.add(track.id)
@@ -64,6 +73,7 @@ function build(): CurriculumSnapshot {
           }
   return { version, tracks, trackById, topics, byId }
 }
+
 
 function invalidate() {
   version += 1
@@ -90,17 +100,53 @@ export function getPersonalTracks(): CurriculumTrack[] {
   return personal
 }
 
-function subscribe(fn: () => void) {
+export function subscribeCurriculum(fn: () => void) {
   listeners.add(fn)
   return () => {
     listeners.delete(fn)
   }
 }
 
-/** React hook: the current curriculum, re-rendering when tracks change. */
-export function useCurriculum(): CurriculumSnapshot {
-  return useSyncExternalStore(subscribe, getCurriculum, getCurriculum)
+/** Loads the complete authored track (with all tasks, quiz questions, and full content) dynamically. */
+export async function loadTrack(trackId: string): Promise<CurriculumTrack | undefined> {
+  if (dynamicallyLoadedTracks.has(trackId)) return dynamicallyLoadedTracks.get(trackId)
+  const core = coreCurriculums.find((t) => t.id === trackId)
+  if (core) {
+    dynamicallyLoadedTracks.set(trackId, core)
+    return core
+  }
+  const loaded = await loadLibraryTrack(trackId)
+  if (loaded) {
+    dynamicallyLoadedTracks.set(trackId, loaded)
+    invalidate()
+    return loaded
+  }
+  return undefined
 }
+
+export async function ensureTracks(trackIds: string[]): Promise<void> {
+  const missing = trackIds.filter((id) => !dynamicallyLoadedTracks.has(id) && !coreCurriculums.some((c) => c.id === id))
+  if (!missing.length) return
+  await Promise.all(missing.map((id) => loadTrack(id)))
+}
+
+export async function ensureTrackForTopic(topicId: string): Promise<CurriculumTrack | undefined> {
+  const ref = findTopic(topicId)
+  if (!ref) return undefined
+  if (isTrackLoaded(ref.track.id)) return ref.track
+  return loadTrack(ref.track.id)
+}
+
+export function isTrackLoaded(trackId: string): boolean {
+  if (coreCurriculums.some((t) => t.id === trackId)) return true
+  return dynamicallyLoadedTracks.has(trackId)
+}
+
+export async function loadAllTracks(): Promise<void> {
+  const allIds = libraryManifestTracks.map((t) => t.id)
+  await ensureTracks(allIds)
+}
+
 
 export function findTopic(id: string | undefined | null): TopicRef | undefined {
   if (!id) return undefined

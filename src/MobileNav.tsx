@@ -10,12 +10,13 @@ interface MobileNavProps {
   user: AppUser | null
   onSignIn: () => void
   onSignOut: () => void
+  hiddenViews?: ViewMode[]
 }
 
 const GROUPS: { label: string; icon: string; matches: ViewMode[]; defaultView: ViewMode }[] = [
-  { label: 'Today', icon: '☀️', matches: ['today'], defaultView: 'today' },
+  { label: 'Home', icon: '🏠', matches: ['home', 'today'], defaultView: 'home' },
   { label: 'Career', icon: '🗺️', matches: ['roadmap', 'tracks', 'topicWorkspace'], defaultView: 'roadmap' },
-  { label: 'Jobs', icon: '🚀', matches: ['dashboard', 'board', 'list'], defaultView: 'dashboard' },
+  { label: 'Jobs', icon: '🚀', matches: ['jobs', 'jobDetail', 'resume', 'dashboard', 'board', 'list'], defaultView: 'jobs' },
   { label: 'Engineer', icon: '💻', matches: ['dsa', 'systemDesign', 'labs', 'mock'], defaultView: 'dsa' },
   { label: 'More', icon: '☰', matches: ['prepKit', 'settings'], defaultView: 'prepKit' },
 ]
@@ -23,7 +24,7 @@ const GROUPS: { label: string; icon: string; matches: ViewMode[]; defaultView: V
 const LABELS = new Map<ViewMode, string>(NAV_SECTIONS.flatMap((s) => s.items.map((i) => [i.id, i.label] as [ViewMode, string])))
 LABELS.set('settings', 'Settings')
 
-export default function MobileNav({ view, setView, theme, setTheme, user, onSignIn, onSignOut }: MobileNavProps) {
+export default function MobileNav({ view, setView, theme, setTheme, user, onSignIn, onSignOut, hiddenViews = [] }: MobileNavProps) {
   const [sheet, setSheet] = useState<string | null>(null)
   const active = navParent(view)
 
@@ -40,7 +41,7 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
   const sheetItems: ViewMode[] = openGroup
     ? openGroup.label === 'More'
       ? ['prepKit', 'settings']
-      : openGroup.matches.filter((m) => m !== 'topicWorkspace')
+      : openGroup.matches.filter((m) => m !== 'topicWorkspace' && m !== 'jobDetail' && !hiddenViews.includes(m))
     : []
 
   return (
@@ -60,12 +61,12 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
                 aria-current={isActive ? 'page' : undefined}
                 onClick={() => {
                   if (single) {
-                    setView(group.defaultView)
+                    setView(hiddenViews.includes(group.defaultView) ? group.matches.find((m) => !hiddenViews.includes(m) && m !== 'jobDetail' && m !== 'topicWorkspace') || group.defaultView : group.defaultView)
                     setSheet(null)
                   } else if (isActive || group.label === 'More') {
                     setSheet(sheet === group.label ? null : group.label)
                   } else {
-                    setView(group.defaultView)
+                    setView(hiddenViews.includes(group.defaultView) ? group.matches.find((m) => !hiddenViews.includes(m) && m !== 'jobDetail' && m !== 'topicWorkspace') || group.defaultView : group.defaultView)
                     setSheet(null)
                   }
                 }}

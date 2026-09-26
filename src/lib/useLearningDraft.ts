@@ -3,7 +3,7 @@ import { useState } from "react";
 export function useLearningDraft<T>(
   key: string,
   initial: T,
-): [T, (value: T) => void] {
+): [T, (value: T | ((prev: T) => T)) => void] {
   const [value, setValue] = useState<T>(() => {
     try {
       const saved = localStorage.getItem(`jobappy-draft:${key}`);
@@ -15,8 +15,15 @@ export function useLearningDraft<T>(
   return [
     value,
     (next) => {
-      localStorage.setItem(`jobappy-draft:${key}`, JSON.stringify(next));
-      setValue(next);
+      setValue((current) => {
+        const resolved = typeof next === 'function' ? (next as (prev: T) => T)(current) : next;
+        try {
+          localStorage.setItem(`jobappy-draft:${key}`, JSON.stringify(resolved));
+        } catch {
+          // ignore quota
+        }
+        return resolved;
+      });
     },
   ];
 }

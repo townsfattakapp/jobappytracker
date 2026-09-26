@@ -7,10 +7,13 @@ interface AiKeyPanelProps {
   onToast: (message: string) => void
 }
 
-type Provider = 'groq' | 'openai'
+type Provider = 'groq' | 'openai' | 'gemini' | 'mistral' | 'openrouter'
 
 const PROVIDER_META: Record<Provider, { label: string; placeholder: string; consoleUrl: string; blurb: string }> = {
   groq: { label: 'Groq', placeholder: 'gsk_…', consoleUrl: 'https://console.groq.com/keys', blurb: 'Free tier, very fast. Recommended to start.' },
+  gemini: { label: 'Google Gemini', placeholder: 'AIza…', consoleUrl: 'https://aistudio.google.com/app/apikey', blurb: 'Free tier available; Gemini Flash models.' },
+  mistral: { label: 'Mistral', placeholder: 'API key', consoleUrl: 'https://console.mistral.ai/api-keys', blurb: 'European provider; Mistral Small.' },
+  openrouter: { label: 'OpenRouter', placeholder: 'sk-or-…', consoleUrl: 'https://openrouter.ai/keys', blurb: 'One key for many models.' },
   openai: { label: 'OpenAI', placeholder: 'sk-…', consoleUrl: 'https://platform.openai.com/api-keys', blurb: 'Pay as you go; GPT-4o mini is inexpensive.' },
 }
 

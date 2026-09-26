@@ -13,6 +13,7 @@ export const AUTH_ERROR_MESSAGES: Record<string, string> = {
   no_account: 'No account found for this email. Create one first.',
   password_not_set: 'This account signed up with Google. Continue with Google, or create a password by choosing “Create account” with this email.',
   bad_credentials: 'Incorrect email or password.',
+  rate_limited: 'Too many sign-in attempts. Please wait a few minutes before trying again.',
   [EMAIL_NOT_VERIFIED]: 'Confirm your email first. Check your inbox for the link, or resend it below.',
   [VERIFY_EMAIL_SENT]: 'Check your inbox to confirm your email.',
 }

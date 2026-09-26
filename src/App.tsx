@@ -30,6 +30,14 @@ const SystemDesignExerciseDetail = dynamic(() => import('./SystemDesignExerciseD
 const KnowledgeWorkspaceDetail = dynamic(() => import('./KnowledgeWorkspaceDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Knowledge Workspace Detail...</div> })
 const InterviewQuestionWorkspace = dynamic(() => import('./InterviewQuestionWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Interview Question Workspace...</div> })
 const SettingsWorkspace = dynamic(() => import('./SettingsWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Settings Workspace...</div> })
+const JobsWorkspace = dynamic(() => import('./JobsWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Jobs...</div> })
+const JobDetail = dynamic(() => import('./JobDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading job...</div> })
+const CommandCenter = dynamic(() => import('./CommandCenter'), { ssr: false, loading: () => <div className="cc-grid" aria-busy="true">{Array.from({ length: 6 }, (_, i) => <div key={i} className="cc-card cc-skeleton" />)}</div> })
+const OnboardingFlow = dynamic(() => import('./components/onboarding/OnboardingFlow'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading setup...</div> })
+const ResumeWorkspace = dynamic(() => import('./ResumeWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading resume...</div> })
+import { fetchAllInterviews } from './lib/jobs/interviewClient'
+import type { HistoryItem } from './lib/server/interviews'
+import { fetchPlatformConfig, type LearnerJob, type PlatformConfigResponse } from './lib/jobs/client'
 import Sidebar, { type ViewMode } from './Sidebar.tsx'
 import MobileNav from './MobileNav.tsx'
 import {
@@ -74,6 +82,8 @@ import { BILLING_REQUIRED_EVENT } from './lib/aiGatewayClient'
 import { CODE_LANGUAGES, CODE_LANGUAGE_EVENT, getCodeLanguage, setCodeLanguage } from './lib/preferences'
 import { setPersonalTracks } from './lib/curriculum/registry'
 import { fillRoadmap, scheduleTrackIntoRoadmap } from './lib/roadmapGenerator'
+import { initGlobalHorizontalScroll } from './lib/useHorizontalScroll'
+import { GlobalAmbientArt } from './components/AmbientBackgroundArt'
 
 const GUEST_MODE_KEY = 'jobappy-guest-mode'
 const STORAGE_OWNER_KEY = 'jobappy-storage-owner'
@@ -126,13 +136,19 @@ function sortApplications(
   return sorted
 }
 
+/** Views a signed-in account without a pass may use (job discovery and the application tracker). */
+const FREE_VIEWS: ViewMode[] = ['home', 'jobs', 'jobDetail', 'resume', 'dashboard', 'board', 'list', 'settings']
+
 const HEADER_COPY: Partial<Record<ViewMode, { title: string; subtitle: string }>> = {
   dashboard: { title: 'Your job search, organized.', subtitle: 'Track applications, follow-ups, and recruiting emails in one workspace.' },
   board: { title: 'Kanban board', subtitle: 'Drag your search forward one stage at a time.' },
   list: { title: 'Applications', subtitle: 'Search, filter, and bulk-update everything you have applied to.' },
+  home: { title: 'Career Command Center', subtitle: 'Your goal, learning, jobs, applications, interviews and preparation in one place.' },
   today: { title: 'Your action plan', subtitle: 'Stay focused on today’s priorities.' },
   roadmap: { title: 'Career plan', subtitle: 'Execute your daily tasks and hit your professional goals.' },
   prepKit: { title: 'Preparation notes', subtitle: 'Company briefs, STAR stories, and cheat sheets with AI help.' },
+  jobs: { title: 'Job discovery', subtitle: 'Openings that fit JobAppy career paths, ranked by your preferences, with the original application link.' },
+  resume: { title: 'Your resume', subtitle: 'Keep resume versions privately in JobAppy and compare the current one with any opening.' },
 }
 
 export default function App() {
@@ -182,6 +198,9 @@ export default function App() {
   const [cloudHydrated, setCloudHydrated] = useState(false)
   const skipNextCloudSave = useRef(false)
   const [view, setViewState] = useState<ViewMode>('today')
+  const homeLanded = useRef(false)
+  const [onboardingOpen, setOnboardingOpen] = useState(false)
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false)
   const [sortBy, setSortBy] = useState<'date' | 'company' | 'status'>('date')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [searchQuery, setSearchQuery] = useState('')
@@ -198,6 +217,22 @@ export default function App() {
   const [activeInterview, setActiveInterview] = useState<InterviewSetup | null>(null)
   const [openReportId, setOpenReportId] = useState<string | null>(null)
   const [selectedSystemDesignId, setSelectedSystemDesignId] = useState<string | null>(null)
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
+  const [jobInterviews, setJobInterviews] = useState<HistoryItem[]>([])
+  useEffect(() => {
+    if (view !== 'mock' || !user) return
+    let cancelled = false
+    fetchAllInterviews()
+      .then((r) => {
+        if (!cancelled) setJobInterviews(r.history)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [view, user])
+  const [paywallForced, setPaywallForced] = useState(false)
+  const [platformConfig, setPlatformConfig] = useState<PlatformConfigResponse | null>(null)
   const toastTimer = useRef<number | null>(null)
   const storageWarned = useRef(false)
 
@@ -236,6 +271,11 @@ export default function App() {
     const retry = () => setSyncEpoch((n) => n + 1)
     window.addEventListener('online', retry)
     return () => window.removeEventListener('online', retry)
+  }, [])
+
+  useEffect(() => {
+    const cleanup = initGlobalHorizontalScroll()
+    return cleanup
   }, [])
 
   useEffect(() => {
@@ -399,6 +439,26 @@ export default function App() {
     }
   }, [authReady, user?.$id, user])
 
+  // Feature flags, tier features and whether this account may open the admin panel.
+  useEffect(() => {
+    if (!authReady) return
+    let cancelled = false
+    const load = () =>
+      fetchPlatformConfig()
+        .then((config) => {
+          if (!cancelled) setPlatformConfig(config)
+        })
+        .catch(() => {
+          // Defaults apply when the config endpoint is unreachable.
+        })
+    load()
+    window.addEventListener(BILLING_CHANGED_EVENT, load)
+    return () => {
+      cancelled = true
+      window.removeEventListener(BILLING_CHANGED_EVENT, load)
+    }
+  }, [authReady, user?.$id])
+
   // A save that collided with another device was merged automatically: show the merged result.
   useEffect(() => {
     const onMerged = (e: Event) => {
@@ -519,6 +579,12 @@ export default function App() {
     setAuthModalOpen(false)
   }
 
+  useEffect(() => {
+    if (!user || homeLanded.current) return
+    homeLanded.current = true
+    setViewState('home')
+  }, [user])
+
   const handleSignOut = async () => {
     await signOut()
     setUser(null)
@@ -632,6 +698,65 @@ export default function App() {
 
   const createFromEmail = (data: NewJobApplication) => {
     persistSave(data)
+  }
+
+  /** Reuses the existing tracker: one application per canonical apply URL, starting in Wishlist. */
+  const addJobToTracker = (job: LearnerJob, resumeAnalysisId?: string | null) => {
+    const existing = applications.find((a) => a.jobUrl === job.applyUrl || a.jobRef?.jobId === job.id)
+    if (existing) {
+      showToast(`${job.company.name} is already in your tracker (${existing.status})`)
+      return
+    }
+    const location = [job.locationCity, job.locationCountry].filter(Boolean).join(', ') || (job.workMode === 'remote' ? 'Remote' : '')
+    const salary = job.salaryMin != null || job.salaryMax != null ? [job.salaryCurrency, [job.salaryMin, job.salaryMax].filter((n) => n != null).join('–'), job.salaryPeriod ? `/ ${job.salaryPeriod}` : ''].filter(Boolean).join(' ') : ''
+    const newApp: JobApplication = {
+      id: uuidv4(),
+      company: job.company.name,
+      role: job.title,
+      jobUrl: job.applyUrl,
+      location,
+      salary: salary || null,
+      appliedDate: null,
+      source: job.source ? job.source.name : 'JobAppy job discovery',
+      notes: `Added from JobAppy job discovery.\nOriginal listing: ${job.sourceUrl || job.applyUrl}`,
+      status: 'Wishlist',
+      followUpDate: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      pinned: false,
+      interviewRounds: [],
+      contacts: [],
+      jobRef: { jobId: job.id, companyId: job.companyId, resumeAnalysisId: resumeAnalysisId ?? null },
+    }
+    setApplications((prev) => [newApp, ...prev])
+    showToast(`Added ${job.company.name} to your tracker`)
+  }
+
+  /**
+   * Adds curriculum tracks a job needs to the active goal and schedules them
+   * into free time from today. Reuses the goal/roadmap systems: existing
+   * tracks, tasks and topic selections are never touched.
+   */
+  const addGapsToPlan = async (trackIds: string[]): Promise<{ ok: boolean; message: string }> => {
+    const goal = goals.find((g) => g.status === 'Active') || goals[0]
+    if (!goal) return { ok: false, message: 'Create a learning goal first, then add gaps from a job.' }
+    const missing = trackIds.filter((id) => !goal.tracks.some((t) => t.trackId === id))
+    if (!missing.length) return { ok: true, message: 'Every track is already in your goal.' }
+    const nextGoal: Goal = { ...goal, tracks: [...goal.tracks, ...missing.map((trackId) => ({ trackId, priority: 'Medium' as const }))], updatedAt: new Date().toISOString() }
+    let nextRoadmap = roadmap
+    let added = 0
+    for (const trackId of missing) {
+      const result = scheduleTrackIntoRoadmap(nextGoal, nextRoadmap, trackId, dateKey())
+      nextRoadmap = result.roadmap
+      added += result.added
+    }
+    const nextGoals = goals.map((g) => (g.id === goal.id ? nextGoal : g))
+    persistCareer({ ...snapshotRef.current, goals: nextGoals, roadmap: nextRoadmap })
+    setGoals(nextGoals)
+    setRoadmap(nextRoadmap)
+    const message = `Added ${missing.length} track${missing.length === 1 ? '' : 's'} to your goal${added ? ` and scheduled ${added} tasks into free days` : ''}.`
+    showToast(message)
+    return { ok: true, message }
   }
 
   const updateFromEmail = (id: string, data: Partial<NewJobApplication>) => {
@@ -780,14 +905,21 @@ export default function App() {
   }
 
   const isTrackerView = view === 'dashboard' || view === 'board' || view === 'list'
-  const header = HEADER_COPY[view]
+  const isSettingUpGoal = (view === 'today' || view === 'roadmap') && (creatingGoal || (view === 'roadmap' && !goals.length))
+  const header = isSettingUpGoal
+    ? { title: 'Build your learning plan', subtitle: 'Choose what to learn and set a pace that works for you.' }
+    : HEADER_COPY[view]
   const selectedProblem = selectedProblemId ? dsaProblems.find((p) => p.id === selectedProblemId) : undefined
   const selectedLab = selectedLabId ? engineeringLabs.find((l) => l.id === selectedLabId) : undefined
   const selectedExercise = selectedSystemDesignId ? systemDesignExercises.find((e) => e.id === selectedSystemDesignId) : undefined
   const showAuthGate = !user && !guestMode
+  const hiddenViews: ViewMode[] = platformConfig && !platformConfig.flags.jobsModule ? ['jobs', 'jobDetail'] : []
+  /** Paid access follows the resolved plan (subscription, pass or allowlist); the legacy entitlement is the fallback while config loads. */
+  const onFreePlan = platformConfig ? platformConfig.plan.isDefault : Boolean(billing?.entitlement && !billing.entitlement.access)
 
   return (
-    <div className="app-page text-foreground bg-background min-h-screen flex selection:bg-primary/20">
+    <div className="app-page text-foreground bg-background min-h-screen flex selection:bg-primary/20 relative">
+      <GlobalAmbientArt />
       <Sidebar
         view={view}
         setView={setView}
@@ -798,6 +930,8 @@ export default function App() {
         syncError={syncError}
         onSignIn={() => setAuthModalOpen(true)}
         onSignOut={handleSignOut}
+        hiddenViews={hiddenViews}
+        adminHref={platformConfig?.canOpenAdmin ? '/admin' : null}
       />
 
       <MobileNav
@@ -808,6 +942,7 @@ export default function App() {
         user={user}
         onSignIn={() => setAuthModalOpen(true)}
         onSignOut={handleSignOut}
+        hiddenViews={hiddenViews}
       />
 
       <main className="flex-1 min-w-0 md:ml-[280px] pb-24 md:pb-0 relative">
@@ -820,6 +955,16 @@ export default function App() {
               </span>
               <button type="button" className="btn btn-primary btn-sm" onClick={() => setView('settings')}>
                 Extend pass
+              </button>
+            </div>
+          )}
+          {user && billing?.entitlement && onFreePlan && FREE_VIEWS.includes(view) && (
+            <div className="trial-banner" role="status">
+              <span>
+                <strong>Free plan.</strong> Job discovery and the application tracker are included. Learning tracks, AI and personalised job matching are part of Prep Pro.
+              </span>
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => setPaywallForced(true)}>
+                See plans
               </button>
             </div>
           )}
@@ -1174,6 +1319,101 @@ export default function App() {
                   }}
                 />
               )
+            ) : view === 'home' ? (
+              user && !guestMode && (onboardingOpen || (!preferences.onboarding?.completedAt && !onboardingDismissed)) ? (
+                <OnboardingFlow
+                  userName={user.name || null}
+                  hasGoal={goals.length > 0}
+                  canUploadResume={(platformConfig?.features ?? []).includes('resume.profile')}
+                  onCreateGoal={(goal, nextRoadmap) => {
+                    setGoals((prev) => [...prev, goal])
+                    setRoadmap((prev) => [...prev, ...nextRoadmap])
+                  }}
+                  onComplete={(state) => {
+                    setPreferences((p) => ({ ...p, onboarding: state }))
+                    setOnboardingOpen(false)
+                    setOnboardingDismissed(true)
+                  }}
+                  onToast={showToast}
+                />
+              ) : (
+                <CommandCenter
+                  user={user}
+                  goals={goals}
+                  roadmap={roadmap}
+                  knowledgeWorkspaces={knowledgeWorkspaces}
+                  applications={applications}
+                  revisionItems={revisionItems}
+                  mockInterviewSummaries={mockInterviewSummaries}
+                  onboarding={preferences.onboarding ?? null}
+                  plan={platformConfig ? platformConfig.plan : null}
+                  features={platformConfig?.features ?? []}
+                  onNavigate={setView}
+                  onOpenJob={(id) => {
+                    setSelectedJobId(id)
+                    setView('jobDetail')
+                  }}
+                  onStartOnboarding={() => setOnboardingOpen(true)}
+                  onSignIn={() => setAuthModalOpen(true)}
+                />
+              )
+            ) : view === 'jobs' ? (
+              <JobsWorkspace
+                user={user}
+                features={platformConfig?.features ?? []}
+                disabledRoleFamilies={platformConfig?.disabledRoleFamilies ?? []}
+                goals={goals}
+                roadmap={roadmap}
+                knowledgeWorkspaces={knowledgeWorkspaces}
+                onOpenJob={(id) => {
+                  setSelectedJobId(id)
+                  setView('jobDetail')
+                }}
+                onSignIn={() => setAuthModalOpen(true)}
+                onUpgrade={() => setPaywallForced(true)}
+                onToast={showToast}
+              />
+            ) : view === 'jobDetail' && selectedJobId ? (
+              <JobDetail
+                key={selectedJobId}
+                jobId={selectedJobId}
+                user={user}
+                features={platformConfig?.features ?? []}
+                goals={goals}
+                roadmap={roadmap}
+                knowledgeWorkspaces={knowledgeWorkspaces}
+                applications={applications}
+                onBack={() => setView('jobs')}
+                onOpenTrack={() => setView('tracks')}
+                onOpenTopic={(topicId) => {
+                  setLearningReturn('jobDetail')
+                  setSelectedTopicId(topicId)
+                  setActivityTab('Concepts')
+                  setLearningActivity('')
+                  setView('topicWorkspace')
+                }}
+                onAddPlan={async (nextRoadmap) => {
+                  persistCareer({ ...snapshotRef.current, roadmap: nextRoadmap })
+                  setRoadmap(nextRoadmap)
+                  const added = nextRoadmap.flatMap((d) => d.tasks).length - roadmap.flatMap((d) => d.tasks).length
+                  showToast(`Added ${added} preparation task${added === 1 ? '' : 's'} to your calendar`)
+                }}
+                onOpenResumes={() => setView('resume')}
+                onOpenTracker={() => setView('list')}
+                onAddToTracker={addJobToTracker}
+                onAddGaps={addGapsToPlan}
+                onSignIn={() => setAuthModalOpen(true)}
+                onUpgrade={() => setPaywallForced(true)}
+              />
+            ) : view === 'resume' ? (
+              <ResumeWorkspace
+                user={user}
+                features={platformConfig?.features ?? []}
+                onSignIn={() => setAuthModalOpen(true)}
+                onUpgrade={() => setPaywallForced(true)}
+                onToast={showToast}
+                onOpenJobs={() => setView('jobs')}
+              />
             ) : view === 'prepKit' ? (
               <PrepKit
                 prepNotes={prepNotes}
@@ -1200,6 +1440,10 @@ export default function App() {
                     if (learningReturn === 'today' || learningReturn === 'roadmap') setView(learningReturn)
                   }}
                   onToast={showToast}
+                  leetCodeConfig={leetCodeConfig}
+                  onUpdateProblem={(updated) => {
+                    setDsaProblems((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+                  }}
                   onSaveAttempt={(summary, newStatus) => {
                     setDsaAttemptSummaries((prev) => [summary, ...prev])
                     setDsaProblems((prev) => prev.map((p) => (p.id === selectedProblem.id ? { ...p, status: newStatus } : p)))
@@ -1274,6 +1518,11 @@ export default function App() {
               ) : (
                 <MockInterviewWorkspace
                   summaries={mockInterviewSummaries}
+                  jobInterviews={jobInterviews}
+                  onOpenJob={(id) => {
+                    setSelectedJobId(id)
+                    setView('jobDetail')
+                  }}
                   onStartSession={(setup) => setActiveInterview({ ...setup, candidateName: user?.name || undefined })}
                   onOpenSettings={() => setView('settings')}
                   openReportId={openReportId}
@@ -1472,15 +1721,20 @@ export default function App() {
         />
       )}
 
-      {user && billing?.entitlement && !billing.entitlement.access && (
+      {user && billing?.entitlement && onFreePlan && (paywallForced || !FREE_VIEWS.includes(view)) && (
         <Paywall
           billing={billing}
           email={user.email}
           onPurchased={(entitlement) => {
             setBilling((b) => (b ? { ...b, entitlement } : b))
+            setPaywallForced(false)
             showToast('Welcome to Prep Pro')
           }}
           onSignOut={handleSignOut}
+          onContinueFree={() => {
+            setPaywallForced(false)
+            if (!FREE_VIEWS.includes(view)) setView('jobs')
+          }}
         />
       )}
       {!authReady && showAuthGate && (

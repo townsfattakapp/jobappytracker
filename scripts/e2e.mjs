@@ -69,9 +69,13 @@ async function main() {
   console.log('✓ Bulk status update works')
 
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  // Settings is tabbed: backup controls live under "Your Data & Vault".
+  const vaultTab = page.getByRole('button', { name: /Your Data & Vault/ })
+  await vaultTab.waitFor({ timeout: 20000 })
+  await vaultTab.click()
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Export backup' }).click(),
+    page.getByRole('button', { name: /Export (Full )?Backup/i }).click(),
   ])
   const exportPath = join(process.cwd(), 'e2e-backup.json')
   await download.saveAs(exportPath)
@@ -80,9 +84,11 @@ async function main() {
   console.log('✓ Export produced', exported.applications.length, 'apps')
 
   page.once('dialog', (d) => d.accept())
-  await page.getByRole('button', { name: 'Clear local data' }).click()
+  await page.getByRole('button', { name: /Clear (all )?local (data|cache)/i }).click()
   await page.getByText(/Local data cleared/i).waitFor()
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await vaultTab.waitFor({ timeout: 20000 })
+  await vaultTab.click()
 
   page.once('dialog', (d) => d.accept())
   await page.locator('input[type="file"]').first().setInputFiles(exportPath)

@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom'
 import type { CurriculumTrack, ExperienceLevel, GoalOutcome, GoalTrack } from '../types'
 import { selectionFromSuggestion, suggestCurriculum, type GoalSuggestion } from '../lib/aiGoalBuilder'
 import { AI_SETUP_HINT, aiUnavailableReason } from '../lib/aiGatewayClient'
-import { useCurriculum, trackCategories } from '../lib/curriculum/registry'
+import { trackCategories } from '../lib/curriculum/registry'
+import { useCurriculum } from '../lib/curriculum/useCurriculum'
 import { addCustomTopic } from '../lib/curriculum/personal'
 
 export interface AiGoalResult {

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import type { SystemDesignExercise, SystemDesignAttemptSummary } from './types'
+import { systemDesignGuides, systemDesignPaths } from './data/systemDesignGuides'
 
 interface SystemDesignWorkspaceProps {
   exercises: SystemDesignExercise[]
@@ -10,15 +11,20 @@ interface SystemDesignWorkspaceProps {
 export default function SystemDesignWorkspace({ exercises, attemptSummaries, onSelectExercise }: SystemDesignWorkspaceProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState<string>('All')
+  const [filterDifficulty, setFilterDifficulty] = useState('All')
+  const [filterStatus, setFilterStatus] = useState('All')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   
   const filtered = useMemo(() => {
     return exercises.filter(e => {
-      if (searchQuery && !e.title.toLowerCase().includes(searchQuery.toLowerCase())) return false
+      const searchable = [e.title, ...e.tags, systemDesignGuides[e.id]?.brief ?? ''].join(' ').toLowerCase()
+      if (searchQuery.trim() && !searchable.includes(searchQuery.trim().toLowerCase())) return false
       if (filterType !== 'All' && e.type !== filterType) return false
+      if (filterDifficulty !== 'All' && e.difficulty !== filterDifficulty) return false
+      if (filterStatus !== 'All' && e.status !== filterStatus) return false
       return true
     })
-  }, [exercises, filterType, searchQuery])
+  }, [exercises, filterType, filterDifficulty, filterStatus, searchQuery])
 
   const stats = useMemo(() => {
     const total = exercises.length
@@ -47,7 +53,7 @@ export default function SystemDesignWorkspace({ exercises, attemptSummaries, onS
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-display font-bold text-foreground">System Design</h1>
-          <p className="text-muted-foreground">Practice High-Level (HLD) and Low-Level (LLD) architectural design.</p>
+          <p className="text-muted-foreground">Practice High-Level (HLD) and Low-Level (LLD) architectural design with guided briefs, hints, and self-review.</p>
         </div>
         
         <div className="flex gap-4 p-4 rounded-2xl bg-muted/30 border border-border">
@@ -63,14 +69,43 @@ export default function SystemDesignWorkspace({ exercises, attemptSummaries, onS
         </div>
       </div>
 
-      <div className="surface rounded-2xl p-4 sm:p-5 border border-border flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between">
+      <section aria-label="Suggested learning paths" className="grid md:grid-cols-2 gap-4">
+        {systemDesignPaths.map(path => {
+          const steps = path.ids.flatMap(id => {
+            const exercise = exercises.find(item => item.id === id)
+            return exercise ? [exercise] : []
+          })
+          const completed = steps.filter(exercise => exercise.status === 'Solved').length
+          return (
+            <div key={path.type} className="surface border border-border rounded-2xl p-5 flex flex-col gap-3">
+              <h2 className="font-semibold text-foreground">{path.title}</h2>
+              <p className="text-sm text-muted-foreground">{path.description}</p>
+              <p className="text-xs text-muted-foreground">Suggested order · {completed}/{steps.length} solved · Open any step to begin</p>
+              <ol className="flex flex-col gap-2">
+                {steps.map((exercise, index) => (
+                  <li key={exercise.id}>
+                    <button type="button" onClick={() => onSelectExercise(exercise.id)} className="text-sm text-left hover:text-primary focus-visible:outline-primary w-full flex gap-2 items-start">
+                      <span className="text-muted-foreground">{index + 1}.</span>
+                      <span className="flex-1">{exercise.title}</span>
+                      <span className="text-xs text-muted-foreground">{exercise.status === 'Solved' ? 'Solved' : exercise.difficulty}</span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )
+        })}
+      </section>
+
+      <div className="surface rounded-2xl p-4 sm:p-5 border border-border flex flex-col gap-4">
         <div className="w-full xl:w-96 relative group flex items-center">
           <svg className="w-5 h-5 absolute left-3 text-muted-foreground group-focus-within:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input 
             type="text" 
-            placeholder="Search exercises..." 
+            aria-label="Search system design exercises"
+            placeholder="Search exercises or topics..."
             className="input-field !pl-10 w-full"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
@@ -78,20 +113,33 @@ export default function SystemDesignWorkspace({ exercises, attemptSummaries, onS
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-          <select className="input-field max-w-[200px]" value={filterType} onChange={e => setFilterType(e.target.value)}>
+          <select aria-label="Exercise type" className="input-field max-w-[200px]" value={filterType} onChange={e => setFilterType(e.target.value)}>
             <option value="All">All Types</option>
             <option value="HLD">HLD (Architecture & Scale)</option>
             <option value="LLD">LLD (OOP & Patterns)</option>
           </select>
+          <select aria-label="Exercise difficulty" className="input-field max-w-[160px]" value={filterDifficulty} onChange={e => setFilterDifficulty(e.target.value)}>
+            <option value="All">All difficulties</option>
+            {['Easy', 'Medium', 'Hard'].map(value => <option key={value}>{value}</option>)}
+          </select>
+          <select aria-label="Exercise status" className="input-field max-w-[160px]" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+            <option value="All">All statuses</option>
+            {['Unattempted', 'Attempted', 'Solved'].map(value => <option key={value}>{value}</option>)}
+          </select>
+          <span role="status" className="text-xs text-muted-foreground">{filtered.length} of {exercises.length} exercises</span>
 
           <div className="flex items-center gap-1 bg-muted p-1 rounded-lg ml-auto xl:ml-2">
             <button 
+              aria-label="Grid view"
+              aria-pressed={viewMode === 'grid'}
               className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
               onClick={() => setViewMode('grid')}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
             </button>
             <button 
+              aria-label="List view"
+              aria-pressed={viewMode === 'list'}
               className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
               onClick={() => setViewMode('list')}
             >
@@ -105,26 +153,29 @@ export default function SystemDesignWorkspace({ exercises, attemptSummaries, onS
         <div className="py-20 text-center text-muted-foreground border border-dashed border-border rounded-2xl">
           <span className="text-3xl mb-4 block">🏗️</span>
           No exercises found matching your filters.
+          <button type="button" className="btn btn-ghost mx-auto mt-4" onClick={() => { setSearchQuery(''); setFilterType('All'); setFilterDifficulty('All'); setFilterStatus('All') }}>Clear filters</button>
         </div>
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map(ex => {
             const attempts = attemptSummaries.filter(a => a.exerciseId === ex.id)
             return (
-              <div 
+              <button
+                type="button"
                 key={ex.id} 
-                className="group surface p-5 rounded-2xl border border-border hover:border-primary/50 hover:shadow-md hover:shadow-primary/5 transition-all cursor-pointer flex flex-col gap-4"
+                className="group surface text-left p-5 rounded-2xl border border-border hover:border-primary/50 hover:shadow-md hover:shadow-primary/5 transition-all cursor-pointer flex flex-col gap-4"
                 onClick={() => onSelectExercise(ex.id)}
               >
                 <div className="flex justify-between items-start gap-2">
-                  <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors leading-tight">
+                  <span className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors leading-tight">
                     {ex.title}
-                  </h3>
+                  </span>
                   <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded border tracking-wider ${ex.type === 'HLD' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' : 'bg-teal-500/10 text-teal-500 border-teal-500/20'}`}>
                     {ex.type}
                   </span>
                 </div>
                 
+                {systemDesignGuides[ex.id] && <p className="text-sm text-muted-foreground">{systemDesignGuides[ex.id].brief}</p>}
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {ex.tags.map(tag => (
                     <span key={tag} className="px-2 py-1 rounded-md bg-muted text-[10px] text-muted-foreground font-medium">
@@ -146,12 +197,12 @@ export default function SystemDesignWorkspace({ exercises, attemptSummaries, onS
                     {attempts.length > 0 ? `${attempts.length} attempt${attempts.length > 1 ? 's' : ''}` : 'No attempts'}
                   </div>
                 </div>
-              </div>
+              </button>
             )
           })}
         </div>
       ) : (
-        <div className="surface rounded-2xl overflow-hidden border border-border">
+        <div className="surface rounded-2xl overflow-x-auto border border-border">
           <table className="w-full text-left text-sm">
             <thead className="bg-muted/50 border-b border-border">
               <tr>
@@ -175,7 +226,7 @@ export default function SystemDesignWorkspace({ exercises, attemptSummaries, onS
                     </span>
                   </td>
                   <td className="px-6 py-4 font-medium group-hover:text-primary transition-colors">
-                    {ex.title}
+                    <button type="button" className="text-left hover:underline" onClick={event => { event.stopPropagation(); onSelectExercise(ex.id) }}>{ex.title}</button>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${getStatusColor(ex.status)}`}>

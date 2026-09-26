@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import type { CareerPath, CurriculumTrack, Goal } from "./types";
 import type { PickerContext } from "./components/LearningTaskPicker";
 import type { ViewMode } from "./Sidebar";
-import { searchCurriculum, trackCategories, tracksByFamily, useCurriculum } from "./lib/curriculum/registry";
+import { searchCurriculum, trackCategories, tracksByFamily } from "./lib/curriculum/registry";
+import { useCurriculum } from "./lib/curriculum/useCurriculum";
 import { countTrack } from "./data/curriculum/define";
 import { careerPaths } from "./data/careerPaths";
 

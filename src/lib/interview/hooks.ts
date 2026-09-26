@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useCurriculum } from '../curriculum/registry'
+import { useCurriculum } from '../curriculum/useCurriculum'
 import { ROUNDS, type InterviewRound } from './config'
 
 export function useInterviewRounds(): InterviewRound[] {

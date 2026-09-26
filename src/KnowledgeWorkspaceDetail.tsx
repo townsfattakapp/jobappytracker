@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import {
   type KnowledgeWorkspace,
@@ -10,7 +10,8 @@ import {
   type CurriculumTopic,
   type CurriculumSubtopic,
 } from "./types";
-import { useCurriculum } from "./lib/curriculum/registry";
+import { useCurriculum } from "./lib/curriculum/useCurriculum";
+import { ensureTrackForTopic } from "./lib/curriculum/registry";
 import RichTextEditor from "./components/RichTextEditor.tsx";
 import MermaidEditor from "./components/MermaidEditor.tsx";
 import AITutor from "./components/AITutor.tsx";
@@ -622,6 +623,12 @@ export default function KnowledgeWorkspaceDetail({
       title: ref?.subtopic?.title || ref?.topic.title || topicId,
     };
   }, [topicId, curriculum]);
+
+  useEffect(() => {
+    if (topicId) {
+      void ensureTrackForTopic(topicId);
+    }
+  }, [topicId]);
 
   const handleUpdate = (updates: Partial<KnowledgeWorkspace>) => {
     onSaveWorkspace({

@@ -21,6 +21,8 @@ export interface JobApplication {
   recruiterName?: string | null
   recruiterEmail?: string | null
   interviewDate?: string | null
+  /** Set when the application was created from a JobAppy job listing: canonical job and analysis references. */
+  jobRef?: { jobId: string; companyId: string; resumeAnalysisId?: string | null } | null
 }
 
 export interface Contact {
@@ -426,6 +428,8 @@ export interface StudyTask {
   completionCriteria?: string
   curriculumTaskId?: string
   linkedActivityId?: string
+  /** Set when the task was added by a job-specific preparation plan (Career OS). */
+  prepJobId?: string
 }
 
 export interface RoadmapDay {
@@ -468,17 +472,75 @@ export interface Goal {
   milestones?: { id: string; title: string; date: string }[]
 }
 
+export type DsaPattern =
+  | 'Arrays & Hashing'
+  | 'Two Pointers'
+  | 'Sliding Window'
+  | 'Fast & Slow Pointers'
+  | 'Binary Search'
+  | 'Stack & Monotonic Stack'
+  | 'Linked List'
+  | 'Trees (BFS & DFS)'
+  | 'Binary Search Tree'
+  | 'Tries'
+  | 'Heap & Priority Queue'
+  | 'Backtracking'
+  | 'Graphs (BFS & DFS)'
+  | 'Topological Sort'
+  | '1D Dynamic Programming'
+  | '2D Dynamic Programming'
+  | 'Greedy & Intervals'
+  | 'Bit Manipulation'
+  | 'Union-Find'
+
+export interface DsaExample {
+  input: string
+  output: string
+  explanation?: string
+}
+
+export interface DsaHint {
+  level: 1 | 2 | 3
+  title: string
+  content: string
+}
+
+export interface DsaSolution {
+  approach: string
+  intuition: string
+  timeComplexity: string
+  spaceComplexity: string
+  keyTakeaway: string
+  code: Record<string, string>
+}
+
+export interface DsaPatternBlueprint {
+  whenToUse: string
+  coreTemplate: string
+  pitfalls: string
+}
+
 export interface DsaProblem {
   id: string
   title: string
   titleSlug?: string
   url?: string
   difficulty: 'Easy' | 'Medium' | 'Hard'
+  pattern?: DsaPattern | string
   tags: string[]
   languages: string[]
   status: 'Unattempted' | 'Attempted' | 'Solved'
   leetCodeStatus?: 'Accepted'
   linkedTaskId?: string
+  // Enhanced curriculum fields
+  companies?: string[]
+  description?: string
+  constraints?: string[]
+  examples?: DsaExample[]
+  starterCode?: Record<string, string>
+  hints?: (string | DsaHint)[]
+  solution?: DsaSolution
+  patternBlueprint?: DsaPatternBlueprint
 }
 
 export interface DsaAttemptSummary {
@@ -488,6 +550,8 @@ export interface DsaAttemptSummary {
   hintsUsed: number
   outcome: 'Solved' | 'Solved with Hints' | 'Failed'
   confidence: 1 | 2 | 3 | 4 | 5
+  timeSpentMinutes?: number
+  language?: string
 }
 
 export interface DsaAttempt {
@@ -503,6 +567,7 @@ export interface DsaAttempt {
   hintsUsed: number
   outcome: 'Solved' | 'Solved with Hints' | 'Failed'
   confidence: 1 | 2 | 3 | 4 | 5
+  mistakesOrNotes?: string
 }
 
 export interface RevisionItem {
@@ -524,6 +589,46 @@ export interface SystemDesignExercise {
   status: 'Unattempted' | 'Attempted' | 'Solved'
 }
 
+export interface SystemDesignAiRubricCategory {
+  id: string
+  name: string
+  score: number
+  maxScore: number
+  feedback: string
+}
+
+export interface SystemDesignAiReview {
+  overallScore: number
+  levelRating: 'L4 - Needs Preparation' | 'L4 - Solid Mid-Level' | 'L5 - Strong Senior' | 'L6 - Principal / Staff'
+  verdict: 'Pass' | 'Borderline' | 'Needs Revision'
+  executiveSummary: string
+  categories: SystemDesignAiRubricCategory[]
+  strengths: string[]
+  criticalGaps: string[]
+  recommendations: string[]
+  reviewedAt: string
+}
+
+export interface SystemDesignScaffold {
+  requirements: string
+  architectureDiagram: string
+  dataModel: string
+  apiDesign: string
+  bottlenecks: string
+  code?: string
+}
+
+export interface SystemDesignReferenceBlueprint {
+  title: string
+  scaleAssumptions: string[]
+  architectureDiagram: string
+  dataModel: string
+  apiDesign: string
+  bottlenecksAndTradeoffs: string
+  deepDiveNotes: string[]
+  code?: string
+}
+
 export interface SystemDesignAttemptSummary {
   id: string
   exerciseId: string
@@ -532,6 +637,8 @@ export interface SystemDesignAttemptSummary {
   outcome?: 'Solved' | 'Solved with Hints' | 'Failed' | 'Needs Review'
   notes?: string
   confidence?: number
+  timeSpentMinutes?: number
+  aiScore?: number
 }
 
 export interface SystemDesignAttemptDetail {
@@ -548,20 +655,63 @@ export interface SystemDesignAttemptDetail {
   dataModel?: string
   apiDesign?: string
   bottlenecks?: string
+  timeSpentMinutes?: number
+  aiReview?: SystemDesignAiReview
+}
+
+export interface LabVerificationTest {
+  id: string
+  name: string
+  description: string
+  expectedOutcome: string
+}
+
+export interface LabCodeFile {
+  filename: string
+  language: string
+  code: string
+  isBuggy?: boolean
+  description?: string
+}
+
+export interface LabTerminalStep {
+  command: string
+  output: string
+  delay?: number
 }
 
 export interface EngineeringLab {
   id: string
   ticketId: string
   title: string
-  type?: 'CI/CD' | 'Docker' | 'Cloud' | 'Security' | 'Frontend' | 'Backend' | 'Full Stack'
-  difficulty: 'Easy' | 'Medium' | 'Hard' | 'Beginner' | 'Intermediate' | 'Advanced'
+  category?: 'Distributed Systems' | 'Databases & Cache' | 'Production Incidents' | 'Security & Auth' | 'DevOps & Cloud' | 'Frontend & Web' | 'API & System Architecture'
+  type?: 'CI/CD' | 'Docker' | 'Cloud' | 'Security' | 'Frontend' | 'Backend' | 'Full Stack' | 'Distributed Systems' | 'Database' | 'SRE'
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced' | 'Easy' | 'Medium' | 'Hard'
   status: 'Open' | 'In Progress' | 'In Review' | 'Done' | 'Unattempted' | 'Attempted' | 'Solved'
+  severity?: 'P0 - Critical Outage' | 'P1 - High Priority' | 'P2 - Moderate'
+  impact?: string
   scenario: string
   estDurationMinutes: number
   requirements: string[]
   acceptanceCriteria: string[]
   techStack: string[]
+  initialLogs?: string[]
+  codeFiles?: LabCodeFile[]
+  failingTest?: string
+  hints?: {
+    level: 1 | 2 | 3
+    title: string
+    content: string
+  }[]
+  solution?: {
+    explanation: string
+    fixedCode?: string
+    fiveWhys?: string[]
+    preventionRules?: string[]
+  }
+  verificationTests?: LabVerificationTest[]
+  terminalSteps?: LabTerminalStep[]
+  suggestedPromptChips?: string[]
 }
 
 export interface LabAttemptSummary {
@@ -658,9 +808,20 @@ export interface LeetCodeConfig {
 }
 
 
+export interface OnboardingState {
+  completedAt: string | null
+  skippedSteps: string[]
+  careerPathId: string | null
+  roleCategory: string | null
+  experienceLevel: ExperienceLevel | null
+  hoursPerDay: number | null
+}
+
 export interface UserPreferences {
   /** Preferred language for examples, snippets and the practice editor. */
   codeLanguage?: string
+  /** First-time onboarding progress (Phase 8); synced with the account. */
+  onboarding?: OnboardingState
 }
 
 export interface Storage {
@@ -704,13 +865,36 @@ export function emptyStorage(): Storage {
   }
 }
 
-/** Adds seed items that are missing from a stored collection (matched by id or slug) without touching user edits. */
+/** Adds seed items that are missing from a stored collection (matched by id or slug) while enriching existing items with new seed properties and preserving user edits. */
 export function mergeSeed<T extends { id: string; titleSlug?: string; ticketId?: string }>(stored: T[], seed: T[]): T[] {
   if (!stored.length) return seed
-  const ids = new Set(stored.map((item) => item.id))
-  const slugs = new Set(stored.map((item) => item.titleSlug || item.ticketId).filter(Boolean))
-  const missing = seed.filter((item) => !ids.has(item.id) && !(item.titleSlug && slugs.has(item.titleSlug)) && !(item.ticketId && slugs.has(item.ticketId)))
-  return missing.length ? [...stored, ...missing] : stored
+  const storedById = new Map<string, T>()
+  const storedBySlug = new Map<string, T>()
+  for (const item of stored) {
+    storedById.set(item.id, item)
+    if (item.titleSlug) storedBySlug.set(item.titleSlug, item)
+    if (item.ticketId) storedBySlug.set(item.ticketId, item)
+  }
+
+  const merged: T[] = seed.map((seedItem) => {
+    const existing =
+      storedById.get(seedItem.id) ||
+      (seedItem.titleSlug ? storedBySlug.get(seedItem.titleSlug) : undefined) ||
+      (seedItem.ticketId ? storedBySlug.get(seedItem.ticketId) : undefined)
+    if (existing) {
+      return { ...seedItem, ...existing }
+    }
+    return seedItem
+  })
+
+  const seedIds = new Set(seed.map((s) => s.id))
+  for (const item of stored) {
+    if (!seedIds.has(item.id)) {
+      merged.push(item)
+    }
+  }
+
+  return merged
 }
 
 export function loadStorage(): Storage {

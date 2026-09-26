@@ -516,9 +516,20 @@ export default function AuthPanel({
       </form>
 
       <p className="mt-4 text-center text-xs text-muted-foreground leading-relaxed">
-        {mode === 'signup' && options?.emailConfirmation
-          ? 'We will send a verification link to confirm your email before activating.'
-          : 'Passwords are cryptographically salted and hashed. Cloud sync protects your work.'}
+        {mode === 'signup' ? (
+          <>
+            By creating an account, you agree to our{' '}
+            <a href="/terms" target="_blank" rel="noreferrer" className="underline hover:text-foreground">
+              Terms of Service
+            </a>{' '}
+            and{' '}
+            <a href="/privacy" target="_blank" rel="noreferrer" className="underline hover:text-foreground">
+              Privacy Policy
+            </a>.
+          </>
+        ) : (
+          'Passwords are cryptographically salted and hashed. Cloud sync protects your work.'
+        )}
       </p>
     </div>
   )
