@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import PricingView from '../../components/billing/PricingView'
+import PassPricing from '../../components/billing/PassPricing'
 import BrandLogo from '../../components/BrandLogo'
 
 export const metadata: Metadata = {
@@ -24,9 +24,9 @@ export default function PricingPage() {
         </nav>
       </header>
       <main className="pricing-main">
-        <h1 className="pricing-title">Plans</h1>
-        <p className="pricing-sub">Pick what fits. Every plan shows exactly what is included and the billing period; prices are what you pay, with no strike-through or countdown.</p>
-        <PricingView />
+        <h1 className="pricing-title">Pick a pass. Pay once.</h1>
+        <p className="pricing-sub">The same three passes everywhere: 90 days for ₹199, 180 days for ₹424, one year for ₹799. One payment through Razorpay, nothing renews by itself, and the price shown is the price you pay.</p>
+        <PassPricing />
       </main>
       <footer className="mt-16 pt-8 pb-12 border-t border-border/50 text-center text-xs text-muted-foreground">
         <div className="flex flex-wrap justify-center gap-6 mb-4">

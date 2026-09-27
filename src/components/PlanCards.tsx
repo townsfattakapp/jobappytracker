@@ -1,4 +1,4 @@
-import { discountPercent, perMonth, PLANS, type Plan } from '../lib/billing/plan'
+import { perMonth, PLANS, type Plan } from '../lib/billing/plan'
 
 interface PlanCardsProps {
   /** Called with the chosen plan; when omitted, cards link to `href`. */
@@ -10,7 +10,7 @@ interface PlanCardsProps {
   ctaLabel?: (plan: Plan) => string
 }
 
-/** The three passes with list price, discount and per-month equivalent. */
+/** The three passes, the price you pay and its per-month equivalent; no anchor prices, no countdowns. */
 export default function PlanCards({ onSelect, href = '/app', busyPlanId = null, disabled = false, compact = false, ctaLabel }: PlanCardsProps) {
   return (
     <div className={`plan-grid ${compact ? 'is-compact' : ''}`}>
@@ -22,11 +22,10 @@ export default function PlanCards({ onSelect, href = '/app', busyPlanId = null, 
             {plan.badge && <span className="plan-badge">{plan.badge}</span>}
             <p className="plan-name">{plan.name}</p>
             <p className="plan-price">
-              <span className="plan-mrp">₹{plan.mrpInr}</span>
               <span className="plan-amount text-gradient">₹{plan.priceInr}</span>
             </p>
             <p className="plan-meta">
-              <span className="plan-discount">{discountPercent(plan)}% off</span> · about ₹{perMonth(plan)}/month
+              {plan.days} days of access · about ₹{perMonth(plan)} a month
             </p>
             {onSelect ? (
               <button type="button" className={`btn ${plan.badge ? 'btn-primary' : 'btn-ghost'} w-full mt-4`} disabled={disabled || busy} onClick={() => onSelect(plan)}>

@@ -51,16 +51,15 @@ export default function Paywall({ billing, email, onPurchased, onSignOut, onCont
           Signed in as <span className="font-semibold text-foreground">{email}</span>.
         </p>
 
-        <a href="/pricing" className="btn btn-primary w-full">
-          See plans and upgrade
-        </a>
-        <details className="admin-details mt-4">
-          <summary>Prepaid passes (legacy)</summary>
-          <div className="mt-3">
-            <PlanCards onSelect={(plan) => void choose(plan)} busyPlanId={busy} disabled={Boolean(busy) || !billing.configured} compact />
-            {!billing.configured && <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm">Card payments for passes are not configured on this deployment.</p>}
-          </div>
-        </details>
+        <PlanCards onSelect={(plan) => void choose(plan)} busyPlanId={busy} disabled={Boolean(busy) || !billing.configured} compact />
+        {!billing.configured && <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm">Payments for passes are not configured on this deployment.</p>}
+        <p className="mt-3 text-xs text-muted-foreground">
+          One Razorpay payment, a receipt by email, nothing renews by itself.{' '}
+          <a href="/pricing" className="underline">
+            Compare what is included
+          </a>
+          .
+        </p>
         {error && (
           <p className="mt-3 text-sm text-destructive" role="alert">
             {error}

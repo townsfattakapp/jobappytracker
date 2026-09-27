@@ -589,3 +589,12 @@ body.iv-focus .trial-banner, body.iv-focus .app-footer { display: none; }
 .room-replay-meta { display: block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: hsl(var(--muted-foreground)); margin-bottom: 0.2rem; }
 .room-timeline-feedback h5, .room-fb h5 { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: hsl(var(--muted-foreground)); margin-bottom: 0.2rem; }
 .room-timeline-fb { padding: 0.5rem 0.6rem; border-radius: 0.6rem; background: hsl(var(--muted) / 0.25); margin-top: 0.4rem; display: flex; flex-direction: column; gap: 0.2rem; }
+
+/* Public pricing: the passes plus two "included" columns. */
+.pass-pricing { display: flex; flex-direction: column; gap: 1.25rem; }
+.pass-pricing-status { font-size: 0.92rem; padding: 0.8rem 1rem; border-radius: var(--radius); border: 1px solid hsl(var(--primary) / 0.35); background: hsl(var(--primary) / 0.08); }
+.pass-pricing-note { font-size: 0.85rem; color: hsl(var(--muted-foreground)); margin-top: 0.9rem; line-height: 1.5; }
+.pass-pricing-note a { color: hsl(var(--primary)); text-decoration: underline; text-underline-offset: 3px; }
+.pass-pricing-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.pass-pricing-card { padding: 1.25rem 1.4rem; border-radius: var(--radius); background: hsl(var(--card)); border: 1px solid hsl(var(--border) / 0.6); }
+.pass-pricing-card h2 { font-size: 1.05rem; font-weight: 800; margin: 0 0 0.75rem; }
