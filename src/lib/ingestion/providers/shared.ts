@@ -21,7 +21,15 @@ export const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(r
 export async function fetchJson<T>(ctx: FetchContext, url: string, init: RequestInit = {}, label = url): Promise<T> {
   let res: Response | null = null
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-    res = await ctx.fetch(url, { ...init, headers: { ...BROWSER_HEADERS, ...(init.headers as Record<string, string> | undefined) } })
+    try {
+      res = await ctx.fetch(url, { ...init, headers: { ...BROWSER_HEADERS, ...(init.headers as Record<string, string> | undefined) } })
+    } catch (error) {
+      // A timed-out or reset connection (Node's undici occasionally drops one under load) is retried once before giving up.
+      if (attempt >= 2) throw error
+      ctx.log(`${label} failed (${error instanceof Error ? error.name : 'error'}); retrying once`)
+      await sleep(1000)
+      continue
+    }
     if (res.ok || !RETRY_STATUSES.has(res.status) || attempt === MAX_ATTEMPTS) break
     const retryAfter = Number(res.headers?.get?.('retry-after')) || 0
     const wait = Math.min(30_000, retryAfter > 0 ? retryAfter * 1000 : 1500 * 2 ** (attempt - 1))

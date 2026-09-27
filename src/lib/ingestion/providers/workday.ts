@@ -77,7 +77,8 @@ export const workdayProvider: JobProvider = {
     if (!/^[A-Za-z0-9_-]+$/.test(cfg.tenant) || !/^[A-Za-z0-9_-]+$/.test(cfg.site)) throw new Error('Workday source needs config.tenant and config.site (letters, digits, dashes, underscores)')
     const searches: WorkdaySearch[] = Array.isArray(source.config.searches) && source.config.searches.length ? (source.config.searches as WorkdaySearch[]).map((s) => ({ label: String(s.label || s.searchText || 'search'), searchText: s.searchText ? String(s.searchText) : undefined, appliedFacets: s.appliedFacets && typeof s.appliedFacets === 'object' ? s.appliedFacets : undefined })) : WORKDAY_DEFAULT_SEARCHES
     const maxPerSearch = positiveInt(source.config.maxPerSearch, 200, 3000)
-    const concurrency = positiveInt(source.config.concurrency, 6, 12)
+    // Workday answers large detail bodies; more than three in flight has tripped Node's HTTP parser, so the default stays low.
+    const concurrency = positiveInt(source.config.concurrency, 3, 8)
     const seen = new Map<string, WorkdayPosting>()
     for (const search of searches) {
       const first = workdayListRequest(cfg, search, 0)
