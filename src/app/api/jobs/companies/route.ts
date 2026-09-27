@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { JobListFilters } from '../../../../lib/jobs/types'
 import { errorResponse } from '../../../../lib/server/apiErrors'
 import { resolveAccess } from '../../../../lib/server/entitlements'
-import { hiringCompanies } from '../../../../lib/server/jobs'
+import { companiesWithoutOpenings, hiringCompanies } from '../../../../lib/server/jobs'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +25,9 @@ export async function GET(req: Request) {
       city: url.searchParams.get('city') || undefined,
     }
     const companies = await hiringCompanies(limit, filters)
-    return NextResponse.json({ companies, total: companies.length })
+    // `others=1`: the catalog companies with no opening at all (careers-page links), asked for only when no filter is active.
+    const others = url.searchParams.get('others') === '1' ? await companiesWithoutOpenings() : undefined
+    return NextResponse.json({ companies, total: companies.length, ...(others ? { others } : {}) })
   } catch (error) {
     return errorResponse(error, 'GET /api/jobs/companies')
   }

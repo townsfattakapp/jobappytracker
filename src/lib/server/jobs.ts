@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, ilike, isNull, or, sql, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, ilike, isNull, notInArray, or, sql, type SQL } from 'drizzle-orm'
 import { db } from '../db'
 import { companies, jobSources, jobs, learnerJobPreferences, users, userRoles, type PlatformRole } from '../db/schema'
 import { jobFingerprint, normalizeTitle, ValidationError, type CompanyInput, type JobSourceInput } from '../jobs/normalize'
@@ -111,6 +111,37 @@ export async function hiringCompanies(limit = 60, f: JobListFilters = {}): Promi
     .orderBy(desc(sql`count(${jobs.id})`), asc(companies.name))
     .limit(limit)
   return rows.map((r) => ({ ...r, jobCount: Number(r.jobCount) }))
+}
+
+export interface CompanyWithoutOpenings {
+  id: string
+  name: string
+  slug: string
+  website: string | null
+  careersUrl: string | null
+  logoUrl: string | null
+  headquarters: string | null
+  /** `no_feed`: the company publishes on a portal JobAppy cannot read; `no_matching_openings`: the feed works but nothing relevant is open. */
+  reason: 'no_feed' | 'no_matching_openings'
+}
+
+/**
+ * Active catalog companies with no published, unexpired opening at all, with the honest reason,
+ * so Job Discovery can still show them (linking to their careers page) instead of silently leaving them out.
+ */
+export async function companiesWithoutOpenings(): Promise<CompanyWithoutOpenings[]> {
+  const hiring = db
+    .select({ id: jobs.companyId })
+    .from(jobs)
+    .where(and(eq(jobs.status, 'published'), or(isNull(jobs.expiresAt), gt(jobs.expiresAt, new Date()))!))
+  const rows = await db
+    .select({ id: companies.id, name: companies.name, slug: companies.slug, website: companies.website, careersUrl: companies.careersUrl, logoUrl: companies.logoUrl, headquarters: companies.headquarters, providers: sql<string>`coalesce(string_agg(${jobSources.provider}, ','), '')` })
+    .from(companies)
+    .leftJoin(jobSources, eq(jobSources.companyId, companies.id))
+    .where(and(eq(companies.status, 'active'), notInArray(companies.id, hiring)))
+    .groupBy(companies.id)
+    .orderBy(asc(companies.name))
+  return rows.map(({ providers, ...r }) => ({ ...r, reason: providers.split(',').some((p) => p && p !== 'manual') ? 'no_matching_openings' : 'no_feed' }))
 }
 
 export async function allActiveCompanies(): Promise<Pick<CompanyDto, 'id' | 'name' | 'slug'>[]> {

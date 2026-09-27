@@ -62,16 +62,34 @@ export interface HiringCompanyDto {
   jobCount: number
 }
 
+export interface CompanyWithoutOpeningsDto {
+  id: string
+  name: string
+  slug: string
+  website: string | null
+  careersUrl: string | null
+  logoUrl: string | null
+  headquarters: string | null
+  reason: 'no_feed' | 'no_matching_openings'
+}
+
 /** Companies with openings that match the given filters (company ignored), most openings first. */
 export async function fetchHiringCompanies(filters: JobListFilters = {}, limit = 300): Promise<HiringCompanyDto[]> {
+  const res = await fetchCompanyStrip(filters, limit, false)
+  return res.companies
+}
+
+/** The strip's data: hiring companies for the filters and, when asked, the catalog companies with no opening at all. */
+export async function fetchCompanyStrip(filters: JobListFilters = {}, limit = 300, withOthers = false): Promise<{ companies: HiringCompanyDto[]; others: CompanyWithoutOpeningsDto[] }> {
   const q = new URLSearchParams()
   for (const [k, v] of Object.entries(filters)) {
     if (v === undefined || v === '' || v === null || k === 'companyId' || k === 'page' || k === 'pageSize') continue
     q.set(k, String(v))
   }
   q.set('limit', String(limit))
-  const res = await api<{ companies: HiringCompanyDto[] }>(`/api/jobs/companies?${q.toString()}`)
-  return res.companies
+  if (withOthers) q.set('others', '1')
+  const res = await api<{ companies: HiringCompanyDto[]; others?: CompanyWithoutOpeningsDto[] }>(`/api/jobs/companies?${q.toString()}`)
+  return { companies: res.companies, others: res.others ?? [] }
 }
 
 export function fetchJob(id: string): Promise<LearnerJob> {

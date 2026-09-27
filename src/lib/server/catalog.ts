@@ -8,6 +8,9 @@ import { logEvent } from './log'
 import { eightfoldSearchUrl, parseEightfoldToken } from '../ingestion/providers/eightfold'
 import { BROWSER_HEADERS } from '../ingestion/providers/shared'
 import { parseWorkdayToken, workdayListRequest } from '../ingestion/providers/workday'
+import { oracleListUrl, parseOracleToken } from '../ingestion/providers/oraclecloud'
+import { smartRecruitersListUrl } from '../ingestion/providers/smartrecruiters'
+import { ATLASSIAN_LISTINGS_URL } from '../ingestion/providers/atlassian'
 
 /**
  * Company source catalog: idempotent seeding of curated companies and their
@@ -56,12 +59,13 @@ export interface CatalogRow {
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null)
 
 /** Providers that read a careers site's own (unofficial) JSON endpoint rather than a documented board API. */
-export const SITE_PROVIDERS = new Set<CatalogFeedProvider>(['amazon', 'eightfold', 'workday'])
+export const SITE_PROVIDERS = new Set<CatalogFeedProvider>(['amazon', 'eightfold', 'workday', 'oraclecloud', 'atlassian'])
 
 export function feedConfig(entry: CatalogCompany): Record<string, unknown> {
   if (!entry.feed) return {}
   const { provider, token, config } = entry.feed
-  const base = provider === 'lever' ? { site: token } : provider === 'amazon' ? {} : provider === 'eightfold' ? parseEightfoldToken(token) : provider === 'workday' ? parseWorkdayToken(token) : { board: token }
+  const base =
+    provider === 'lever' ? { site: token } : provider === 'smartrecruiters' ? { company: token } : provider === 'amazon' || provider === 'atlassian' ? {} : provider === 'eightfold' ? parseEightfoldToken(token) : provider === 'workday' ? parseWorkdayToken(token) : provider === 'oraclecloud' ? parseOracleToken(token) : { board: token }
   return { ...base, ...(config ?? {}) }
 }
 
@@ -147,6 +151,9 @@ export const PROBES: Record<CatalogFeedProvider, (token: string) => Probe> = {
     const req = workdayListRequest(parseWorkdayToken(t), { label: 'probe' }, 0, 1)
     return { url: req.url, init: { ...req.init, headers: { ...BROWSER_HEADERS, ...(req.init.headers as Record<string, string>) } }, count: (b) => numberOrNull((b as { total?: unknown })?.total) }
   },
+  smartrecruiters: (t) => ({ url: smartRecruitersListUrl(t, 0, 1), init: { headers: API_HEADERS }, count: (b) => numberOrNull((b as { totalFound?: unknown })?.totalFound) }),
+  oraclecloud: (t) => ({ url: oracleListUrl(parseOracleToken(t), { label: 'probe' }, 0, 1), init: { headers: BROWSER_HEADERS }, count: (b) => numberOrNull((b as { items?: { TotalJobsCount?: unknown }[] })?.items?.[0]?.TotalJobsCount) }),
+  atlassian: () => ({ url: ATLASSIAN_LISTINGS_URL, init: { headers: BROWSER_HEADERS }, count: jobsLength }),
 }
 
 export interface VerifyResult {

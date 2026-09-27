@@ -410,3 +410,118 @@ test('lifecycle sweep expires past-due and unseen jobs and flags stale ones', as
     await client.close()
   }
 })
+
+test('SmartRecruiters adapter pages India first, caps the rest, fetches job-ad sections and maps the posting shape', async () => {
+  const sr = providers.providerById('smartrecruiters')
+  const calls = []
+  const posting = (id, country, city) => ({ id: String(id), name: `Staff Software Engineer ${id}`, refNumber: `JB${id}`, releasedDate: '2026-09-25T09:08:43.782Z', location: { city, country, remote: false, hybrid: true, fullLocation: `${city}, , ${country === 'in' ? 'India' : 'United States'}` }, department: { label: 'Engineering' }, function: { label: 'Engineering' }, typeOfEmployment: { label: 'Full-time' }, experienceLevel: { label: 'Mid-Senior' }, company: { identifier: 'ServiceNow', name: 'ServiceNow' } })
+  const fetchImpl = async (url) => {
+    calls.push(url)
+    const u = new URL(url)
+    const m = u.pathname.match(/\/postings\/(\d+)$/)
+    if (m) {
+      const id = m[1]
+      const india = Number(id) < 500
+      return { ok: true, status: 200, text: async () => JSON.stringify({ ...posting(id, india ? 'in' : 'us', india ? 'Hyderabad' : 'Santa Clara'), postingUrl: `https://jobs.smartrecruiters.com/ServiceNow/${id}-staff`, applyUrl: `https://jobs.smartrecruiters.com/ServiceNow/${id}-staff?oga=true`, jobAd: { sections: id === '7' ? {} : { companyDescription: { title: 'Company Description', text: '<p>ServiceNow.</p>' }, jobDescription: { title: 'Job Description', text: '<p>Build the platform in Java.</p>' }, qualifications: { title: 'Qualifications', text: '<ul><li>5+ years Java</li></ul>' } } } }) }
+    }
+    const limit = Number(u.searchParams.get('limit'))
+    const offset = Number(u.searchParams.get('offset'))
+    const country = u.searchParams.get('country')
+    const total = country === 'in' ? 120 : 700
+    const base = country === 'in' ? 1 : 501
+    const content = Array.from({ length: Math.max(0, Math.min(limit, total - offset)) }, (_, i) => posting(base + offset + i, country === 'in' ? 'in' : 'us', country === 'in' ? 'Hyderabad' : 'Santa Clara'))
+    return { ok: true, status: 200, text: async () => JSON.stringify({ offset, limit, totalFound: total, content }) }
+  }
+  const raw = await sr.fetchJobs({ id: 's', name: 'ServiceNow', provider: 'smartrecruiters', baseUrl: null, config: { company: 'servicenow', maxGlobal: 150 } }, { fetch: fetchImpl, log: () => {} })
+  const lists = calls.filter((c) => !/\/postings\/\d+$/.test(c))
+  assert.equal(lists.length, 2 + 2, 'India: 120 → 2 pages; worldwide: 700 capped at 150 → 2 pages')
+  assert.ok(lists[0].includes('country=in') && lists[0].includes('limit=100') && lists[0].includes('offset=0'))
+  assert.equal(raw.length, 120 + 150 - 1, 'India in full, worldwide capped, minus the posting whose ad had no sections')
+  const first = raw.find((r) => r.externalId === '1')
+  assert.equal(first.sourceUrl, 'https://jobs.smartrecruiters.com/ServiceNow/1-staff')
+  assert.equal(first.location, 'Hyderabad, India')
+  assert.deepEqual(first.countries, ['India'])
+  assert.equal(first.workplaceType, 'hybrid')
+  assert.equal(first.employmentType, 'Full-time')
+  assert.ok(first.descriptionHtml.startsWith('<h3>Job Description</h3>'), 'the role comes before the company blurb')
+  assert.ok(first.descriptionHtml.endsWith('<p>ServiceNow.</p>'))
+  const n = normalize.normalizeRawJob(first)
+  assert.equal(n.region, 'india')
+  assert.equal(n.locationCity, 'Hyderabad')
+  await assert.rejects(() => sr.fetchJobs({ id: 's', name: 'x', provider: 'smartrecruiters', baseUrl: null, config: { company: 'not valid!' } }, { fetch: fetchImpl, log: () => {} }), /config.company/)
+})
+
+test('Oracle Cloud HCM adapter builds finder URLs, pages by 25, deduplicates across searches and reads details', async () => {
+  const oracle = providers.providerById('oraclecloud')
+  const calls = []
+  const requisition = (id) => ({ Id: String(id), Title: `Software Engineer ${id}`, PostedDate: '2026-09-26', PrimaryLocation: id < 30 ? 'Bengaluru, Karnataka, India' : 'Plano, TX, United States', PrimaryLocationCountry: id < 30 ? 'IN' : 'US', WorkplaceType: null, JobFamily: 'Software Engineering', JobFunction: 'Technology', ShortDescriptionStr: 'Short', secondaryLocations: id % 2 ? [{ Name: 'Mumbai, Maharashtra, India', CountryCode: 'IN' }] : [] })
+  const fetchImpl = async (url) => {
+    calls.push(url)
+    const u = new URL(url)
+    const detail = u.pathname.match(/recruitingCEJobRequisitionDetails\/(\d+)$/)
+    if (detail) {
+      const id = Number(detail[1])
+      return { ok: true, status: 200, text: async () => JSON.stringify({ Id: String(id), Title: `Software Engineer ${id}`, ExternalDescriptionStr: id === 3 ? '' : '<p>Own the data platform in Java and Spark.</p>', ExternalQualificationsStr: id === 3 ? null : '<ul><li>Java</li></ul>', ExternalResponsibilitiesStr: id === 3 ? '' : '<p>Lead a squad.</p>', ExternalPostedStartDate: '2026-09-26T07:14:12+00:00', JobSchedule: 'Full time', Category: 'Software Engineering', PrimaryLocation: id < 30 ? 'Bengaluru, Karnataka, India' : 'Plano, TX, United States', PrimaryLocationCountry: id < 30 ? 'IN' : 'US', WorkplaceType: id === 1 ? 'Hybrid' : null, secondaryLocations: id % 2 ? [{ Name: 'Mumbai, Maharashtra, India', CountryCode: 'IN' }] : [] }) }
+    }
+    const finder = u.searchParams.get('finder')
+    const offset = Number(finder.match(/offset=(\d+)/)[1])
+    const limit = Number(finder.match(/limit=(\d+)/)[1])
+    const india = /location=India/.test(finder)
+    const total = india ? 30 : 60
+    const base = india ? 1 : 21 // the worldwide search overlaps ids 21-30 with the India search
+    const list = Array.from({ length: Math.max(0, Math.min(limit, total - offset)) }, (_, i) => requisition(base + offset + i))
+    return { ok: true, status: 200, text: async () => JSON.stringify({ items: [{ TotalJobsCount: total, requisitionList: list }] }) }
+  }
+  const raw = await oracle.fetchJobs({ id: 's', name: 'JPMC', provider: 'oraclecloud', baseUrl: null, config: { host: 'jpmc.fa.oraclecloud.com', site: 'CX_1001', searches: [{ label: 'India', location: 'India' }, { label: 'software', keyword: 'software engineer' }], maxPerSearch: 50 } }, { fetch: fetchImpl, log: () => {} })
+  const lists = calls.filter((c) => c.includes('recruitingCEJobRequisitions?'))
+  assert.equal(lists.length, 2 + 2, 'India: 30 → 2 pages of 25; worldwide: 60 capped at 50 → 2 pages')
+  assert.ok(lists[0].includes('finder=findReqs;siteNumber=CX_1001,limit=25,offset=0,sortBy=POSTING_DATES_DESC,location=India'))
+  assert.ok(lists[2].includes('keyword=software%20engineer'))
+  const ids = raw.map((r) => Number(r.externalId))
+  assert.equal(new Set(ids).size, ids.length, 'overlapping requisitions are read once')
+  assert.equal(raw.length, 70 - 1, '30 India + 50 worldwide with 10 overlapping, minus the one without a description')
+  const first = raw.find((r) => r.externalId === '1')
+  assert.equal(first.sourceUrl, 'https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/1')
+  assert.equal(first.workplaceType, 'hybrid')
+  assert.deepEqual(first.countries, ['India'])
+  assert.deepEqual(first.locations, ['Mumbai, Maharashtra, India'])
+  assert.ok(first.descriptionHtml.includes('<h3>Responsibilities</h3>') && first.descriptionHtml.includes('<h3>Qualifications</h3>'))
+  assert.equal(first.postedAt, '2026-09-26T07:14:12+00:00')
+  const n = normalize.normalizeRawJob(first)
+  assert.equal(n.region, 'india')
+  assert.equal(n.locationCity, 'Bengaluru')
+  await assert.rejects(() => oracle.fetchJobs({ id: 's', name: 'x', provider: 'oraclecloud', baseUrl: null, config: { host: 'jpmc.fa.oraclecloud.com', site: 'CX 1' } }, { fetch: fetchImpl, log: () => {} }), /config.site/)
+})
+
+test('Atlassian adapter reads the listings endpoint once and keeps described roles with their locations', async () => {
+  const atlassian = providers.providerById('atlassian')
+  const calls = []
+  const fetchImpl = async (url) => {
+    calls.push(url)
+    return {
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify([
+          { portalJobPost: { portalUrl: 'https://careers-apac-atlassian.icims.com/jobs/25642/x/job', updatedDate: '2026-09-25 08:18 AM' }, id: 25642, title: 'Senior Software Engineer, Jira', type: 'Full-Time', locations: ['Remote - India - Remote', 'Bengaluru, India'], category: 'Engineering', overview: '<p>Build Jira.</p>', responsibilities: '<p>Ship features.</p>', qualifications: '<p>Java, Kotlin.</p>', applyUrl: 'https://careers-apac-atlassian.icims.com/jobs/25642/x/job?mode=apply' },
+          { id: 25643, title: 'No description role', locations: ['Sydney, Australia'], overview: '', responsibilities: '', qualifications: '' },
+          { id: 25642, title: 'Duplicate id', locations: [], overview: '<p>x</p>' },
+        ]),
+    }
+  }
+  const raw = await atlassian.fetchJobs({ id: 's', name: 'Atlassian', provider: 'atlassian', baseUrl: null, config: {} }, { fetch: fetchImpl, log: () => {} })
+  assert.equal(calls.length, 1)
+  assert.equal(raw.length, 1)
+  const [job] = raw
+  assert.equal(job.externalId, '25642')
+  assert.equal(job.location, 'Remote - India - Remote')
+  assert.deepEqual(job.locations, ['Bengaluru, India'])
+  assert.equal(job.workplaceType, 'remote')
+  assert.equal(job.employmentType, 'Full-Time')
+  assert.equal(job.sourceUrl, 'https://careers-apac-atlassian.icims.com/jobs/25642/x/job')
+  assert.ok(job.descriptionHtml.includes('<h3>Qualifications</h3><p>Java, Kotlin.</p>'))
+  const n = normalize.normalizeRawJob(job)
+  assert.equal(n.region, 'india')
+  assert.equal(n.workMode, 'remote')
+  await assert.rejects(() => atlassian.fetchJobs({ id: 's', name: 'x', provider: 'atlassian', baseUrl: null, config: {} }, { fetch: async () => ({ ok: true, status: 200, text: async () => '{}' }), log: () => {} }), /not an array/)
+})

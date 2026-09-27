@@ -48,10 +48,10 @@ test('catalog data: 50–200 companies, unique official identities, valid role f
     assert.ok(['strong', 'moderate', 'international'].includes(c.indiaRelevance))
     assert.ok(c.roleFamilies.length > 0 && c.roleFamilies.every((f) => ROLE_CATEGORY_IDS.includes(f)), `${c.slug} role families valid`)
     if (c.feed) {
-      assert.ok(['greenhouse', 'lever', 'ashby', 'amazon', 'eightfold', 'workday'].includes(c.feed.provider), 'documented board APIs or a careers site JSON endpoint')
-      const TOKEN_SHAPE = { greenhouse: /^[a-z0-9-]+$/i, lever: /^[a-z0-9-]+$/i, ashby: /^[a-z0-9-]+$/i, amazon: /^amazon\.jobs$/, eightfold: /^[a-z0-9.-]+\|[a-z0-9.-]+\|(pcsx|apply-v2)$/, workday: /^[a-z0-9.-]+\.myworkdayjobs\.com\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/ }
+      assert.ok(['greenhouse', 'lever', 'ashby', 'smartrecruiters', 'amazon', 'eightfold', 'workday', 'oraclecloud', 'atlassian'].includes(c.feed.provider), 'documented board APIs or a careers site JSON endpoint')
+      const TOKEN_SHAPE = { greenhouse: /^[a-z0-9-]+$/i, lever: /^[a-z0-9-]+$/i, ashby: /^[a-z0-9-]+$/i, smartrecruiters: /^[A-Za-z0-9_-]+$/, amazon: /^amazon\.jobs$/, oraclecloud: /^[a-z0-9.-]+\.oraclecloud\.com\/[A-Za-z0-9_]+$/, atlassian: /^atlassian\.com$/, eightfold: /^[a-z0-9.-]+\|[a-z0-9.-]+\|(pcsx|apply-v2)$/, workday: /^[a-z0-9.-]+\.myworkdayjobs\.com\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/ }
       assert.match(c.feed.token, TOKEN_SHAPE[c.feed.provider], `${c.slug} token shape for ${c.feed.provider}`)
-      if (['amazon', 'eightfold', 'workday'].includes(c.feed.provider)) assert.match(c.feed.note ?? '', /[Uu]nofficial/, `${c.slug} says the endpoint is unofficial`)
+      if (['amazon', 'eightfold', 'workday', 'oraclecloud', 'atlassian'].includes(c.feed.provider)) assert.match(c.feed.note ?? '', /[Uu]nofficial/, `${c.slug} says the endpoint is unofficial`)
       assert.match(c.feed.verifiedAt, /^\d{4}-\d{2}-\d{2}$/, `${c.slug} carries a verification date`)
       assert.ok(Number.isInteger(c.feed.jobsAtVerification) && c.feed.jobsAtVerification >= 0)
       assert.equal(c.portal, c.feed.provider)
