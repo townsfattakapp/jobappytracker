@@ -50,7 +50,8 @@ test('granting an order emails one receipt, derived from the order, visible only
   assert.equal(mine.length, 1)
   const r = mine[0]
   assert.equal(r.number, 'PREP-20260927-ORDERA')
-  assert.equal(r.amountInr, 299)
+  assert.equal(r.amount, 299)
+  assert.equal(r.currency, 'INR')
   assert.equal(r.days, 90)
   assert.equal(r.paymentId, 'pay_R1234567890')
   assert.equal(r.buyerEmail, 'asha@example.invalid')
@@ -61,7 +62,7 @@ test('granting an order emails one receipt, derived from the order, visible only
   // A pass bought before a price change keeps the amount it was bought at.
   await client.query("insert into subscriptions (id, \"userId\", \"planId\", status, \"amountPaise\", \"lastPaymentId\", \"currentStart\", \"currentEnd\", \"createdAt\", \"updatedAt\") values ('order_old0001', 'u1', 'quarter', 'paid', 19900, 'pay_old', '2026-08-01T10:00:00Z', '2026-10-30T10:00:00Z', '2026-08-01T10:00:00Z', '2026-08-01T10:00:00Z')")
   const old = (await receipts.listReceipts('u1')).find((x) => x.id === 'order_old0001')
-  assert.equal(old.amountInr, 199, 'historic receipts show the price paid, not the current list price')
+  assert.equal(old.amount, 199, 'historic receipts show the price paid, not the current list price')
   assert.ok(receipts.receiptHtml(old).includes('₹199'))
 
   const html = receipts.receiptHtml(r)

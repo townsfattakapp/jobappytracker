@@ -57,8 +57,8 @@ export const PAYMENT_CANCELLED = 'Payment cancelled'
  * signature and resolves with the new entitlement. Rejects with
  * PAYMENT_CANCELLED when the learner closes the window.
  */
-export async function purchasePlan(planId: Plan['id']): Promise<Entitlement> {
-  const res = await fetch('/api/billing/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ planId }) })
+export async function purchasePlan(planId: Plan['id'], currency?: string): Promise<Entitlement> {
+  const res = await fetch('/api/billing/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ planId, currency }) })
   const data = (await res.json().catch(() => ({}))) as { error?: string; orderId?: string; amount?: number; currency?: string; keyId?: string; name?: string; description?: string; email?: string; userName?: string }
   if (!res.ok || !data.orderId || !data.keyId) throw new Error(data.error || 'Could not start the payment')
   await loadCheckout()

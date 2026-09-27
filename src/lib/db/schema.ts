@@ -298,6 +298,8 @@ export const subscriptions = pgTable('subscriptions', {
   cancelledAt: timestamp('cancelledAt'),
   /** What the buyer actually paid, in paise, fixed at order time so receipts never follow later price changes. */
   amountPaise: integer('amountPaise'),
+  /** Currency of amountPaise (minor units of this currency); INR for every order before 0016. */
+  currency: text('currency').notNull().default('INR'),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
   updatedAt: timestamp('updatedAt').notNull().defaultNow(),
 })

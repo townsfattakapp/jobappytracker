@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import { amountPaise, PRODUCT_NAME, type Plan } from '../billing/plan'
+import { PRODUCT_NAME, type Plan } from '../billing/plan'
+import { amountMinor, type Currency } from '../billing/currency'
 
 /**
  * Thin Razorpay REST client for one-time orders (fixed-length passes).
@@ -54,16 +55,21 @@ export interface RazorpayOrder {
   notes?: Record<string, string>
 }
 
-export async function createOrder(plan: Plan, userId: string, email: string): Promise<RazorpayOrder> {
+export async function createOrder(plan: Plan, userId: string, email: string, currency: Currency = 'INR'): Promise<RazorpayOrder> {
   return rp<RazorpayOrder>('/orders', {
     method: 'POST',
     body: JSON.stringify({
-      amount: amountPaise(plan),
-      currency: 'INR',
+      amount: amountMinor(plan, currency),
+      currency,
       receipt: `${plan.id}-${Date.now().toString(36)}`,
-      notes: { userId, email, planId: plan.id, product: PRODUCT_NAME },
+      notes: { userId, email, planId: plan.id, product: PRODUCT_NAME, currency },
     }),
   })
+}
+
+/** Razorpay's answer when a currency is not enabled on the account; the caller then falls back to INR. */
+export function isCurrencyRejected(error: unknown): boolean {
+  return error instanceof Error && /currenc/i.test(error.message)
 }
 
 function safeEqual(a: string, b: string): boolean {

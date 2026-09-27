@@ -6,13 +6,15 @@ import { build } from 'esbuild'
 import fs from 'node:fs'
 fs.mkdirSync('scratch/learning-tests', { recursive: true })
 await build({
-  entryPoints: { entitlement: 'src/lib/billing/entitlement.ts', plan: 'src/lib/billing/plan.ts', razorpay: 'src/lib/server/razorpay.ts', interview: 'src/lib/interview/config.ts' },
+  entryPoints: { entitlement: 'src/lib/billing/entitlement.ts', plan: 'src/lib/billing/plan.ts', razorpay: 'src/lib/server/razorpay.ts', currency: 'src/lib/billing/currency.ts', reqCurrency: 'src/lib/server/currency.ts', interview: 'src/lib/interview/config.ts' },
   outdir: 'scratch/learning-tests',
   bundle: true, platform: 'node', format: 'esm', outExtension: { '.js': '.mjs' }, logLevel: 'silent',
 })
 const { computeEntitlement, extendedUntil } = await import('../scratch/learning-tests/entitlement.mjs')
 const { PLANS, planById, discountPercent, perMonth, amountPaise } = await import('../scratch/learning-tests/plan.mjs')
-const { verifyPaymentSignature, verifyWebhookSignature } = await import('../scratch/learning-tests/razorpay.mjs')
+const { verifyPaymentSignature, verifyWebhookSignature, isCurrencyRejected } = await import('../scratch/learning-tests/razorpay.mjs')
+const { CURRENCIES, PLAN_PRICES, priceOf, amountMinor, formatPrice, perMonthIn, discountPercentIn, currencyForCountry, isCurrency, pricingFor } = await import('../scratch/learning-tests/currency.mjs')
+const { currencyFromRequest, currencyCookie } = await import('../scratch/learning-tests/reqCurrency.mjs')
 const { normalizeScorecard, roundById, roundForTrack, buildInterviewerMessages, buildScorecardMessages } = await import('../scratch/learning-tests/interview.mjs')
 
 const now = new Date('2026-09-23T00:00:00Z')
@@ -25,6 +27,49 @@ assert.equal(discountPercent(planById('year')), 33)
 assert.equal(amountPaise(planById('half')), 59900)
 assert.ok(perMonth(planById('year')) < perMonth(planById('quarter')), 'the longer pass costs less per month')
 console.log('PASS: plans are 90 days ₹299 (₹499), 180 days ₹599 (₹799), 1 year ₹999 (₹1499)')
+
+// Currencies: fixed price points per currency, every plan priced in every currency, discount always real
+assert.deepEqual([...CURRENCIES], ['INR', 'USD', 'AED', 'GBP', 'EUR'])
+for (const c of CURRENCIES) {
+  for (const p of PLANS) {
+    const pp = priceOf(p, c)
+    assert.ok(pp.price > 0 && pp.regular > pp.price, `${c} ${p.id} is discounted`)
+    assert.equal(amountMinor(p, c), Math.round(pp.price * 100))
+    assert.ok(discountPercentIn(p, c) >= 25 && discountPercentIn(p, c) <= 45, `${c} ${p.id} discount ${discountPercentIn(p, c)}% is in range`)
+  }
+  assert.ok(perMonthIn(planById('year'), c) < perMonthIn(planById('quarter'), c), `${c}: the longer pass costs less per month`)
+}
+assert.deepEqual(PLAN_PRICES.INR.quarter, { price: 299, regular: 499 })
+assert.deepEqual(PLAN_PRICES.USD, { quarter: { price: 5.99, regular: 9.99 }, half: { price: 10.99, regular: 14.99 }, year: { price: 16.99, regular: 24.99 } })
+assert.deepEqual(PLAN_PRICES.AED, { quarter: { price: 22, regular: 37 }, half: { price: 40, regular: 55 }, year: { price: 62, regular: 92 } })
+assert.equal(amountMinor(planById('quarter'), 'USD'), 599)
+assert.equal(amountMinor(planById('year'), 'AED'), 6200)
+assert.equal(amountMinor(planById('half'), 'INR'), amountPaise(planById('half')))
+assert.equal(formatPrice(299, 'INR'), '₹299')
+assert.equal(formatPrice(5.99, 'USD'), '$5.99')
+assert.equal(formatPrice(4.99, 'GBP'), '£4.99')
+assert.match(formatPrice(22, 'AED'), /AED\s?22$/)
+assert.match(formatPrice(15.99, 'EUR'), /€\s?15\.99$/)
+assert.equal(currencyForCountry('IN'), 'INR'); assert.equal(currencyForCountry(null), 'INR'); assert.equal(currencyForCountry(''), 'INR')
+assert.equal(currencyForCountry('US'), 'USD'); assert.equal(currencyForCountry('CA'), 'USD'); assert.equal(currencyForCountry('SG'), 'USD')
+assert.equal(currencyForCountry('AE'), 'AED'); assert.equal(currencyForCountry('GB'), 'GBP'); assert.equal(currencyForCountry('DE'), 'EUR'); assert.equal(currencyForCountry('fr'), 'EUR')
+assert.equal(isCurrency('USD'), true); assert.equal(isCurrency('BTC'), false); assert.equal(isCurrency(1), false)
+const priced = pricingFor('USD', 'US')
+assert.equal(priced.plans.length, 3); assert.equal(priced.plans[0].priceLabel, '$5.99'); assert.equal(priced.plans[0].regularLabel, '$9.99'); assert.equal(priced.plans[0].minor, 599)
+assert.equal(priced.options.length, 5); assert.equal(priced.methods, 'international cards')
+assert.equal(pricingFor('INR').methods, 'UPI, cards, net banking')
+// Request → currency: the saved choice wins, then the country header, then INR
+const req = (h) => new Request('http://x/api/billing/pricing', { headers: h })
+assert.deepEqual(currencyFromRequest(req({})), { currency: 'INR', country: null, chosen: false })
+assert.deepEqual(currencyFromRequest(req({ 'x-vercel-ip-country': 'US' })), { currency: 'USD', country: 'US', chosen: false })
+assert.deepEqual(currencyFromRequest(req({ 'x-vercel-ip-country': 'AE' })), { currency: 'AED', country: 'AE', chosen: false })
+assert.deepEqual(currencyFromRequest(req({ 'x-vercel-ip-country': 'US', cookie: 'a=b; prep-currency=INR; c=d' })), { currency: 'INR', country: 'US', chosen: true })
+assert.deepEqual(currencyFromRequest(req({ 'x-vercel-ip-country': 'IN', cookie: 'prep-currency=USD' })), { currency: 'USD', country: 'IN', chosen: true })
+assert.equal(currencyFromRequest(req({ cookie: 'prep-currency=XYZ' })).currency, 'INR', 'an unsupported saved currency is ignored')
+assert.match(currencyCookie('AED'), /^prep-currency=AED; Path=\/; Max-Age=31536000; SameSite=Lax/)
+assert.equal(isCurrencyRejected(new Error('Currency is not supported')), true)
+assert.equal(isCurrencyRejected(new Error('Authentication failed')), false)
+console.log('PASS: passes are priced in INR, USD, AED, GBP and EUR with fixed points; the visitor country or saved choice picks the currency')
 
 // Entitlement: no trial, access only while paid
 let e = computeEntitlement(null, null, now)

@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import BrandLogo, { BrandMark } from '../BrandLogo'
 import { PLAN_FEATURES, PLANS } from '../../lib/billing/plan'
+import { usePricing } from '../../lib/billing/usePricing'
 import PlanCards from '../PlanCards'
 import CompanyLogo from '../jobs/CompanyLogo'
 import { fetchHiringCompanies, type HiringCompanyDto } from '../../lib/jobs/client'
@@ -278,6 +279,8 @@ function LiveProof() {
 
 export default function Landing() {
   useReveal()
+  const { pricing } = usePricing()
+  const fromPrice = pricing.plans[0]?.priceLabel ?? `₹${PLANS[0].priceInr}`
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState<number | null>(0)
   const [curriculumTab, setCurriculumTab] = useState<'tracks' | 'paths'>('tracks')
@@ -755,7 +758,7 @@ export default function Landing() {
             <div className="lp-section-head" data-reveal>
               <p className="lp-eyebrow">Why you can trust it</p>
               <h2>Everything on this page can be checked.</h2>
-              <p className="lp-lede">No invented numbers, no fake reviews, no countdown timers. Here is what actually protects you when you pay ₹{PLANS[0].priceInr}.</p>
+              <p className="lp-lede">No invented numbers, no fake reviews, no countdown timers. Here is what actually protects you when you pay {fromPrice}.</p>
             </div>
             <div className="lp-trust-grid">
               {TRUST.map((t) => (
@@ -786,11 +789,11 @@ export default function Landing() {
               <p className="lp-section-sub">Every pass includes everything. No subscription, no auto-renewal, no card kept on file.</p>
             </div>
             <div data-reveal>
-              <PlanCards href="/app?mode=signup" ctaLabel={(plan) => `Get ${plan.name} for ₹${plan.priceInr}`} />
+              <PlanCards href="/app?mode=signup" ctaLabel={(plan, priced) => `Get ${plan.name} for ${priced.priceLabel}`} />
             </div>
             <div className="lp-pricing" data-reveal>
               <div className="lp-price-card">
-                <h3>What ₹{PLANS[0].priceInr} for {PLANS[0].name} gets you</h3>
+                <h3>What {fromPrice} for {PLANS[0].name} gets you</h3>
                 <ul className="lp-checks">
                   {PASS_INCLUDES.map((f) => (
                     <li key={f}>{f}</li>
@@ -845,7 +848,7 @@ export default function Landing() {
             <a href="/app?mode=signup" className="btn btn-primary lp-cta">
               Get started
             </a>
-            <p className="lp-fineprint">Passes from ₹{PLANS[0].priceInr} · One payment · No auto-renew · Receipt by email</p>
+            <p className="lp-fineprint">Passes from {fromPrice} · One payment · No auto-renew · Receipt by email</p>
           </div>
         </section>
       </main>

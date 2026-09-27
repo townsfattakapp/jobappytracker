@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import PlanCards from '../PlanCards'
-import { PLAN_FEATURES, PLANS, PRODUCT_NAME, type Plan } from '../../lib/billing/plan'
+import { PLAN_FEATURES, PRODUCT_NAME, type Plan } from '../../lib/billing/plan'
+import { usePricing } from '../../lib/billing/usePricing'
 import { BILLING_CHANGED_EVENT, fetchBillingState, formatDate, PAYMENT_CANCELLED, purchasePlan, type BillingState } from '../../lib/billing/client'
 import { completeFixtureCheckout, fetchPlans, startCheckout } from '../../lib/billing/pricingClient'
 
@@ -29,6 +30,7 @@ export default function PassPricing() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [fixture, setFixture] = useState<{ token: string; label: string } | null>(null)
+  const { pricing } = usePricing()
 
   useEffect(() => {
     let cancelled = false
@@ -55,12 +57,12 @@ export default function PassPricing() {
   const signedIn = Boolean(billing?.signedIn)
   const entitlement = billing?.entitlement ?? null
 
-  const buy = async (plan: Plan) => {
+  const buy = async (plan: Plan, currency: string) => {
     setError(null)
     setNotice(null)
     setBusy(plan.id)
     try {
-      const next = await purchasePlan(plan.id)
+      const next = await purchasePlan(plan.id, currency)
       setBilling((b) => (b ? { ...b, entitlement: next } : b))
       setNotice(`${plan.name} added. Your access now runs until ${formatDate(next.endsAt) || 'the end of the pass'}. A receipt is on its way to your email.`)
     } catch (err) {
@@ -127,9 +129,9 @@ export default function PassPricing() {
         </p>
       )}
       {signedIn ? (
-        <PlanCards onSelect={(p) => void buy(p)} busyPlanId={busy} disabled={Boolean(busy) || !billing?.configured} ctaLabel={(p) => (entitlement?.access ? `Add ${p.name}` : `Get ${p.name} for ₹${p.priceInr}`)} />
+        <PlanCards onSelect={(p, c) => void buy(p, c)} busyPlanId={busy} disabled={Boolean(busy) || !billing?.configured} ctaLabel={(p, priced) => (entitlement?.access ? `Add ${p.name}` : `Get ${p.name} for ${priced.priceLabel}`)} />
       ) : (
-        <PlanCards href="/app?mode=signup" ctaLabel={(p) => `Get ${p.name} for ₹${p.priceInr}`} />
+        <PlanCards href="/app?mode=signup" ctaLabel={(p, priced) => `Get ${p.name} for ${priced.priceLabel}`} />
       )}
       {signedIn && billing && !billing.configured && !testMode && <p className="pass-pricing-note">Payments are not configured on this deployment yet.</p>}
       {signedIn && testMode && (
@@ -159,7 +161,7 @@ export default function PassPricing() {
             ))}
           </ul>
           <p className="pass-pricing-note">
-            Passes: {PLANS.map((p) => `${p.name} ₹${p.priceInr}`).join(' · ')}. One Razorpay payment (UPI, cards, net banking), a receipt by email, nothing renews by itself. Buying another pass while one is active adds the days to the end.
+            Passes: {pricing.plans.map((p) => `${p.name} ${p.priceLabel}`).join(' · ')}. One Razorpay payment ({pricing.methods}), charged in {pricing.currency}, a receipt by email, nothing renews by itself. Buying another pass while one is active adds the days to the end.
           </p>
         </section>
         <section className="pass-pricing-card" aria-labelledby="free-title">

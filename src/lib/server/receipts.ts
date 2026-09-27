@@ -19,8 +19,9 @@ export interface Receipt {
   plan: string
   planId: string
   days: number
-  amountInr: number
-  currency: 'INR'
+  /** Amount paid, in major units of `currency`. */
+  amount: number
+  currency: string
   paymentId: string | null
   periodStart: string | null
   periodEnd: string | null
@@ -56,8 +57,8 @@ function toReceipt(row: typeof subscriptions.$inferSelect, user: { email: string
     planId: plan.id,
     days: plan.days,
     // The amount fixed at order time; only orders older than that column fall back to the plan's current price.
-    amountInr: row.amountPaise != null ? Math.round(row.amountPaise) / 100 : plan.priceInr,
-    currency: 'INR',
+    amount: row.amountPaise != null ? Math.round(row.amountPaise) / 100 : plan.priceInr,
+    currency: row.currency || 'INR',
     paymentId: row.lastPaymentId ?? null,
     periodStart: row.currentStart?.toISOString() ?? null,
     periodEnd: row.currentEnd?.toISOString() ?? null,
@@ -87,7 +88,14 @@ export async function getReceipt(userId: string, orderId: string): Promise<Recei
 }
 
 const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }) : '—')
-const fmtInr = (n: number) => `₹${n.toLocaleString('en-IN')}`
+const fmtMoney = (n: number, currency: string) => {
+  const whole = Math.abs(n - Math.round(n)) < 0.005
+  try {
+    return new Intl.NumberFormat(currency === 'INR' ? 'en-IN' : 'en', { style: 'currency', currency, minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 }).format(n)
+  } catch {
+    return `${currency} ${n}`
+  }
+}
 
 export function receiptRows(r: Receipt): [string, string][] {
   const rows: [string, string][] = [
@@ -96,7 +104,7 @@ export function receiptRows(r: Receipt): [string, string][] {
     ['Billed to', r.buyerName ? `${r.buyerName} · ${r.buyerEmail}` : r.buyerEmail],
     ['Item', `Prep pass · ${r.plan} (${r.days} days of access)`],
     ['Access period', `${fmtDate(r.periodStart)} to ${fmtDate(r.periodEnd)}`],
-    ['Amount paid', `${fmtInr(r.amountInr)} (INR, inclusive of all charges)`],
+    ['Amount paid', `${fmtMoney(r.amount, r.currency)} (${r.currency}, inclusive of all charges)`],
     ['Payment', r.paymentId ? `Razorpay · ${r.paymentId}` : 'Razorpay'],
     ['Seller', `${r.seller.name} · ${r.seller.email}${r.seller.address ? ` · ${r.seller.address}` : ''}`],
   ]
@@ -111,7 +119,7 @@ export async function sendPassReceipt(orderId: string, siteBase?: string): Promi
     if (!row) return 'skipped'
     const receipt = toReceipt(row.order, { email: row.email, name: row.name })
     if (!receipt || !receipt.buyerEmail) return 'skipped'
-    return await notify(row.order.userId, receipt.buyerEmail, 'payment.receipt', { number: receipt.number, plan: receipt.plan, days: receipt.days, amount: fmtInr(receipt.amountInr), paymentId: receipt.paymentId, periodEnd: fmtDate(receipt.periodEnd), orderId, base: siteBase ?? null }, receiptRows(receipt))
+    return await notify(row.order.userId, receipt.buyerEmail, 'payment.receipt', { number: receipt.number, plan: receipt.plan, days: receipt.days, amount: fmtMoney(receipt.amount, receipt.currency), paymentId: receipt.paymentId, periodEnd: fmtDate(receipt.periodEnd), orderId, base: siteBase ?? null }, receiptRows(receipt))
   } catch (error) {
     logError('receipt.send_failed', error, { orderId })
     return 'failed'
@@ -144,7 +152,7 @@ export function receiptHtml(r: Receipt): string {
   <h1>Payment receipt</h1>
   <p class="muted">${esc(r.number)} · issued ${esc(fmtDate(r.issuedAt))}${r.seller.gstin ? '' : ' · This is a payment receipt for a digital service; it is not a GST tax invoice.'}</p>
   <table>${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table>
-  <p class="total">Total paid: ${esc(fmtInr(r.amountInr))}</p>
+  <p class="total">Total paid: ${esc(fmtMoney(r.amount, r.currency))}</p>
   <p class="muted">One-time payment; nothing renews automatically. Refunds follow the policy at https://prep.evolw.in/refund. Questions: ${esc(r.seller.email)}.</p>
   <div class="actions"><a class="btn" href="javascript:window.print()">Print or save as PDF</a><a class="btn" href="/app">Back to Prep</a></div>
 </div></body></html>`

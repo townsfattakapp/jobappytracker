@@ -13,7 +13,7 @@ interface Props {
 /** Settings → Billing: plan, cycle, status, renewal, usage and the actions the provider actually supports. */
 export default function BillingPanel({ signedIn, onSignIn, onToast, onChanged }: Props) {
   const [state, setState] = useState<BillingStateResponse | null>(null)
-  const [receipts, setReceipts] = useState<{ id: string; number: string; plan: string; amountInr: number; paidAt: string | null; paymentId: string | null; buyerEmail: string }[]>([])
+  const [receipts, setReceipts] = useState<{ id: string; number: string; plan: string; amount: number; currency: string; paidAt: string | null; paymentId: string | null; buyerEmail: string }[]>([])
   const [usage, setUsage] = useState<UsageResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -153,7 +153,7 @@ export default function BillingPanel({ signedIn, onSignIn, onToast, onChanged }:
                 {receipts.map((r) => (
                   <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 text-sm rounded-lg border border-border/60 px-3 py-2">
                     <span>
-                      <code className="font-mono text-xs">{r.number}</code> · {r.plan} · ₹{r.amountInr.toLocaleString('en-IN')} · {r.paidAt ? new Date(r.paidAt).toLocaleDateString() : ''}
+                      <code className="font-mono text-xs">{r.number}</code> · {r.plan} · {formatMoney(Math.round(r.amount * 100), r.currency)} · {r.paidAt ? new Date(r.paidAt).toLocaleDateString() : ''}
                     </span>
                     <a className="btn btn-ghost btn-sm" href={`/api/billing/receipts/${encodeURIComponent(r.id)}`} target="_blank" rel="noreferrer">
                       View receipt

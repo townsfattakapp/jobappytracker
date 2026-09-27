@@ -20,11 +20,11 @@ export default function Paywall({ billing, email, onPurchased, onSignOut, onCont
   const [error, setError] = useState<string | null>(null)
   const lapsed = Boolean(billing.entitlement?.endsAt)
 
-  const choose = async (plan: Plan) => {
+  const choose = async (plan: Plan, currency: string) => {
     setError(null)
     setBusy(plan.id)
     try {
-      onPurchased(await purchasePlan(plan.id))
+      onPurchased(await purchasePlan(plan.id, currency))
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not start the payment'
       if (message !== PAYMENT_CANCELLED) setError(message)
@@ -51,7 +51,7 @@ export default function Paywall({ billing, email, onPurchased, onSignOut, onCont
           Signed in as <span className="font-semibold text-foreground">{email}</span>.
         </p>
 
-        <PlanCards onSelect={(plan) => void choose(plan)} busyPlanId={busy} disabled={Boolean(busy) || !billing.configured} compact />
+        <PlanCards onSelect={(plan, currency) => void choose(plan, currency)} busyPlanId={busy} disabled={Boolean(busy) || !billing.configured} compact />
         {!billing.configured && <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm">Payments for passes are not configured on this deployment.</p>}
         <p className="mt-3 text-xs text-muted-foreground">
           One Razorpay payment, a receipt by email, nothing renews by itself.{' '}

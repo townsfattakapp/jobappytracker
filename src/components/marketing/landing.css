@@ -732,9 +732,12 @@
   font-size: 1.1rem;
   line-height: 1.6;
 }
-#pricing .plan-grid {
+#pricing .plan-cards {
   margin: 0 auto 3rem;
   max-width: 1000px;
+}
+#pricing .plan-currency {
+  color: var(--lp-muted);
 }
 .lp-price-card h3 {
   font-size: 1.15rem;

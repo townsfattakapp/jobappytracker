@@ -20,11 +20,11 @@ export default function SubscriptionPanel({ billing, signedIn, onSignIn, onChang
   const entitlement = billing?.entitlement ?? null
   const plan = planById(entitlement?.planId)
 
-  const buy = async (chosen: Plan) => {
+  const buy = async (chosen: Plan, currency: string) => {
     setError(null)
     setBusy(chosen.id)
     try {
-      onChange(await purchasePlan(chosen.id))
+      onChange(await purchasePlan(chosen.id, currency))
       setShowPlans(false)
       onToast(`${chosen.name} added to your pass`)
     } catch (err) {
@@ -48,7 +48,7 @@ export default function SubscriptionPanel({ billing, signedIn, onSignIn, onChang
 
       {!signedIn ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">{PRODUCT_NAME} passes start at ₹299 for 90 days. Create an account to choose one.</p>
+          <p className="text-sm text-muted-foreground">{PRODUCT_NAME} passes start at ₹299 for 90 days (priced in USD, AED, GBP and EUR outside India). Create an account to choose one.</p>
           <button type="button" className="btn btn-primary" onClick={onSignIn}>
             Sign in or create account
           </button>
@@ -89,7 +89,7 @@ export default function SubscriptionPanel({ billing, signedIn, onSignIn, onChang
               )}
               {showPlans && (
                 <>
-                  <PlanCards onSelect={(p) => void buy(p)} busyPlanId={busy} disabled={Boolean(busy) || !billing?.configured} compact ctaLabel={(p) => (entitlement.access ? `Add ${p.name}` : `Get ${p.name}`)} />
+                  <PlanCards onSelect={(p, c) => void buy(p, c)} busyPlanId={busy} disabled={Boolean(busy) || !billing?.configured} compact ctaLabel={(p, priced) => (entitlement.access ? `Add ${p.name}` : `Get ${p.name} for ${priced.priceLabel}`)} />
                   {!billing?.configured && <p className="text-xs text-muted-foreground">Payments are not configured on this deployment yet.</p>}
                 </>
               )}

@@ -2631,6 +2631,34 @@ a {
 .plan-grid.is-compact .plan-amount {
   font-size: 2rem;
 }
+.plan-currency {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.8rem;
+  color: hsl(var(--muted-foreground));
+}
+.plan-currency label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.plan-currency select.input-field {
+  width: auto;
+  min-width: 11rem;
+  padding: 0.35rem 2rem 0.35rem 0.7rem;
+  font-size: 0.8rem;
+}
+.plan-currency-note {
+  flex-basis: 100%;
+  text-align: right;
+}
+.plan-cards.is-compact .plan-currency {
+  margin-bottom: 0.6rem;
+}
 
 /* --- Sign-in options --- */
 .auth-google {
