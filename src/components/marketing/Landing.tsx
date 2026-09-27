@@ -145,7 +145,7 @@ const FAQ = [
   },
   {
     q: 'Why do I need my own OpenAI or Groq key?',
-    a: 'Because it keeps a 90-day pass at ₹199 and puts you in control. Groq has a free tier that covers normal daily use; OpenAI usage for a heavy week is usually a few rupees. Your key is encrypted at rest and only ever sent to the provider you chose.',
+    a: 'Because it keeps a 90-day pass at ₹299 and puts you in control. Groq has a free tier that covers normal daily use; OpenAI usage for a heavy week is usually a few rupees. Your key is encrypted at rest and only ever sent to the provider you chose.',
   },
   {
     q: 'Which disciplines and tracks are covered in the curriculum?',

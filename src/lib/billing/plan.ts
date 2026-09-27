@@ -13,9 +13,9 @@ export interface Plan {
 }
 
 export const PLANS: Plan[] = [
-  { id: 'quarter', name: '90 days', days: 90, priceInr: 199, mrpInr: 499 },
-  { id: 'half', name: '180 days', days: 180, priceInr: 424, mrpInr: 699, badge: 'Most popular' },
-  { id: 'year', name: '1 year', days: 365, priceInr: 799, mrpInr: 1999, badge: 'Best value' },
+  { id: 'quarter', name: '90 days', days: 90, priceInr: 299, mrpInr: 499 },
+  { id: 'half', name: '180 days', days: 180, priceInr: 599, mrpInr: 799, badge: 'Most popular' },
+  { id: 'year', name: '1 year', days: 365, priceInr: 999, mrpInr: 1499, badge: 'Best value' },
 ]
 
 export const PRODUCT_NAME = 'Prep Pro'

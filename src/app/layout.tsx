@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     siteName: 'Prep by EVOLW',
     title: 'Prep by EVOLW — 150+ Engineering Tracks, Interview Prep & Career Roadmaps',
     description:
-      'Stop collecting resources. Start finishing them. 157 engineering tracks, 20 career path blueprints, 7,000+ topics, and AI mock interviews. Passes from ₹199, no subscription.',
+      'Stop collecting resources. Start finishing them. 157 engineering tracks, 20 career path blueprints, 7,000+ topics, and AI mock interviews. Passes from ₹299, no subscription.',
     images: [
       {
         url: '/screens/today.jpg',

@@ -205,7 +205,7 @@ try {
   await learner.getByRole('link', { name: 'Compare what is included' }).click()
   await learner.waitForURL(/\/pricing$/)
   await learner.getByText('You are on the free plan. Pick a pass to unlock everything below.').waitFor()
-  assert.equal(await learner.getByRole('button', { name: /^Get 90 days for ₹199$/ }).count(), 1, 'the pricing page sells the same passes as the home page')
+  assert.equal(await learner.getByRole('button', { name: /^Get 90 days for ₹299$/ }).count(), 1, 'the pricing page sells the same passes as the home page')
   await learner.getByRole('button', { name: 'Test checkout' }).click()
   await learner.getByRole('dialog', { name: /Test checkout/ }).getByRole('button', { name: 'Complete test payment' }).click()
   await learner.getByText(/is active on your account\./).waitFor({ timeout: 20000 })

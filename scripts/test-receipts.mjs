@@ -50,7 +50,7 @@ test('granting an order emails one receipt, derived from the order, visible only
   assert.equal(mine.length, 1)
   const r = mine[0]
   assert.equal(r.number, 'PREP-20260927-ORDERA')
-  assert.equal(r.amountInr, 199)
+  assert.equal(r.amountInr, 299)
   assert.equal(r.days, 90)
   assert.equal(r.paymentId, 'pay_R1234567890')
   assert.equal(r.buyerEmail, 'asha@example.invalid')
@@ -60,8 +60,8 @@ test('granting an order emails one receipt, derived from the order, visible only
   assert.equal(await receipts.getReceipt('u2', 'order_abc123XYZ'), null, 'the order id alone does not open it')
 
   const html = receipts.receiptHtml(r)
-  assert.ok(html.includes('PREP-20260927-ORDERA') && html.includes('₹199') && html.includes('pay_R1234567890') && html.includes('not a GST tax invoice'))
+  assert.ok(html.includes('PREP-20260927-ORDERA') && html.includes('₹299') && html.includes('pay_R1234567890') && html.includes('not a GST tax invoice'))
   const rows = receipts.receiptRows(r)
   const mail = renderEmail({ title: 't', intro: 'i', ctaLabel: 'c', ctaUrl: 'https://x', outro: 'o', rows })
-  assert.ok(mail.html.includes('pay_R1234567890') && mail.text.includes('Amount paid: ₹199'))
+  assert.ok(mail.html.includes('pay_R1234567890') && mail.text.includes('Amount paid: ₹299'))
 })

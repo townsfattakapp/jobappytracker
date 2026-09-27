@@ -19,12 +19,12 @@ const now = new Date('2026-09-23T00:00:00Z')
 const days = (n) => new Date(now.getTime() + n * 86_400_000)
 
 // Plans: the three passes with list prices
-assert.deepEqual(PLANS.map((p) => [p.id, p.days, p.priceInr, p.mrpInr]), [['quarter', 90, 199, 499], ['half', 180, 424, 699], ['year', 365, 799, 1999]])
-assert.equal(discountPercent(planById('quarter')), 60)
-assert.equal(discountPercent(planById('year')), 60)
-assert.equal(amountPaise(planById('half')), 42400)
-assert.ok(Math.abs(perMonth(planById('year')) - perMonth(planById('quarter'))) <= 1, 'per-month figure is about ₹66 on both ends')
-console.log('PASS: plans are 90 days ₹199 (₹499), 180 days ₹424 (₹699), 1 year ₹799 (₹1999)')
+assert.deepEqual(PLANS.map((p) => [p.id, p.days, p.priceInr, p.mrpInr]), [['quarter', 90, 299, 499], ['half', 180, 599, 799], ['year', 365, 999, 1499]])
+assert.equal(discountPercent(planById('quarter')), 40)
+assert.equal(discountPercent(planById('year')), 33)
+assert.equal(amountPaise(planById('half')), 59900)
+assert.ok(perMonth(planById('year')) < perMonth(planById('quarter')), 'the longer pass costs less per month')
+console.log('PASS: plans are 90 days ₹299 (₹499), 180 days ₹599 (₹799), 1 year ₹999 (₹1499)')
 
 // Entitlement: no trial, access only while paid
 let e = computeEntitlement(null, null, now)

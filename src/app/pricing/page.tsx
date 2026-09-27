@@ -8,14 +8,14 @@ import { PricingJsonLd } from '../../components/seo/JsonLd'
 export const metadata: Metadata = {
   title: 'Pricing & Passes',
   description:
-    'Simple, one-time passes for Prep by EVOLW. 90-day, 180-day, and 365-day access starting from ₹199. No recurring subscriptions or automatic debit.',
+    'Simple, one-time passes for Prep by EVOLW. 90-day, 180-day, and 365-day access starting from ₹299. No recurring subscriptions or automatic debit.',
   alternates: {
     canonical: '/pricing',
   },
   openGraph: {
     title: 'Pricing & Passes · Prep by EVOLW',
     description:
-      'Simple, one-time passes for Prep by EVOLW. 90-day, 180-day, and 365-day access starting from ₹199. No recurring subscriptions or automatic debit.',
+      'Simple, one-time passes for Prep by EVOLW. 90-day, 180-day, and 365-day access starting from ₹299. No recurring subscriptions or automatic debit.',
     url: '/pricing',
     images: [{ url: '/screens/today.jpg', width: 1440, height: 900, alt: 'Prep by EVOLW Passes and Pricing' }],
   },
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Pricing & Passes · Prep by EVOLW',
     description:
-      'Simple, one-time passes for Prep by EVOLW. 90-day, 180-day, and 365-day access starting from ₹199. No recurring subscriptions.',
+      'Simple, one-time passes for Prep by EVOLW. 90-day, 180-day, and 365-day access starting from ₹299. No recurring subscriptions.',
     images: ['/screens/today.jpg'],
   },
 }
@@ -46,7 +46,7 @@ export default function PricingPage() {
       </header>
       <main className="pricing-main">
         <h1 className="pricing-title">Pick a pass. Pay once.</h1>
-        <p className="pricing-sub">The same three passes everywhere: 90 days for ₹199, 180 days for ₹424, one year for ₹799. One payment through Razorpay, nothing renews by itself, and the price shown is the price you pay.</p>
+        <p className="pricing-sub">The same three passes everywhere: 90 days for ₹299, 180 days for ₹599, one year for ₹999. One payment through Razorpay, nothing renews by itself, and the price shown is the price you pay.</p>
         <PassPricing />
       </main>
       <footer className="mt-16 pt-8 pb-12 border-t border-border/50 text-center text-xs text-muted-foreground">

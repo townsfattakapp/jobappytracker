@@ -1,4 +1,4 @@
-import { perMonth, PLANS, type Plan } from '../lib/billing/plan'
+import { discountPercent, perMonth, PLANS, type Plan } from '../lib/billing/plan'
 
 interface PlanCardsProps {
   /** Called with the chosen plan; when omitted, cards link to `href`. */
@@ -22,10 +22,13 @@ export default function PlanCards({ onSelect, href = '/app', busyPlanId = null, 
             {plan.badge && <span className="plan-badge">{plan.badge}</span>}
             <p className="plan-name">{plan.name}</p>
             <p className="plan-price">
+              <span className="plan-mrp" aria-label={`Regular price ₹${plan.mrpInr}`}>
+                ₹{plan.mrpInr}
+              </span>
               <span className="plan-amount text-gradient">₹{plan.priceInr}</span>
             </p>
             <p className="plan-meta">
-              {plan.days} days of access · about ₹{perMonth(plan)} a month
+              {plan.days} days of access · about ₹{perMonth(plan)} a month · {discountPercent(plan)}% off the regular price
             </p>
             {onSelect ? (
               <button type="button" className={`btn ${plan.badge ? 'btn-primary' : 'btn-ghost'} w-full mt-4`} disabled={disabled || busy} onClick={() => onSelect(plan)}>

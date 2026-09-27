@@ -48,7 +48,7 @@ export default function SubscriptionPanel({ billing, signedIn, onSignIn, onChang
 
       {!signedIn ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">{PRODUCT_NAME} passes start at ₹199 for 90 days. Create an account to choose one.</p>
+          <p className="text-sm text-muted-foreground">{PRODUCT_NAME} passes start at ₹299 for 90 days. Create an account to choose one.</p>
           <button type="button" className="btn btn-primary" onClick={onSignIn}>
             Sign in or create account
           </button>
