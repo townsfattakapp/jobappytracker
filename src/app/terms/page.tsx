@@ -2,8 +2,18 @@ import type { Metadata } from 'next'
 import LegalPageLayout from '../../components/legal/LegalPageLayout'
 
 export const metadata: Metadata = {
-  title: 'Terms of Service · Prep by EVOLW',
-  description: 'Terms and conditions governing the use of Prep by EVOLW, curriculum access, subscriptions, and platform services.',
+  title: 'Terms of Service',
+  description:
+    'Terms and conditions governing the use of Prep by EVOLW, curriculum access, subscriptions, and platform services.',
+  alternates: {
+    canonical: '/terms',
+  },
+  openGraph: {
+    title: 'Terms of Service · Prep by EVOLW',
+    description:
+      'Terms and conditions governing the use of Prep by EVOLW, curriculum access, subscriptions, and platform services.',
+    url: '/terms',
+  },
 }
 
 export default function TermsPage() {
@@ -20,7 +30,7 @@ export default function TermsPage() {
           By creating an account, accessing, or using Prep by EVOLW (&ldquo;the Service&rdquo;), you agree to be bound by these Terms of Service (&ldquo;Terms&rdquo;) and our Privacy Policy. If you do not agree to these Terms, you must not access or use the Service.
         </p>
         <p>
-          The Service is provided by <strong>Evolw Technologies</strong> (&ldquo;Company&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;).
+          The Service is provided by <strong>Evolw</strong> (&ldquo;Company&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;).
         </p>
       </section>
 
@@ -97,7 +107,7 @@ export default function TermsPage() {
       <section className="legal-section">
         <h2>8. Governing Law and Dispute Resolution</h2>
         <p>
-          These Terms shall be governed by and construed in accordance with the laws of India. Any legal dispute, claim, or proceeding arising under or in connection with these Terms shall be subject to the exclusive jurisdiction of the competent courts in Bengaluru, Karnataka, India.
+          These Terms shall be governed by and construed in accordance with the laws of India. Any legal dispute, claim, or proceeding arising under or in connection with these Terms shall be subject to the exclusive jurisdiction of the competent courts at Balaghat, Madhya Pradesh, India.
         </p>
       </section>
 
@@ -107,9 +117,9 @@ export default function TermsPage() {
           Formal notices regarding these Terms should be sent to:
         </p>
         <div className="legal-callout">
-          <p><strong>Entity:</strong> Evolw Technologies</p>
+          <p><strong>Entity:</strong> Evolw</p>
           <p><strong>Legal Department:</strong> <a href="mailto:hello@evolw.in" className="text-primary underline">hello@evolw.in</a></p>
-          <p><strong>Address:</strong> Evolw Technologies, Bengaluru, Karnataka, India</p>
+          <p><strong>Address:</strong> Evolw, Waraseoni, District Balaghat, Madhya Pradesh, India</p>
         </div>
       </section>
     </LegalPageLayout>

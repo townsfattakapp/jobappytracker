@@ -2,8 +2,18 @@ import type { Metadata } from 'next'
 import LegalPageLayout from '../../components/legal/LegalPageLayout'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy · Prep by EVOLW',
-  description: 'How Prep by EVOLW collects, handles, stores and protects your personal learning, resume, and authentication data.',
+  title: 'Privacy Policy',
+  description:
+    'How Prep by EVOLW collects, handles, stores and protects your personal learning, resume, and authentication data.',
+  alternates: {
+    canonical: '/privacy',
+  },
+  openGraph: {
+    title: 'Privacy Policy · Prep by EVOLW',
+    description:
+      'How Prep by EVOLW collects, handles, stores and protects your personal learning, resume, and authentication data.',
+    url: '/privacy',
+  },
 }
 
 export default function PrivacyPage() {
@@ -18,7 +28,7 @@ export default function PrivacyPage() {
         <h2>1. Entity and Scope</h2>
         <p>
           This Privacy Policy applies to the software platform &ldquo;Prep by EVOLW&rdquo; (&ldquo;Prep&rdquo;, &ldquo;we&rdquo;, &ldquo;our&rdquo;, or &ldquo;us&rdquo;), operated by{' '}
-          <strong>Evolw Technologies</strong>, having its principal place of business in Bengaluru, Karnataka, India.
+          <strong>Evolw</strong>, having its principal place of business at Waraseoni, District Balaghat, Madhya Pradesh, India.
         </p>
         <p>
           This policy covers visitors, registered learners, and administrators accessing the website, platform APIs, and associated learning tools.
@@ -126,9 +136,9 @@ export default function PrivacyPage() {
         </p>
         <div className="legal-callout">
           <p><strong>Designation:</strong> Grievance &amp; Data Protection Officer</p>
-          <p><strong>Entity:</strong> Evolw Technologies</p>
+          <p><strong>Entity:</strong> Evolw</p>
           <p><strong>Email:</strong> <a href="mailto:hello@evolw.in" className="text-primary underline">hello@evolw.in</a></p>
-          <p><strong>Address:</strong> Evolw Technologies, Bengaluru, Karnataka, India</p>
+          <p><strong>Address:</strong> Evolw, Waraseoni, District Balaghat, Madhya Pradesh, India</p>
         </div>
       </section>
     </LegalPageLayout>

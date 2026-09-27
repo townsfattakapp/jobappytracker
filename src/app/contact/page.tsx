@@ -1,15 +1,34 @@
 import type { Metadata } from 'next';
 import LegalPageLayout from '../../components/legal/LegalPageLayout';
 import Link from 'next/link';
+import { ContactJsonLd } from '../../components/seo/JsonLd';
 
 export const metadata: Metadata = {
-  title: 'Contact & Support · Prep by EVOLW',
-  description: 'Get in touch with the Prep by EVOLW team for customer support, billing inquiries, enterprise requests, and technical issues.',
+  title: 'Contact & Support',
+  description:
+    'Get in touch with the Prep by EVOLW team for customer support, billing inquiries, enterprise requests, and technical issues.',
+  alternates: {
+    canonical: '/contact',
+  },
+  openGraph: {
+    title: 'Contact & Support · Prep by EVOLW',
+    description:
+      'Get in touch with the Prep by EVOLW team for customer support, billing inquiries, enterprise requests, and technical issues.',
+    url: '/contact',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Contact & Support · Prep by EVOLW',
+    description:
+      'Get in touch with the Prep by EVOLW team for customer support, billing inquiries, enterprise requests, and technical issues.',
+  },
 };
 
 export default function ContactPage() {
   return (
-    <LegalPageLayout
+    <>
+      <ContactJsonLd />
+      <LegalPageLayout
       title="Contact & Support"
       subtitle="We are here to assist you with learning pathways, career tools, billing inquiries, and technical issues."
       lastUpdated="September 2026"
@@ -79,12 +98,13 @@ export default function ContactPage() {
           For formal legal notices, regulatory filings, or physical postal correspondence:
         </p>
         <div className="legal-callout">
-          <p><strong>Operating Entity:</strong> Evolw Technologies</p>
-          <p><strong>Registered Office Address:</strong> Evolw Technologies, Bengaluru, Karnataka, India</p>
-          <p><strong>Grievance Officer:</strong> Grievance Officer, Evolw Technologies (<a href="mailto:hello@evolw.in" className="text-primary underline">hello@evolw.in</a>)</p>
+          <p><strong>Operating Entity:</strong> Evolw</p>
+          <p><strong>Registered Office Address:</strong> Evolw, Waraseoni, District Balaghat, Madhya Pradesh, India</p>
+          <p><strong>Grievance Officer:</strong> Grievance Officer, Evolw (<a href="mailto:hello@evolw.in" className="text-primary underline">hello@evolw.in</a>)</p>
           <p><strong>Official Website:</strong> <a href="https://www.evolw.in" target="_blank" rel="noreferrer" className="text-primary underline">www.evolw.in</a></p>
         </div>
       </div>
     </LegalPageLayout>
+    </>
   );
 }
