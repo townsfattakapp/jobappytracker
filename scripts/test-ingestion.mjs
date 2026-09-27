@@ -566,3 +566,40 @@ test('Keka adapter reads the embed list once and maps locations, countries, type
   await assert.rejects(() => keka.fetchJobs({ id: 's', name: 'x', provider: 'keka', baseUrl: null, config: { host: 'hr.keka.com', identifier: 'nope' } }, { fetch: fetchImpl, log: () => {} }), /identifier/)
   await assert.rejects(() => keka.fetchJobs({ id: 's', name: 'x', provider: 'keka', baseUrl: null, config: { host: 'hr.keka.com', identifier: '24040a7e-a7c5-47a5-9cd5-019962c66385' } }, { fetch: async () => ({ ok: true, status: 200, text: async () => '{}' }), log: () => {} }), /not an array/)
 })
+
+test('Adzuna adapter searches by keyword, keeps only the configured employer, pages by 50 and maps the result shape', async () => {
+  const adzuna = providers.providerById('adzuna')
+  process.env.ADZUNA_APP_ID = 'id-test'
+  process.env.ADZUNA_APP_KEY = 'key-test'
+  const calls = []
+  const result = (id, employer) => ({ id: String(id), title: `Software Engineer ${id}`, description: 'Build payment systems in Java and Kafka. Great team.', redirect_url: `https://www.adzuna.in/land/ad/${id}?se=x`, created: '2026-09-26T10:00:00Z', company: { display_name: employer }, location: { display_name: 'Bangalore, Karnataka', area: ['India', 'Karnataka', 'Bangalore'] }, category: { label: 'IT Jobs', tag: 'it-jobs' }, contract_time: 'full_time', salary_min: 1500000, salary_max: 2500000 })
+  const fetchImpl = async (url) => {
+    calls.push(url)
+    const u = new URL(url)
+    const page = Number(u.pathname.split('/').pop())
+    const results = page === 1 ? Array.from({ length: 50 }, (_, i) => result(i + 1, i % 5 === 0 ? 'PHONEPE LIMITED' : 'Some Agency')) : [result(51, 'PhonePe Private Limited'), result(52, 'Other Co')]
+    return { ok: true, status: 200, text: async () => JSON.stringify({ count: 52, results }) }
+  }
+  const raw = await adzuna.fetchJobs({ id: 's', name: 'PhonePe', provider: 'adzuna', baseUrl: null, config: { country: 'in', query: 'PhonePe', match: 'phonepe', pages: 4 } }, { fetch: fetchImpl, log: () => {} })
+  assert.equal(calls.length, 2, 'stops when a page is short')
+  assert.ok(calls[0].includes('/jobs/in/search/1?') && calls[0].includes('what=PhonePe') && calls[0].includes('app_id=id-test') && calls[0].includes('results_per_page=50'))
+  assert.equal(raw.length, 11, '10 PhonePe results on page 1 plus one on page 2; agencies dropped')
+  const job = raw[0]
+  assert.equal(job.externalId, '1')
+  assert.equal(job.location, 'Bangalore, Karnataka')
+  assert.deepEqual(job.countries, ['India'])
+  assert.equal(job.employmentType, 'full_time')
+  assert.equal(job.sourceUrl, 'https://www.adzuna.in/land/ad/1?se=x')
+  assert.ok(job.descriptionText.includes('Summary from Adzuna'))
+  assert.equal(job.raw.employer, 'PHONEPE LIMITED')
+  const n = normalize.normalizeRawJob(job)
+  assert.equal(n.region, 'india')
+  assert.equal(n.locationCity, 'Bengaluru')
+  assert.ok(n.relevance.relevant, 'engineering title with a snippet is kept')
+  delete process.env.ADZUNA_APP_ID
+  await assert.rejects(() => adzuna.fetchJobs({ id: 's', name: 'x', provider: 'adzuna', baseUrl: null, config: { country: 'in', query: 'x' } }, { fetch: fetchImpl, log: () => {} }), /credentials/)
+  process.env.ADZUNA_APP_ID = 'id-test'
+  await assert.rejects(() => adzuna.fetchJobs({ id: 's', name: 'x', provider: 'adzuna', baseUrl: null, config: { country: 'india', query: 'x' } }, { fetch: fetchImpl, log: () => {} }), /config.country/)
+  delete process.env.ADZUNA_APP_ID
+  delete process.env.ADZUNA_APP_KEY
+})

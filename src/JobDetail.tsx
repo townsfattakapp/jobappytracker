@@ -156,6 +156,7 @@ export default function JobDetail({ onOpenReferrals, jobId, user, features, goal
 
   const learner = useMemo(() => ({ goals, roadmap, knowledgeWorkspaces }), [goals, roadmap, knowledgeWorkspaces])
   const curriculum = useMemo(() => (job ? mapJobToCurriculum(job, learner) : null), [job, learner])
+  const viaAggregator = Boolean(job && /(^|\.)adzuna\./i.test(hostOf(job.applyUrl)))
   const tracked = useMemo(() => (job ? applications.find((a) => a.jobUrl === job.applyUrl || a.jobRef?.jobId === job.id) : undefined), [applications, job])
   const activeGoal = goals.find((g) => g.status === 'Active') || goals[0]
   const currentResume = resumes?.find((r) => r.isCurrent) || resumes?.[0] || null
@@ -664,10 +665,12 @@ export default function JobDetail({ onOpenReferrals, jobId, user, features, goal
 
         <aside className="job-detail-side" hidden={interviewActive}>
           <div className="jobs-panel">
-            <div className="jobs-panel-title">Apply on the official page</div>
-            <p className="jobs-panel-sub">Applications go through {job.company.name}, never through JobAppy.</p>
+            <div className="jobs-panel-title">{viaAggregator ? 'Open the original listing' : 'Apply on the official page'}</div>
+            <p className="jobs-panel-sub">
+              {viaAggregator ? `This listing was found through Adzuna, a licensed job aggregator, because ${job.company.name} publishes only on a portal without a feed. The button goes through Adzuna to the employer's own posting; the description here is Adzuna's summary.` : `Applications go through ${job.company.name}, never through JobAppy.`}
+            </p>
             <a href={job.applyUrl} target="_blank" rel="noreferrer noopener" className="btn btn-primary w-full mt-3">
-              Apply at {hostOf(job.applyUrl)}
+              {viaAggregator ? 'Open listing via Adzuna' : `Apply at ${hostOf(job.applyUrl)}`}
             </a>
             {tracked ? (
               <p className="job-source-note">

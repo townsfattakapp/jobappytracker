@@ -48,10 +48,11 @@ test('catalog data: 50–200 companies, unique official identities, valid role f
     assert.ok(['strong', 'moderate', 'international'].includes(c.indiaRelevance))
     assert.ok(c.roleFamilies.length > 0 && c.roleFamilies.every((f) => ROLE_CATEGORY_IDS.includes(f)), `${c.slug} role families valid`)
     if (c.feed) {
-      assert.ok(['greenhouse', 'lever', 'ashby', 'smartrecruiters', 'amazon', 'eightfold', 'workday', 'oraclecloud', 'atlassian', 'keka'].includes(c.feed.provider), 'documented board APIs or a careers site JSON endpoint')
-      const TOKEN_SHAPE = { greenhouse: /^[a-z0-9-]+$/i, lever: /^[a-z0-9-]+$/i, ashby: /^[a-z0-9-]+$/i, smartrecruiters: /^[A-Za-z0-9_-]+$/, amazon: /^amazon\.jobs$/, oraclecloud: /^[a-z0-9.-]+\.oraclecloud\.com\/[A-Za-z0-9_]+$/, atlassian: /^atlassian\.com$/, keka: /^[a-z0-9.-]+\/[a-f0-9-]{36}(\/[a-z0-9_-]+)?$/i, eightfold: /^[a-z0-9.-]+\|[a-z0-9.-]+\|(pcsx|apply-v2)$/, workday: /^[a-z0-9.-]+\.myworkdayjobs\.com\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/ }
+      assert.ok(['greenhouse', 'lever', 'ashby', 'smartrecruiters', 'amazon', 'eightfold', 'workday', 'oraclecloud', 'atlassian', 'keka', 'adzuna'].includes(c.feed.provider), 'documented board APIs, a careers site JSON endpoint, or the licensed Adzuna aggregator')
+      const TOKEN_SHAPE = { greenhouse: /^[a-z0-9-]+$/i, lever: /^[a-z0-9-]+$/i, ashby: /^[a-z0-9-]+$/i, smartrecruiters: /^[A-Za-z0-9_-]+$/, amazon: /^amazon\.jobs$/, oraclecloud: /^[a-z0-9.-]+\.oraclecloud\.com\/[A-Za-z0-9_]+$/, atlassian: /^atlassian\.com$/, keka: /^[a-z0-9.-]+\/[a-f0-9-]{36}(\/[a-z0-9_-]+)?$/i, adzuna: /^[a-z]{2}\|[^|]+\|.+$/, eightfold: /^[a-z0-9.-]+\|[a-z0-9.-]+\|(pcsx|apply-v2)$/, workday: /^[a-z0-9.-]+\.myworkdayjobs\.com\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/ }
       assert.match(c.feed.token, TOKEN_SHAPE[c.feed.provider], `${c.slug} token shape for ${c.feed.provider}`)
       if (['amazon', 'eightfold', 'workday', 'oraclecloud', 'atlassian', 'keka'].includes(c.feed.provider)) assert.match(c.feed.note ?? '', /[Uu]nofficial/, `${c.slug} says the endpoint is unofficial`)
+      if (c.feed.provider === 'adzuna') assert.match(c.feed.note ?? '', /aggregator/i, `${c.slug} says the listings come through an aggregator`)
       assert.match(c.feed.verifiedAt, /^\d{4}-\d{2}-\d{2}$/, `${c.slug} carries a verification date`)
       assert.ok(Number.isInteger(c.feed.jobsAtVerification) && c.feed.jobsAtVerification >= 0)
       assert.equal(c.portal, c.feed.provider)
@@ -79,10 +80,15 @@ test('seeding is idempotent, marks unsupported portals Not configured with the c
     assert.equal(status.seeded, COMPANY_CATALOG.length)
     const unsupported = status.rows.filter((r) => !r.feed)
     assert.ok(unsupported.every((r) => r.status === 'Unsupported' && r.ingestionAllowed === false && r.verificationStatus === 'unsupported' && r.careersUrl.startsWith('https://')))
-    const gg = (await client.query("select provider, notes, \"ingestionAllowed\" from job_sources where slug = $1", [CATALOG_SOURCE_SLUG('google')])).rows[0]
-    assert.equal(gg.provider, 'manual')
-    assert.match(gg.notes, /Not configured/)
-    assert.equal(gg.ingestionAllowed, false)
+    const zo = (await client.query("select provider, notes, \"ingestionAllowed\" from job_sources where slug = $1", [CATALOG_SOURCE_SLUG('zoho')])).rows[0]
+    assert.equal(zo.provider, 'manual')
+    assert.match(zo.notes, /Not configured/)
+    assert.equal(zo.ingestionAllowed, false)
+    const gg = (await client.query("select provider, name, notes, config from job_sources where slug = $1", [CATALOG_SOURCE_SLUG('google')])).rows[0]
+    assert.equal(gg.provider, 'adzuna', 'a portal-only brand with Adzuna coverage is read through the licensed aggregator')
+    assert.equal(gg.name, 'Google via Adzuna')
+    assert.match(gg.notes, /aggregator/i)
+    assert.deepEqual(gg.config, { country: 'in', query: 'Google', match: '^google\\b', pages: 10 })
     const ms = (await client.query("select provider, notes, config, \"ingestionAllowed\" from job_sources where slug = $1", [CATALOG_SOURCE_SLUG('microsoft')])).rows[0]
     assert.equal(ms.provider, 'eightfold')
     assert.match(ms.notes, /unofficial/)

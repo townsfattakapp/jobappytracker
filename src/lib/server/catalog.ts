@@ -12,6 +12,7 @@ import { oracleListUrl, parseOracleToken } from '../ingestion/providers/oraclecl
 import { smartRecruitersListUrl } from '../ingestion/providers/smartrecruiters'
 import { ATLASSIAN_LISTINGS_URL } from '../ingestion/providers/atlassian'
 import { kekaListUrl, parseKekaToken } from '../ingestion/providers/keka'
+import { adzunaCredentials, adzunaSearchUrl, parseAdzunaToken } from '../ingestion/providers/adzuna'
 
 /**
  * Company source catalog: idempotent seeding of curated companies and their
@@ -66,7 +67,7 @@ export function feedConfig(entry: CatalogCompany): Record<string, unknown> {
   if (!entry.feed) return {}
   const { provider, token, config } = entry.feed
   const base =
-    provider === 'lever' ? { site: token } : provider === 'smartrecruiters' ? { company: token } : provider === 'amazon' || provider === 'atlassian' ? {} : provider === 'eightfold' ? parseEightfoldToken(token) : provider === 'workday' ? parseWorkdayToken(token) : provider === 'oraclecloud' ? parseOracleToken(token) : provider === 'keka' ? parseKekaToken(token) : { board: token }
+    provider === 'lever' ? { site: token } : provider === 'smartrecruiters' ? { company: token } : provider === 'amazon' || provider === 'atlassian' ? {} : provider === 'eightfold' ? parseEightfoldToken(token) : provider === 'workday' ? parseWorkdayToken(token) : provider === 'oraclecloud' ? parseOracleToken(token) : provider === 'keka' ? parseKekaToken(token) : provider === 'adzuna' ? parseAdzunaToken(token) : { board: token }
   return { ...base, ...(config ?? {}) }
 }
 
@@ -89,13 +90,13 @@ export async function seedCatalog(actorId: string | null): Promise<{ companiesCr
     const existing = await db.query.jobSources.findFirst({ where: eq(jobSources.slug, sourceSlug) })
     const supported = Boolean(entry.feed)
     const sourceValues = {
-      name: `${entry.name} careers${entry.feed ? ` (${entry.feed.provider})` : ''}`,
+      name: entry.feed?.provider === 'adzuna' ? `${entry.name} via Adzuna` : `${entry.name} careers${entry.feed ? ` (${entry.feed.provider})` : ''}`,
       type: supported ? 'ats_api' : 'career_page',
       baseUrl: entry.careersUrl,
       termsUrl: null,
       // Documented job-board APIs, or the JSON endpoint the company's own careers site calls; HTML is never scraped.
       ingestionAllowed: supported,
-      notes: entry.feed ? `${SITE_PROVIDERS.has(entry.feed.provider) ? `Careers-site JSON endpoint (${entry.feed.provider}, unofficial)` : `Official ${entry.feed.provider} job board`} (${entry.feed.token}); verified ${entry.feed.verifiedAt} with ${entry.feed.jobsAtVerification} listing(s).${entry.feed.note ? ` ${entry.feed.note}` : ''}` : `Not configured: ${entry.name} publishes openings on its own careers portal (${entry.careersUrl}); no public feed JobAppy can use. ${entry.notes ?? ''}`.trim(),
+      notes: entry.feed ? `${entry.feed.provider === 'adzuna' ? 'Licensed aggregator API (Adzuna); snippets and Adzuna redirect links' : SITE_PROVIDERS.has(entry.feed.provider) ? `Careers-site JSON endpoint (${entry.feed.provider}, unofficial)` : `Official ${entry.feed.provider} job board`} (${entry.feed.token}); verified ${entry.feed.verifiedAt} with ${entry.feed.jobsAtVerification} listing(s).${entry.feed.note ? ` ${entry.feed.note}` : ''}` : `Not configured: ${entry.name} publishes openings on its own careers portal (${entry.careersUrl}); no public feed JobAppy can use. ${entry.notes ?? ''}`.trim(),
       provider: entry.feed ? entry.feed.provider : 'manual',
       config: feedConfig(entry),
       companyId: company.id,
@@ -156,6 +157,11 @@ export const PROBES: Record<CatalogFeedProvider, (token: string) => Probe> = {
   oraclecloud: (t) => ({ url: oracleListUrl(parseOracleToken(t), { label: 'probe' }, 0, 1), init: { headers: BROWSER_HEADERS }, count: (b) => numberOrNull((b as { items?: { TotalJobsCount?: unknown }[] })?.items?.[0]?.TotalJobsCount) }),
   atlassian: () => ({ url: ATLASSIAN_LISTINGS_URL, init: { headers: BROWSER_HEADERS }, count: jobsLength }),
   keka: (t) => ({ url: kekaListUrl(parseKekaToken(t)), init: { headers: { ...BROWSER_HEADERS, accept: 'application/json' } }, count: jobsLength }),
+  adzuna: (t) => {
+    const creds = adzunaCredentials()
+    const cfg = parseAdzunaToken(t)
+    return { url: creds ? adzunaSearchUrl(cfg, 1, creds, 1) : 'https://api.adzuna.com/v1/api/jobs/in/search/1?app_id=missing&app_key=missing', init: { headers: { accept: 'application/json' } }, count: (b) => numberOrNull((b as { count?: unknown })?.count) }
+  },
 }
 
 export interface VerifyResult {

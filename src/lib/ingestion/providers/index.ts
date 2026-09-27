@@ -1,4 +1,5 @@
 import type { JobProvider } from '../types'
+import { adzunaProvider } from './adzuna'
 import { amazonProvider } from './amazon'
 import { ashbyProvider } from './ashby'
 import { atlassianProvider } from './atlassian'
@@ -18,7 +19,7 @@ import { fixturesAllowed } from '../../server/stage'
  * Eightfold, Workday, Oracle Cloud HCM and Atlassian are the JSON endpoints the companies' own
  * careers pages call (unofficial, may change).
  */
-export const PROVIDERS: JobProvider[] = [greenhouseProvider, leverProvider, ashbyProvider, smartRecruitersProvider, amazonProvider, eightfoldProvider, workdayProvider, oracleCloudProvider, atlassianProvider, kekaProvider, fixtureProvider]
+export const PROVIDERS: JobProvider[] = [greenhouseProvider, leverProvider, ashbyProvider, smartRecruitersProvider, amazonProvider, eightfoldProvider, workdayProvider, oracleCloudProvider, atlassianProvider, kekaProvider, adzunaProvider, fixtureProvider]
 
 export const PROVIDER_IDS = ['manual', ...PROVIDERS.map((p) => p.id)] as const
 
