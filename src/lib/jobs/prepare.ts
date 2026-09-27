@@ -1,4 +1,5 @@
 import { findTrack, getCurriculum, searchCurriculum, type TopicRef } from '../curriculum/registry'
+import { PLACEHOLDER_TOPIC } from '../curriculum/placeholders'
 import type { ResumeProfile } from '../resume/extract'
 import type { JobApplication, KnowledgeWorkspace, RoadmapDay } from '../../types'
 import type { CompatibilityReport } from './compatibility'
@@ -86,7 +87,6 @@ function pointer(ref: TopicRef): TopicPointer {
 }
 
 /** Curriculum rows that are scaffolding rather than substance: never the topic a candidate should prepare. */
-const PLACEHOLDER_TOPIC = /^(foundational|intermediate|advanced|architecture|real-world|core|practice) (topic|concepts?) \d+ for\b/i
 const SETUP_TOPIC = /\b(install|installation|installing|setup|set up|getting started|environment|introduction to|what is|why (should i )?learn|overview|hello world|first program|tooling|ide)\b/i
 const INTERVIEW_TOPIC = /interview questions/i
 

@@ -19,6 +19,13 @@ export interface InterviewRound {
   design?: boolean
   defaultLanguage?: string
   dimensions: string[]
+  /** Whole-area rounds: the tracks of a learning-track family with a few topics each; the interviewer works through them. */
+  syllabus?: SyllabusArea[]
+}
+
+export interface SyllabusArea {
+  title: string
+  topics: string[]
 }
 
 export const ROUNDS: InterviewRound[] = [
@@ -167,7 +174,7 @@ export const LEVELS = [
 
 export type Level = (typeof LEVELS)[number]['id']
 
-export const DURATIONS = [20, 30, 45] as const
+export const DURATIONS = [20, 30, 45, 60] as const
 export type Duration = (typeof DURATIONS)[number]
 
 export interface Persona {
@@ -222,6 +229,8 @@ export interface InterviewSetup {
   personaId: Persona['id']
   voice: boolean
   candidateName?: string
+  /** Sessions of this round the learner has already done; a whole-area round starts from a different syllabus area each time. */
+  rotation?: number
 }
 
 /** What the interviewer model must return on every turn. */
@@ -233,14 +242,31 @@ export interface InterviewerTurn {
 }
 
 function questionBudget(round: InterviewRound, minutes: number): string {
+  if (round.syllabus?.length) return `${minutes >= 60 ? '10 to 12' : minutes >= 45 ? '8 to 10' : minutes >= 30 ? '6 to 8' : '4 to 6'} main questions, each from a different syllabus area, with short follow-ups`
   if (round.group === 'Design') return '1 design problem, explored in depth'
   if (round.group === 'Coding') return minutes >= 45 ? '2 problems' : '1 problem, a second only if time clearly allows'
   if (round.group === 'Behavioural') return minutes >= 45 ? '4 to 5 questions' : minutes >= 30 ? '3 to 4 questions' : '2 to 3 questions'
   return minutes >= 45 ? '6 to 8 questions with follow-ups' : minutes >= 30 ? '4 to 6 questions with follow-ups' : '3 to 4 questions with follow-ups'
 }
 
-export function buildInterviewerSystemPrompt(setup: InterviewSetup): string {
-  const round = roundById(setup.roundId)
+/** The syllabus block of a whole-area round: every area with its topics, and where this session starts. */
+export function syllabusLines(round: InterviewRound, rotation = 0): string[] {
+  const areas = round.syllabus ?? []
+  if (!areas.length) return []
+  const start = (Math.max(0, Math.floor(rotation)) % areas.length) + 1
+  return [
+    '',
+    `Syllabus for this round (${areas.length} areas; the topics listed under each are examples of what the area contains, not the only things you may ask):`,
+    ...areas.map((a, i) => `${i + 1}. ${a.title}: ${a.topics.join(', ')}`),
+    `Work through the areas in order starting with area ${start}${start > 1 ? ', continuing past the last area back to area 1' : ''}. Ask one main question per area and move on; add a follow-up only when the answer is vague or unusually strong. Cover as many areas as the time allows; do not spend the whole round on one area. Name the area of each question in your private note.`,
+  ]
+}
+
+/**
+ * `round` is the resolved round from the catalogue (built-in or curriculum); the
+ * fallback by id only knows the built-in rounds, which is why callers pass it.
+ */
+export function buildInterviewerSystemPrompt(setup: InterviewSetup, round: InterviewRound = roundById(setup.roundId)): string {
   const persona = personaById(setup.personaId)
   const name = setup.candidateName?.trim() || 'the candidate'
   return [
@@ -248,6 +274,7 @@ export function buildInterviewerSystemPrompt(setup: InterviewSetup): string {
     `Level: ${setup.level}. Planned length: ${setup.minutes} minutes. Plan for ${questionBudget(round, setup.minutes)}.`,
     `Interviewer style: ${persona.style}`,
     `Round brief: ${round.brief}`,
+    ...syllabusLines(round, setup.rotation),
     '',
     'How to behave:',
     '- Sound like a real person speaking in an interview: short spoken turns of one to four sentences, no headings, no bullet lists, no lectures. Code snippets only when you must show one. Everything you say will be read aloud.',
@@ -279,8 +306,8 @@ export function formatTurnForModel(turn: InterviewTurn): string {
   return text
 }
 
-export function buildInterviewerMessages(setup: InterviewSetup, turns: InterviewTurn[], remainingMinutes: number): AIMessage[] {
-  const messages: AIMessage[] = [{ role: 'system', content: buildInterviewerSystemPrompt(setup) }]
+export function buildInterviewerMessages(setup: InterviewSetup, turns: InterviewTurn[], remainingMinutes: number, round?: InterviewRound): AIMessage[] {
+  const messages: AIMessage[] = [{ role: 'system', content: buildInterviewerSystemPrompt(setup, round) }]
   if (turns.length === 0) {
     messages.push({ role: 'user', content: `[The candidate has joined the call. Time remaining: ${remainingMinutes} minutes. Begin.]` })
     return messages
@@ -311,8 +338,7 @@ export interface Scorecard {
 
 export const VERDICTS: NonNullable<MockInterviewSummary['verdict']>[] = ['Strong hire', 'Hire', 'Lean hire', 'Lean no hire', 'No hire']
 
-export function buildScorecardMessages(setup: InterviewSetup, turns: InterviewTurn[], hintsUsed: number, elapsedMinutes: number): AIMessage[] {
-  const round = roundById(setup.roundId)
+export function buildScorecardMessages(setup: InterviewSetup, turns: InterviewTurn[], hintsUsed: number, elapsedMinutes: number, round: InterviewRound = roundById(setup.roundId)): AIMessage[] {
   const persona = personaById(setup.personaId)
   const transcript = turns
     .map((t) => {
@@ -324,6 +350,7 @@ export function buildScorecardMessages(setup: InterviewSetup, turns: InterviewTu
     'You are the hiring committee reviewer at a product-based technology company. You read a mock interview transcript and write an honest, specific, useful scorecard for the candidate.',
     `Round: ${round.label} (${round.group}). Level: ${setup.level}. Planned ${setup.minutes} minutes, actual ${elapsedMinutes} minutes. Hints requested: ${hintsUsed}.`,
     `Score these dimensions from 1 to 5: ${round.dimensions.join('; ')}.`,
+    ...(round.syllabus?.length ? [`This was a whole-area round over these syllabus areas: ${round.syllabus.map((a) => a.title).join('; ')}. In recommendedTopics name the areas and topics that were weak, and separately the areas the interview did not reach, so the candidate can cover them in the next session.`] : []),
     'Be calibrated: 5 means clearly above the bar for the level, 3 means borderline, 1 means well below. Short or missing answers score low. Quote or paraphrase what the candidate actually said when giving feedback. Model answers should be concise but complete enough to learn from (code allowed in markdown fences).',
     'Respond ONLY with a JSON object of this shape:',
     JSON.stringify({

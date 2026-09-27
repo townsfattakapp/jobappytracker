@@ -120,7 +120,7 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
   const report = reportId ? summaries.find((s) => s.id === reportId) || null : null
 
   const start = () => {
-    const setup: InterviewSetup = { roundId: round.id, level, minutes, personaId, voice }
+    const setup: InterviewSetup = { roundId: round.id, level, minutes, personaId, voice, rotation: summaries.filter((s) => s.roundId === round.id).length }
     try {
       localStorage.setItem(SETUP_KEY, JSON.stringify(setup))
     } catch {
@@ -192,7 +192,7 @@ export default function MockInterviewWorkspace({ summaries, onStartSession, onOp
         <span className="iv-eyebrow"><Mic size={14} aria-hidden="true" /> Your interview practice room</span>
         <h1 className="text-2xl font-display font-bold text-foreground">Mock interviews</h1>
         <p className="text-muted-foreground max-w-xl">Practise one round at a time. Think out loud, work through follow-ups, and leave with specific feedback for your next interview.</p>
-        <div className="iv-hero-meta"><span><Clock3 size={14} />20–45 minutes</span><span><Code2 size={14} />Code, design, or conversation</span><span><Check size={14} />Personal scorecard</span></div>
+        <div className="iv-hero-meta"><span><Clock3 size={14} />20–60 minutes</span><span><Code2 size={14} />Code, design, or conversation</span><span><Check size={14} />Personal scorecard</span></div>
         {aiReason && (
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm">
             <span>{aiReason}</span>

@@ -194,7 +194,7 @@ export default function InterviewSession({ setup, resume, onEndSession, onCancel
       setError(null)
       turnStartedAt.current = performance.now()
       try {
-        const raw = await chatWithAI({ messages: buildInterviewerMessages(setup, history, remainingMinutes()), json: true, temperature: 0.6 })
+        const raw = await chatWithAI({ messages: buildInterviewerMessages(setup, history, remainingMinutes(), round), json: true, temperature: 0.6 })
         const parsed = parseInterviewer(raw)
         const turn: InterviewTurn = { role: 'interviewer', content: parsed.say, stage: parsed.stage, question: parsed.question, note: parsed.note, at: Date.now() - startedAt.current }
         const next = [...history, turn]
@@ -346,7 +346,7 @@ export default function InterviewSession({ setup, resume, onEndSession, onCancel
       }
       setFinishing('Preparing your feedback…')
       try {
-        const raw = await chatWithAI({ messages: buildScorecardMessages(setup, history, hintsUsed, elapsedMinutes), json: true, temperature: 0.2 })
+        const raw = await chatWithAI({ messages: buildScorecardMessages(setup, history, hintsUsed, elapsedMinutes, round), json: true, temperature: 0.2 })
         const card = normalizeScorecard(extractJsonObject<Record<string, unknown>>(raw), round)
         onEndSession({ ...base, strengths: card.strengths, improvementAreas: card.improvements, recommendedRevisionTopics: card.recommendedTopics, overallScore: card.overall, verdict: card.verdict, summary: card.summary, dimensions: card.dimensions, modelAnswers: card.modelAnswers, nextSteps: card.nextSteps, rating: (Math.min(5, Math.max(1, Math.round(card.overall / 20))) || 1) as 1 | 2 | 3 | 4 | 5 })
       } catch (err) {
