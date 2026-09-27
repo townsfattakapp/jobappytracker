@@ -1207,3 +1207,23 @@ body.iv-focus .trial-banner, body.iv-focus .app-footer { display: none; }
   .referrals-admin-split { grid-template-columns: 1fr; }
   .referrer-head { align-items: flex-start; }
 }
+
+/* Native <select> popups are painted with the select's background-color. A translucent tint (the active-filter
+   style) turned the list pale pink under light text, so selects keep an opaque background (the tint moves to a
+   background-image) and options get explicit, theme-aware colours. */
+select.input-field {
+  background-color: hsl(var(--card));
+}
+.jobs-toolbar-row select.input-field.is-active-filter {
+  background-color: hsl(var(--card));
+  background-image: linear-gradient(hsl(var(--primary) / 0.08), hsl(var(--primary) / 0.08));
+}
+select.input-field option,
+select.input-field optgroup {
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+  font-weight: 500;
+}
+select.input-field option:checked {
+  background-color: hsl(var(--primary) / 0.18);
+}
