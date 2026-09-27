@@ -336,27 +336,38 @@ export default function AiProvidersPanel({ user, onSignIn, onToast }: { user: Ap
                     : 'Keys are tested against the provider before they are saved.'}
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="relative flex-1">
-                <input
-                  id="settings-ai-key"
-                  type={showKey ? 'text' : 'password'}
-                  className="input-field font-mono text-sm w-full pr-16"
-                  placeholder={meta.placeholder}
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  autoComplete="off"
-                  spellCheck={false}
-                  aria-label={`${meta.label} API key`}
-                />
-                <button type="button" onClick={() => setShowKey(!showKey)} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground px-2 py-1">
-                  {showKey ? 'Hide' : 'Show'}
+            <div className="flex flex-col gap-3">
+              <label className="block">
+                <span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">API key</span>
+                <div className="relative">
+                  <input
+                    id="settings-ai-key"
+                    type={showKey ? 'text' : 'password'}
+                    className="input-field font-mono text-sm w-full pr-16"
+                    style={{ width: '100%' }}
+                    placeholder={meta.placeholder}
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-label={`${meta.label} API key`}
+                  />
+                  <button type="button" onClick={() => setShowKey(!showKey)} className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground hover:text-foreground px-2 py-1">
+                    {showKey ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              </label>
+              <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                <label className="block flex-1 min-w-0">
+                  <span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                    Label <span className="font-normal normal-case text-muted-foreground/70">(optional, e.g. second account)</span>
+                  </span>
+                  <input className="input-field text-sm w-full" style={{ width: '100%' }} placeholder="Second account" value={label} onChange={(e) => setLabel(e.target.value)} maxLength={60} aria-label="Key label" />
+                </label>
+                <button type="button" disabled={busy || !draft.trim() || (!switching && keys.length >= maxKeys)} onClick={() => void save()} className="btn btn-primary text-sm px-6 whitespace-nowrap font-medium sm:self-end">
+                  {busy ? 'Verifying…' : keys.length && !switching ? 'Add another key' : 'Save & verify'}
                 </button>
               </div>
-              <input className="input-field text-sm sm:w-44" placeholder="Label (optional), e.g. second account" value={label} onChange={(e) => setLabel(e.target.value)} maxLength={60} aria-label="Key label" />
-              <button type="button" disabled={busy || !draft.trim() || (!switching && keys.length >= maxKeys)} onClick={() => void save()} className="btn btn-primary text-sm px-6 whitespace-nowrap font-medium">
-                {busy ? 'Verifying…' : keys.length && !switching ? 'Add another key' : 'Save & verify'}
-              </button>
             </div>
             {meta.keyPrefix && draft.trim() && !draft.trim().startsWith(meta.keyPrefix) && (
               <p className="text-xs text-muted-foreground">{meta.label} keys start with <code className="font-mono">{meta.keyPrefix}</code>; check you copied the whole key.</p>
