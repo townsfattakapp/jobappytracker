@@ -1,9 +1,11 @@
 
 /**
- * Transactional email. Uses Resend when RESEND_API_KEY is set, otherwise any
- * SMTP server given as SMTP_URL. EMAIL_FROM is required with either. When
- * neither is configured, `isMailerConfigured()` is false and sign-up
- * auto-verifies (development and self-hosted setups without email).
+ * Transactional email. Uses, in this order, Brevo's API when BREVO_API_KEY is
+ * set, Resend when RESEND_API_KEY is set, otherwise any SMTP server given as
+ * SMTP_URL (Brevo's relay works here too). EMAIL_FROM is required with each
+ * ("Prep by EVOLW <hello@evolw.in>"). When nothing is configured,
+ * `isMailerConfigured()` is false and sign-up auto-verifies (development and
+ * self-hosted setups without email).
  */
 
 export interface Mail {
@@ -20,11 +22,31 @@ function from(): string {
 export function isMailerConfigured(): boolean {
   const sender = from()
   if (!sender) return false
-  return Boolean((process.env.RESEND_API_KEY || '').trim() || (process.env.SMTP_URL || '').trim())
+  return Boolean((process.env.BREVO_API_KEY || '').trim() || (process.env.RESEND_API_KEY || '').trim() || (process.env.SMTP_URL || '').trim())
+}
+
+/** "Name <address>" or a bare address, as the API transports want them split. */
+export function parseSender(sender: string): { name: string | null; email: string } {
+  const m = /^\s*(?:"?([^"<]*?)"?\s*)?<([^>]+)>\s*$/.exec(sender)
+  return m ? { name: (m[1] || '').trim() || null, email: m[2].trim() } : { name: null, email: sender.trim() }
 }
 
 export async function sendMail(mail: Mail): Promise<void> {
   const sender = from()
+  const brevoKey = (process.env.BREVO_API_KEY || '').trim()
+  if (brevoKey) {
+    const parsed = parseSender(sender)
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': brevoKey, 'Content-Type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ sender: parsed.name ? { name: parsed.name, email: parsed.email } : { email: parsed.email }, to: [{ email: mail.to }], subject: mail.subject, htmlContent: mail.html, textContent: mail.text, replyTo: { email: parsed.email } }),
+    })
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      throw new Error(`Brevo rejected the email (${res.status}): ${body.slice(0, 300)}`)
+    }
+    return
+  }
   const resendKey = (process.env.RESEND_API_KEY || '').trim()
   if (resendKey) {
     const res = await fetch('https://api.resend.com/emails', {
@@ -45,7 +67,7 @@ export async function sendMail(mail: Mail): Promise<void> {
     await transport.sendMail({ from: sender, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text })
     return
   }
-  throw new Error('No mailer configured (set RESEND_API_KEY or SMTP_URL, and EMAIL_FROM)')
+  throw new Error('No mailer configured (set BREVO_API_KEY, RESEND_API_KEY or SMTP_URL, and EMAIL_FROM)')
 }
 
 export function siteUrl(): string {

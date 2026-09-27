@@ -180,6 +180,7 @@ export default function AuthPanel({
   /** Email waiting for confirmation; switches the form to the "check your inbox" state. */
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
   const [unverified, setUnverified] = useState(false)
+  const [forgot, setForgot] = useState(false)
   const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent'>('idle')
 
   useEffect(() => {
@@ -393,6 +394,9 @@ export default function AuthPanel({
       )}
 
       {/* Inputs Form */}
+      {forgot ? (
+        <ForgotPassword initialEmail={email} onBack={() => setForgot(false)} />
+      ) : (
       <form className="flex flex-col gap-4 w-full" onSubmit={submit} noValidate>
         {mode === 'signup' && (
           <div className="w-full">
@@ -473,6 +477,13 @@ export default function AuthPanel({
               {showPassword ? <EyeOffIcon /> : <EyeIcon />}
             </button>
           </div>
+          {mode === 'signin' && (
+            <div className="mt-1.5 text-right">
+              <button type="button" className="text-xs font-semibold text-muted-foreground hover:text-foreground underline underline-offset-2" onClick={() => setForgot(true)}>
+                Forgot password?
+              </button>
+            </div>
+          )}
         </div>
 
         {error && (
@@ -514,6 +525,7 @@ export default function AuthPanel({
           </button>
         </div>
       </form>
+      )}
 
       <p className="mt-4 text-center text-xs text-muted-foreground leading-relaxed">
         {mode === 'signup' ? (
@@ -615,5 +627,68 @@ export default function AuthPanel({
       </button>
       {modal}
     </>
+  )
+}
+
+/** Asks for the account email and requests a reset link; the answer is the same whether or not the address exists. */
+function ForgotPassword({ initialEmail, onBack }: { initialEmail: string; onBack: () => void }) {
+  const [email, setEmail] = useState(initialEmail)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setBusy(true)
+    try {
+      const res = await fetch('/api/auth/forgot-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email.trim().toLowerCase() }) })
+      const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string }
+      if (!res.ok) throw new Error(body.error || 'Could not send the reset link.')
+      setMessage(body.message || 'Check your inbox for the reset link.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send the reset link.')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <form className="flex flex-col gap-4 w-full" onSubmit={submit} noValidate aria-label="Reset your password">
+      <div>
+        <h3 className="text-base font-bold">Reset your password</h3>
+        <p className="text-xs text-muted-foreground mt-1">Enter the email of your account. We send a link that works once and expires in an hour.</p>
+      </div>
+      <div className="w-full">
+        <label htmlFor="forgot-email" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+          Email address
+        </label>
+        <input
+          id="forgot-email"
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          autoComplete="email"
+          className="w-full px-4 py-2.5 rounded-xl border border-input/80 bg-background text-foreground text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all shadow-sm placeholder:text-muted-foreground/50"
+          autoFocus
+        />
+      </div>
+      {message && (
+        <p className="text-sm rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3" role="status">
+          {message}
+        </p>
+      )}
+      {error && (
+        <p className="text-sm rounded-xl border border-destructive/30 bg-destructive/10 text-destructive p-3" role="alert">
+          {error}
+        </p>
+      )}
+      <button type="submit" className="w-full py-3.5 px-4 rounded-xl font-semibold text-sm bg-foreground text-background hover:bg-foreground/90 transition-all duration-150 shadow-md disabled:opacity-60" disabled={busy || !email.trim()}>
+        {busy ? 'Sending…' : message ? 'Send again' : 'Send reset link'}
+      </button>
+      <button type="button" className="text-xs font-semibold text-muted-foreground hover:text-foreground underline underline-offset-2 self-center" onClick={onBack}>
+        Back to sign in
+      </button>
+    </form>
   )
 }
