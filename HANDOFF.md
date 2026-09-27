@@ -22,6 +22,10 @@ The owner's resume (a 55 KB text-based PDF: 6 fonts, ToUnicode maps, no images; 
 
 Existing resumes with an empty profile are re-parsed by uploading the file again (the stored bytes are unchanged); the owner should re-upload once after the deploy. Production check after the deploy: commit `897e2c6` deployed as `job-appy-4vvfx8c6k`; the same synthetic PDF uploaded through `/api/resumes` on prep.evolw.in now returns no warnings, name, e-mail, 8 skills and 2 employment entries (test upload deleted afterwards).
 
+## Resume extraction rules (rules-2)
+
+Once PDFs were readable, the owner's resume showed 14 "employment" entries: PDF text keeps the visual line breaks, so every wrapped bullet remainder became a new undated role, "PROFESSIONAL DEVELOPMENT" was read as an employer, the `COMPANY — Title` heading put the company in the title field, and the years summed overlapping roles. `src/lib/resume/extract.ts` now joins wrapped lines to their bullet, treats a second dated line (or an all-caps undated heading) as the next role, keeps a `City, Country` line as the role's location, assigns title/company by role words, gives training / professional-development headings their own section, computes experience as the union of dated ranges and accepts headlines up to 120 characters. `getResume` re-extracts a stored resume when its profile is older than the current rules (or was written while the PDF could not be read), so nobody has to upload again. Covered by a PDF-shaped synthetic resume in `scripts/test-resume.mjs` (5/5). On the owner's file this yields 2 employers with correct titles, the Chennai location, 4.0 years and the training programme under certifications.
+
 ## Portal companies: what changed in Job Discovery
 
 Until now only companies on Greenhouse, Lever or Ashby were ingested; Amazon, Microsoft, Netflix, Adobe, NVIDIA, Salesforce, PayPal, Autodesk and Mastercard were "Unsupported" because their careers sites have no documented public API. Their sites do, however, call JSON endpoints of their own that answer plain GET/POST requests, and three adapters now read those the way the browser does:
