@@ -1,18 +1,47 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import {
+  ArrowRight,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Lock,
+  MapPin,
+  RotateCcw,
+  Search,
+  X,
+} from 'lucide-react'
 import LockedFeature from './components/LockedFeature'
 import type { AppUser } from './lib/cloudSync'
 import { ApiError } from './lib/adminClient'
 import CompanyLogo from './components/jobs/CompanyLogo'
-import { fetchHiringCompanies, fetchJobs, fetchPreferences, savePreferences, type HiringCompanyDto, type JobListResponse, type LearnerJob } from './lib/jobs/client'
-import { mapJobToCurriculum } from './lib/jobs/curriculumMap'
+import {
+  fetchCompanyStrip,
+  fetchJobs,
+  fetchPreferences,
+  savePreferences,
+  type HiringCompanyDto,
+  type CompanyWithoutOpeningsDto,
+  type JobListResponse,
+  type LearnerJob,
+} from './lib/jobs/client'
 import { parsePreferencesInput, ValidationError } from './lib/jobs/normalize'
-import { EMPLOYMENT_TYPES, JOB_LEVELS, REGIONS, REGION_PREFERENCES, ROLE_CATEGORIES, SALARY_CURRENCIES, WORK_MODES, labelOf } from './lib/jobs/taxonomy'
+import {
+  EMPLOYMENT_TYPES,
+  JOB_LEVELS,
+  REGIONS,
+  REGION_PREFERENCES,
+  ROLE_CATEGORIES,
+  SALARY_CURRENCIES,
+  WORK_MODES,
+  labelOf,
+} from './lib/jobs/taxonomy'
 import { INDIA_CITY_GROUPS } from './lib/jobs/cities'
 import { emptyPreferences, hasPreferences, type JobListFilters, type LearnerJobPreferences } from './lib/jobs/types'
 import type { Goal, KnowledgeWorkspace, RoadmapDay } from './types'
 
 interface JobsWorkspaceProps {
   user: AppUser | null
+  isSubscribed?: boolean
   /** Feature keys the caller's tier includes (from /api/platform/config). */
   features: string[]
   disabledRoleFamilies: string[]
@@ -26,6 +55,51 @@ interface JobsWorkspaceProps {
 }
 
 const PAGE_SIZE = 20
+const JOBS_STORAGE_KEY = 'prep_jobs_workspace_state_v1'
+
+interface JobsPersistedState {
+  filters: JobListFilters
+  query: string
+  page: number
+  isCompaniesExpanded: boolean
+}
+
+let inMemoryJobsState: JobsPersistedState | null = null
+
+function loadPersistedJobsState(): JobsPersistedState {
+  if (inMemoryJobsState) return inMemoryJobsState
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.sessionStorage.getItem(JOBS_STORAGE_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw) as JobsPersistedState
+        if (parsed && typeof parsed === 'object') {
+          inMemoryJobsState = parsed
+          return parsed
+        }
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }
+  return {
+    filters: emptyFilters(),
+    query: '',
+    page: 1,
+    isCompaniesExpanded: false,
+  }
+}
+
+function savePersistedJobsState(state: JobsPersistedState) {
+  inMemoryJobsState = state
+  if (typeof window !== 'undefined') {
+    try {
+      window.sessionStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(state))
+    } catch {
+      // ignore storage errors
+    }
+  }
+}
 
 export function freshnessLabel(f: LearnerJob['freshness'], lifecycle?: LearnerJob['lifecycle']): { text: string; tone: 'fresh' | 'neutral' | 'stale' } {
   if (lifecycle === 'stale') return { text: 'Not seen at source recently', tone: 'stale' }
@@ -77,13 +151,28 @@ interface FeedSection {
   jobs: LearnerJob[]
 }
 
-const emptyFilters = (): JobListFilters => ({ q: '', roleCategory: '', region: '', workMode: '', level: '', employmentType: '' })
+const emptyFilters = (): JobListFilters => ({ q: '', roleCategory: '', region: '', workMode: '', level: '', employmentType: '', companyId: '', city: undefined })
 
 /** Learner-facing job discovery: relevant openings, filters and the preferences that rank them. */
-export default function JobsWorkspace({ user, features, disabledRoleFamilies, goals, roadmap, knowledgeWorkspaces, onOpenJob, onSignIn, onUpgrade, onToast }: JobsWorkspaceProps) {
-  const [filters, setFilters] = useState<JobListFilters>(emptyFilters)
-  const [query, setQuery] = useState('')
-  const [page, setPage] = useState(1)
+export default function JobsWorkspace({
+  user,
+  isSubscribed,
+  features,
+  disabledRoleFamilies,
+  goals: _goals,
+  roadmap: _roadmap,
+  knowledgeWorkspaces: _knowledgeWorkspaces,
+  onOpenJob,
+  onSignIn,
+  onUpgrade,
+  onToast,
+}: JobsWorkspaceProps) {
+  const initial = useMemo(() => loadPersistedJobsState(), [])
+  const [filters, setFilters] = useState<JobListFilters>(initial.filters)
+  const [query, setQuery] = useState(initial.query)
+  const [page, setPage] = useState(initial.page)
+  const [isCompaniesExpanded, setIsCompaniesExpanded] = useState(initial.isCompaniesExpanded)
+
   const [result, setResult] = useState<JobListResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -92,12 +181,27 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
   const [prefsOpen, setPrefsOpen] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [companies, setCompanies] = useState<HiringCompanyDto[] | null>(null)
+  const [others, setOthers] = useState<CompanyWithoutOpeningsDto[]>([])
+
   const can = useCallback((key: string) => features.includes(key), [features])
   const advanced = can('jobs.advancedFilters')
   const personalFeed = can('jobs.personalizedFeed')
+  const userSubscribed = Boolean(isSubscribed || personalFeed || advanced)
+
   const requestId = useRef(0)
   const roleOptions = useMemo(() => ROLE_CATEGORIES.filter((c) => !disabledRoleFamilies.includes(c.id)), [disabledRoleFamilies])
 
+  // Save state whenever filters, query, page, or expanded state changes
+  useEffect(() => {
+    savePersistedJobsState({
+      filters,
+      query,
+      page,
+      isCompaniesExpanded,
+    })
+  }, [filters, query, page, isCompaniesExpanded])
+
+  // Debounced search query
   useEffect(() => {
     const t = window.setTimeout(() => {
       setFilters((f) => (f.q === query ? f : { ...f, q: query }))
@@ -151,9 +255,13 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
   const stripKey = JSON.stringify({ q: filters.q, roleCategory: filters.roleCategory, region: filters.region, workMode: filters.workMode, level: filters.level, employmentType: filters.employmentType, city: filters.city })
   useEffect(() => {
     let cancelled = false
-    fetchHiringCompanies(JSON.parse(stripKey) as JobListFilters, 300)
-      .then((list) => {
-        if (!cancelled) setCompanies(list)
+    const stripFilters = JSON.parse(stripKey) as JobListFilters
+    const unfiltered = !(stripFilters.q || stripFilters.roleCategory || stripFilters.region || stripFilters.workMode || stripFilters.level || stripFilters.employmentType || stripFilters.city)
+    fetchCompanyStrip(stripFilters, 300, unfiltered)
+      .then((res) => {
+        if (cancelled) return
+        setCompanies(res.companies)
+        if (unfiltered) setOthers(res.others)
       })
       .catch(() => {
         if (!cancelled) setCompanies([])
@@ -178,24 +286,25 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
     const jobs = result.items
     const out: FeedSection[] = []
     const recommended = jobs.filter((j) => (j.relevance?.score ?? 0) >= 40).slice(0, 6)
-    if (recommended.length >= 2) out.push({ id: 'recommended', title: 'Recommended for you', description: 'Highest alignment with your target roles, skills and experience.', jobs: recommended })
-    const learner = { goals, roadmap, knowledgeWorkspaces }
-    const strong = jobs
-      .map((j) => ({ j, map: mapJobToCurriculum(j, learner) }))
-      .filter(({ map }) => map.tracks.length > 0 && map.tracks.filter((t) => t.gapStatus !== 'not_covered').length >= Math.ceil(map.tracks.length / 2))
-      .map(({ j }) => j)
-      .slice(0, 6)
-    if (strong.length >= 2) out.push({ id: 'curriculum', title: 'Strong curriculum match', description: 'At least half of the tracks these roles need are already in your plan or covered.', jobs: strong })
-    const recent = jobs.filter((j) => j.freshness === 'fresh' && j.lifecycle !== 'stale').slice(0, 6)
-    if (recent.length >= 2) out.push({ id: 'recent', title: 'Recently verified', description: 'Seen at the source or verified by the team in the last two weeks.', jobs: recent })
-    const remote = jobs.filter((j) => j.workMode === 'remote').slice(0, 6)
-    if (remote.length >= 2) out.push({ id: 'remote', title: 'Remote opportunities', description: 'Check the hiring-country note on each listing; remote does not always mean anywhere.', jobs: remote })
-    const india = jobs.filter((j) => j.region === 'india').slice(0, 6)
-    if (india.length >= 2 && prefs?.regionPreference !== 'india') out.push({ id: 'india', title: 'India opportunities', description: 'Roles based in India or remote roles that hire from India.', jobs: india })
-    const entry = jobs.filter((j) => j.level === 'entry' || j.level === 'intern').slice(0, 6)
-    if (entry.length >= 2) out.push({ id: 'entry', title: 'Entry level and early career', description: 'Internships and roles asking for up to two years of experience.', jobs: entry })
+    if (recommended.length >= 2) {
+      out.push({
+        id: 'top',
+        title: 'Top matches for you',
+        description: 'Openings that closely align with your target roles, skills and experience.',
+        jobs: recommended,
+      })
+    }
+    const remote = jobs.filter((j) => j.workMode === 'remote' && !recommended.some((r) => r.id === j.id)).slice(0, 4)
+    if (remote.length >= 2) {
+      out.push({
+        id: 'remote',
+        title: 'Remote opportunities',
+        description: 'Distributed roles with competitive compensation and verified eligibility.',
+        jobs: remote,
+      })
+    }
     return out
-  }, [result, anyFilter, page, goals, roadmap, knowledgeWorkspaces, prefs?.regionPreference])
+  }, [result, anyFilter, page])
 
   const onSaved = (next: LearnerJobPreferences) => {
     setPrefs(next)
@@ -207,18 +316,71 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
 
   const clearFilters = () => {
     setQuery('')
-    setFilters(emptyFilters())
+    const cleared = emptyFilters()
+    setFilters(cleared)
     setPage(1)
+    savePersistedJobsState({
+      filters: cleared,
+      query: '',
+      page: 1,
+      isCompaniesExpanded,
+    })
   }
+
+  const activeCompanyName = useMemo(() => {
+    if (!filters.companyId || !companies) return null
+    return companies.find((c) => c.id === filters.companyId)?.name ?? null
+  }, [filters.companyId, companies])
 
   return (
     <div className="jobs-layout">
       <div className="min-w-0">
-        <CompanyStrip companies={companies} activeId={filters.companyId ?? null} filtered={filtersActive} onPick={(id) => setFilter('companyId', id ?? '')} />
+        <CompanyStrip
+          companies={companies}
+          activeId={filters.companyId ?? null}
+          filtered={filtersActive}
+          others={others}
+          isSubscribed={userSubscribed}
+          isExpanded={isCompaniesExpanded}
+          onToggleExpand={() => setIsCompaniesExpanded((v) => !v)}
+          onPick={(id) => setFilter('companyId', id ?? '')}
+          onUpgrade={onUpgrade}
+        />
+
         <div className="jobs-toolbar" role="search" aria-label="Filter jobs">
-          <input className="input-field" type="search" placeholder="Search title, company, skill or city" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search jobs" />
+          <div className="jobs-search-wrap">
+            <Search size={16} className="jobs-search-icon" aria-hidden="true" />
+            <input
+              className="input-field jobs-search-input"
+              type="search"
+              placeholder="Search by job title, company, skill or city..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search jobs"
+            />
+            {query && (
+              <button
+                type="button"
+                className="jobs-search-clear"
+                onClick={() => {
+                  setQuery('')
+                  setFilters((f) => ({ ...f, q: '' }))
+                  setPage(1)
+                }}
+                aria-label="Clear search input"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+
           <div className="jobs-toolbar-row">
-            <select className="input-field" value={filters.roleCategory || ''} onChange={(e) => setFilter('roleCategory', e.target.value)} aria-label="Role">
+            <select
+              className={`input-field ${filters.roleCategory ? 'is-active-filter' : ''}`}
+              value={filters.roleCategory || ''}
+              onChange={(e) => setFilter('roleCategory', e.target.value)}
+              aria-label="Role"
+            >
               <option value="">All roles</option>
               {roleOptions.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -227,7 +389,7 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
               ))}
             </select>
             <select
-              className="input-field"
+              className={`input-field ${filters.city ? 'is-active-filter' : ''}`}
               value={filters.city || ''}
               onChange={(e) => {
                 const city = e.target.value
@@ -243,7 +405,12 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
                 </option>
               ))}
             </select>
-            <select className="input-field" value={filters.region || ''} onChange={(e) => setFilter('region', e.target.value)} aria-label="Region">
+            <select
+              className={`input-field ${filters.region ? 'is-active-filter' : ''}`}
+              value={filters.region || ''}
+              onChange={(e) => setFilter('region', e.target.value)}
+              aria-label="Region"
+            >
               <option value="">India and abroad</option>
               {REGIONS.map((r) => (
                 <option key={r.id} value={r.id}>
@@ -251,7 +418,12 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
                 </option>
               ))}
             </select>
-            <select className="input-field" value={filters.workMode || ''} onChange={(e) => setFilter('workMode', e.target.value)} aria-label="Work mode">
+            <select
+              className={`input-field ${filters.workMode ? 'is-active-filter' : ''}`}
+              value={filters.workMode || ''}
+              onChange={(e) => setFilter('workMode', e.target.value)}
+              aria-label="Work mode"
+            >
               <option value="">Any work mode</option>
               {WORK_MODES.map((w) => (
                 <option key={w.id} value={w.id}>
@@ -261,7 +433,12 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
             </select>
             {advanced ? (
               <>
-                <select className="input-field" value={filters.level || ''} onChange={(e) => setFilter('level', e.target.value)} aria-label="Level">
+                <select
+                  className={`input-field ${filters.level ? 'is-active-filter' : ''}`}
+                  value={filters.level || ''}
+                  onChange={(e) => setFilter('level', e.target.value)}
+                  aria-label="Level"
+                >
                   <option value="">Any level</option>
                   {JOB_LEVELS.map((l) => (
                     <option key={l.id} value={l.id}>
@@ -269,7 +446,12 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
                     </option>
                   ))}
                 </select>
-                <select className="input-field" value={filters.employmentType || ''} onChange={(e) => setFilter('employmentType', e.target.value)} aria-label="Employment type">
+                <select
+                  className={`input-field ${filters.employmentType ? 'is-active-filter' : ''}`}
+                  value={filters.employmentType || ''}
+                  onChange={(e) => setFilter('employmentType', e.target.value)}
+                  aria-label="Employment type"
+                >
                   <option value="">Any type</option>
                   {EMPLOYMENT_TYPES.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -279,22 +461,44 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
                 </select>
               </>
             ) : (
-              <button type="button" className="jobs-locked-filter" onClick={user ? onUpgrade : onSignIn} aria-label="Level and employment type filters are part of Prep Pro">
+              <button
+                type="button"
+                className="jobs-locked-filter"
+                onClick={user ? onUpgrade : onSignIn}
+                aria-label="Level and employment type filters are part of Prep Pro"
+              >
                 <span className="locked-feature-badge">Pro</span> Level and type filters
               </button>
             )}
           </div>
+
           <div className="jobs-summary">
-            {result && !loading && (
-              <span>
-                {result.total === 0 ? 'No openings' : `${result.total} opening${result.total === 1 ? '' : 's'}`}
-                {result.personalised ? ' · ranked by your preferences' : ' · newest first'}
-              </span>
-            )}
-            {result && result.hiddenByPreferences > 0 && <span>{result.hiddenByPreferences} hidden by your region, work-mode or employment-type preferences</span>}
+            <div className="jobs-summary-left">
+              {result && !loading && (
+                <span className="inline-flex items-center gap-2">
+                  <span className="jobs-status-dot" aria-hidden="true" />
+                  <span>
+                    {result.total === 0 ? 'No openings' : `${result.total.toLocaleString()} opening${result.total === 1 ? '' : 's'}`}
+                    {result.personalised ? ' · ranked by your preferences' : ' · newest first'}
+                  </span>
+                </span>
+              )}
+              {activeCompanyName && (
+                <span className="jobs-active-pill">
+                  Company: {activeCompanyName}
+                  <button type="button" onClick={() => setFilter('companyId', '')} aria-label="Remove company filter">
+                    ×
+                  </button>
+                </span>
+              )}
+              {result && result.hiddenByPreferences > 0 && (
+                <span className="text-xs text-muted-foreground">({result.hiddenByPreferences} hidden by your preferences)</span>
+              )}
+            </div>
             {anyFilter && (
-              <button type="button" className="btn btn-link btn-sm" onClick={clearFilters}>
-                Clear filters
+              <button type="button" className="jobs-clear-btn" onClick={clearFilters}>
+                <RotateCcw size={12} />
+                Reset filters
               </button>
             )}
           </div>
@@ -318,7 +522,7 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
           <div className="jobs-empty">
             <div className="jobs-empty-title">{anyFilter ? 'No openings match these filters' : 'No openings published yet'}</div>
             <p className="jobs-empty-text">
-              {anyFilter ? 'Try widening the role, region or work mode.' : 'JobAppy only lists openings that fit its career paths. New listings appear here as they are verified.'}
+              {anyFilter ? 'Try widening the role, region or work mode.' : 'Prep only lists openings that fit its career paths. New listings appear here as they are verified.'}
             </p>
           </div>
         ) : sections.length > 0 ? (
@@ -413,7 +617,7 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
           ) : (
             <>
               <p className="jobs-panel-sub">
-                {personalFeed ? 'Tell JobAppy what you are looking for and openings are ranked by fit, with the reasons shown on each card.' : 'Save what you are looking for now; Prep Pro ranks openings by fit and explains why.'}
+                {personalFeed ? 'Tell Prep what you are looking for and openings are ranked by fit, with the reasons shown on each card.' : 'Save what you are looking for now; Prep Pro ranks openings by fit and explains why.'}
               </p>
               <button type="button" className="btn btn-primary btn-sm mt-3" onClick={() => setPrefsOpen(true)}>
                 Set preferences
@@ -440,40 +644,171 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
 }
 
 /** Horizontal strip of companies with live openings; picking one filters the list to that company. */
-function CompanyStrip({ companies, activeId, filtered, onPick }: { companies: HiringCompanyDto[] | null; activeId: string | null; filtered: boolean; onPick: (id: string | null) => void }) {
-  const total = companies?.reduce((s, c) => s + c.jobCount, 0) ?? 0
+function CompanyStrip({
+  companies,
+  activeId,
+  filtered,
+  isSubscribed,
+  isExpanded,
+  onToggleExpand,
+  onPick,
+  onUpgrade,
+  others,
+}: {
+  companies: HiringCompanyDto[] | null
+  activeId: string | null
+  filtered: boolean
+  isSubscribed: boolean
+  isExpanded: boolean
+  onToggleExpand: () => void
+  onPick: (id: string | null) => void
+  onUpgrade: () => void
+  /** Catalog companies with no opening in Prep at all; shown (unfiltered view only) as links to their careers pages. */
+  others: CompanyWithoutOpeningsDto[]
+}) {
+  const totalOpenings = companies?.reduce((s, c) => s + c.jobCount, 0) ?? 0
+  const totalCompanies = companies?.length ?? 0
+  const noFeed = others.filter((c) => c.reason === 'no_feed')
+  const noMatch = others.filter((c) => c.reason === 'no_matching_openings')
+
+  // Filter companies visible based on subscription and expand state
+  const visibleCompanies = useMemo(() => {
+    if (!companies) return []
+    if (isSubscribed && isExpanded) return companies
+    const limit = 8
+    const top = companies.slice(0, limit)
+    // Make sure currently selected company chip is always visible even if beyond the top list
+    if (activeId && !top.some((c) => c.id === activeId)) {
+      const activeComp = companies.find((c) => c.id === activeId)
+      if (activeComp) top.push(activeComp)
+    }
+    return top
+  }, [companies, isSubscribed, isExpanded, activeId])
+
   return (
     <section className="jobs-companies" aria-label="Companies hiring">
       <div className="jobs-companies-head">
-        <span className="jobs-companies-title">Companies hiring</span>
-        {companies ? (
-          <span className="jobs-companies-sub">
-            {companies.length} {companies.length === 1 ? 'company' : 'companies'} · {total.toLocaleString()} {total === 1 ? 'opening' : 'openings'}
-            {filtered ? ' matching your filters' : ''}
-          </span>
-        ) : (
-          <span className="jobs-companies-sub">Loading…</span>
-        )}
+        <div className="jobs-companies-title-row">
+          <span className="jobs-companies-title">Companies hiring</span>
+          {companies ? (
+            <div className="jobs-companies-stat-pills">
+              <span className="jobs-stat-pill">
+                <span className="jobs-stat-num">{totalCompanies}</span> companies
+              </span>
+              <span className="jobs-stat-dot" aria-hidden="true">·</span>
+              <span className="jobs-stat-pill">
+                <span className="jobs-stat-num">{totalOpenings.toLocaleString()}</span> openings
+              </span>
+              {filtered && <span className="jobs-stat-filtered-tag">filtered</span>}
+            </div>
+          ) : (
+            <span className="jobs-stat-pill animate-pulse">Loading counts…</span>
+          )}
+        </div>
+
+        <div className="jobs-companies-actions">
+          {companies && companies.length > 8 && (
+            isSubscribed ? (
+              <button
+                type="button"
+                className="company-toggle-btn"
+                onClick={onToggleExpand}
+                aria-expanded={isExpanded}
+              >
+                <span>{isExpanded ? 'Collapse' : `Show all (${totalCompanies})`}</span>
+                {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="company-toggle-btn company-toggle-locked"
+                onClick={onUpgrade}
+                title="Unlock all hiring companies with Prep Pro"
+              >
+                <Lock size={12} className="text-primary" />
+                <span>Show all ({totalCompanies})</span>
+                <span className="company-badge-pro">Pro</span>
+              </button>
+            )
+          )}
+        </div>
       </div>
-      {companies && companies.length === 0 && <p className="jobs-companies-sub">No company has an opening for these filters. Widen a filter to see more.</p>}
-      <div className="jobs-companies-track" role="listbox" aria-label="Filter by company">
-        <button type="button" className="company-chip" role="option" aria-selected={!activeId} onClick={() => onPick(null)}>
+
+      {companies && companies.length === 0 && (
+        <p className="jobs-companies-sub">No company has an opening for these filters. Widen a filter to see more.</p>
+      )}
+
+      <div
+        className={`jobs-companies-track ${isExpanded && isSubscribed ? 'is-expanded' : ''}`}
+        role="listbox"
+        aria-label="Filter by company"
+      >
+        <button
+          type="button"
+          className={`company-chip ${!activeId ? 'is-active' : ''}`}
+          role="option"
+          aria-selected={!activeId}
+          onClick={() => onPick(null)}
+        >
           <span className="company-logo company-logo-fallback" style={{ width: 28, height: 28, fontSize: 11 }} aria-hidden="true">
             All
           </span>
           <span className="company-chip-name">All companies</span>
         </button>
-        {(companies ?? []).map((c) => {
+
+        {visibleCompanies.map((c) => {
           const active = c.id === activeId
           return (
-            <button key={c.id} type="button" className="company-chip" role="option" aria-selected={active} onClick={() => onPick(active ? null : c.id)} title={`${c.name}: ${c.jobCount} opening${c.jobCount === 1 ? '' : 's'}`}>
+            <button
+              key={c.id}
+              type="button"
+              className={`company-chip ${active ? 'is-active' : ''}`}
+              role="option"
+              aria-selected={active}
+              onClick={() => onPick(active ? null : c.id)}
+              title={`${c.name}: ${c.jobCount.toLocaleString()} opening${c.jobCount === 1 ? '' : 's'}`}
+            >
               <CompanyLogo company={c} size={28} />
               <span className="company-chip-name">{c.name}</span>
-              <span className="company-chip-count">{c.jobCount}</span>
+              <span className="company-chip-count">{c.jobCount.toLocaleString()}</span>
             </button>
           )
         })}
+
+        {!isSubscribed && totalCompanies > 8 && (
+          <button
+            type="button"
+            className="company-chip company-chip-locked"
+            onClick={onUpgrade}
+            title="Unlock all companies hiring with Prep Pro"
+          >
+            <Lock size={13} className="text-primary" />
+            <span className="company-chip-name">+{totalCompanies - 8} more companies</span>
+            <span className="company-chip-pro-pill">Pro</span>
+          </button>
+        )}
       </div>
+
+      {!filtered && others.length > 0 && (
+        <div className="jobs-companies-others">
+          <span className="jobs-companies-sub">
+            Also in the catalog, no opening in Prep right now: {noFeed.length > 0 && `${noFeed.length} ${noFeed.length === 1 ? 'company publishes' : 'companies publish'} only on a careers portal we cannot read`}
+            {noFeed.length > 0 && noMatch.length > 0 && '; '}
+            {noMatch.length > 0 && `${noMatch.length} ${noMatch.length === 1 ? 'has' : 'have'} a working feed with no relevant opening today`}. The links open their careers pages.
+          </span>
+          <div className="jobs-companies-track" aria-label="Companies without openings in Prep">
+            {others.map((c) => (
+              <a key={c.id} className="company-chip is-muted" href={c.careersUrl || c.website || '#'} target="_blank" rel="noopener noreferrer" title={c.reason === 'no_feed' ? `${c.name}: openings are listed only on its careers site` : `${c.name}: feed connected, no relevant opening right now`}>
+                <CompanyLogo company={c} size={28} />
+                <span className="company-chip-name">{c.name}</span>
+                <span className="company-chip-ext" aria-hidden="true">
+                  ↗
+                </span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   )
 }
@@ -488,25 +823,36 @@ function JobCard({ job, onOpen }: { job: LearnerJob; onOpen: () => void }) {
     <button type="button" className="job-card" onClick={onOpen} aria-label={`${job.title} at ${job.company.name}`}>
       <div className="job-card-top">
         <div className="job-card-head min-w-0">
-          <CompanyLogo company={job.company} size={40} />
+          <CompanyLogo company={job.company} size={42} />
           <div className="min-w-0">
             <div className="job-card-title">{job.title}</div>
             <div className="job-card-company">
-              {job.company.name}
+              <span className="font-semibold text-foreground/90">{job.company.name}</span>
               {job.company.headquarters ? ` · ${job.company.headquarters}` : ''}
             </div>
           </div>
         </div>
-        <span className={`job-chip ${fresh.tone === 'fresh' ? 'job-chip-fresh' : fresh.tone === 'stale' ? 'job-chip-stale' : ''}`}>{fresh.text}</span>
+        <div className="job-card-top-right">
+          <span className={`job-chip ${fresh.tone === 'fresh' ? 'job-chip-fresh' : fresh.tone === 'stale' ? 'job-chip-stale' : ''}`}>
+            {fresh.tone === 'fresh' && <CheckCircle2 size={12} className="inline mr-0.5" />}
+            {fresh.text}
+          </span>
+          <span className="job-card-arrow" aria-hidden="true">
+            <ArrowRight size={16} />
+          </span>
+        </div>
       </div>
       <div className="job-card-meta">
         <span className="job-chip job-chip-accent">{labelOf(ROLE_CATEGORIES, job.roleCategory)}</span>
-        <span className="job-chip">{locationLabel(job)}</span>
+        <span className="job-chip">
+          <MapPin size={11} className="inline mr-0.5 opacity-70" />
+          {locationLabel(job)}
+        </span>
         <span className="job-chip">{labelOf(WORK_MODES, job.workMode)}</span>
         {eligibility && <span className="job-chip">{eligibility}</span>}
         <span className="job-chip">{labelOf(JOB_LEVELS, job.level)}</span>
         <span className="job-chip">{labelOf(EMPLOYMENT_TYPES, job.employmentType)}</span>
-        {salary && <span className="job-chip">{salary}</span>}
+        {salary && <span className="job-chip job-chip-salary">{salary}</span>}
       </div>
       {skills.length > 0 && (
         <div className="job-card-skills" aria-label="Key skills">

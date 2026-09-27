@@ -149,8 +149,8 @@ const HEADER_COPY: Partial<Record<ViewMode, { title: string; subtitle: string }>
   today: { title: 'Your action plan', subtitle: 'Stay focused on today’s priorities.' },
   roadmap: { title: 'Career plan', subtitle: 'Execute your daily tasks and hit your professional goals.' },
   prepKit: { title: 'Preparation notes', subtitle: 'Company briefs, STAR stories, and cheat sheets with AI help.' },
-  jobs: { title: 'Job discovery', subtitle: 'Openings that fit JobAppy career paths, ranked by your preferences, with the original application link.' },
-  resume: { title: 'Your resume', subtitle: 'Keep resume versions privately in JobAppy and compare the current one with any opening.' },
+  jobs: { title: 'Job discovery', subtitle: 'Openings matching tech and product engineering tracks, ranked by your preferences with verified direct links.' },
+  resume: { title: 'Your resume', subtitle: 'Keep resume versions privately in Prep and compare them against any opening.' },
 }
 
 export default function App() {
@@ -1384,6 +1384,7 @@ export default function App() {
             ) : view === 'jobs' ? (
               <JobsWorkspace
                 user={user}
+                isSubscribed={!onFreePlan}
                 features={platformConfig?.features ?? []}
                 disabledRoleFamilies={platformConfig?.disabledRoleFamilies ?? []}
                 goals={goals}
