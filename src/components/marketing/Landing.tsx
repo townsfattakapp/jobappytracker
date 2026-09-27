@@ -238,7 +238,7 @@ function LiveProof() {
           <h2>Openings from the companies you are preparing for.</h2>
           <p className="lp-lede">Read from each company’s own careers feed and refreshed daily. These numbers come from the database, not from a marketing page.</p>
         </div>
-        <div className="lp-live-grid" data-reveal>
+        <div className="lp-live-grid">
           <div className="lp-live-stat">
             <strong>{fmt(stats?.openings)}</strong>
             <span>live openings with the original application link</span>
@@ -259,7 +259,7 @@ function LiveProof() {
           )}
         </div>
         {companies.length > 0 && (
-          <ul className="lp-logo-row" aria-label="Companies with live openings" data-reveal>
+          <ul className="lp-logo-row" aria-label="Companies with live openings">
             {companies.map((c) => (
               <li key={c.id} title={`${c.name}: ${c.jobCount} opening${c.jobCount === 1 ? '' : 's'}`}>
                 <CompanyLogo company={c} size={28} />
@@ -268,7 +268,7 @@ function LiveProof() {
             ))}
           </ul>
         )}
-        <p className="lp-fineprint" data-reveal>
+        <p className="lp-fineprint">
           Openings are shown with their source. Prep never invents a listing, never copies job boards, and never applies on your behalf.
         </p>
       </div>

@@ -1129,13 +1129,15 @@
 
 
 /* Live proof: numbers read from the database and the hiring companies' logos. */
-.lp-live { padding: 3.5rem 0 1rem; }
-.lp-live-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-top: 1.5rem; }
+.lp-live { padding: 2.5rem 0 0.5rem; }
+.lp-live .lp-section-head { margin-bottom: 1.5rem; }
+.lp-live-grid { display: grid; gap: 0.85rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .lp-live-stat { padding: 1.1rem 1.25rem; border-radius: 18px; background: hsl(var(--card)); border: 1px solid hsl(var(--border) / 0.6); }
 .lp-live-stat strong { display: block; font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .lp-live-stat span { display: block; margin-top: 0.35rem; font-size: 0.85rem; color: hsl(var(--muted-foreground)); line-height: 1.4; }
-.lp-logo-row { list-style: none; margin: 1.5rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.lp-logo-row li { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.75rem 0.35rem 0.4rem; border-radius: 999px; border: 1px solid hsl(var(--border) / 0.7); background: hsl(var(--card)); font-size: 0.85rem; font-weight: 600; }
+.lp-logo-row { list-style: none; margin: 1rem 0 0; padding: 0 0 0.4rem; display: flex; flex-wrap: nowrap; gap: 0.5rem; overflow-x: auto; scrollbar-width: thin; }
+.lp-live .lp-fineprint { margin-top: 0.6rem; }
+.lp-logo-row li { flex: 0 0 auto; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.75rem 0.35rem 0.4rem; border-radius: 999px; border: 1px solid hsl(var(--border) / 0.7); background: hsl(var(--card)); font-size: 0.85rem; font-weight: 600; }
 .lp-trust-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 .lp-trust-card { padding: 1.4rem 1.4rem 1.5rem; border-radius: 18px; background: hsl(var(--card)); border: 1px solid hsl(var(--border) / 0.6); }
 .lp-trust-icon { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 12px; background: hsl(var(--primary) / 0.12); color: hsl(var(--primary)); font-size: 1.2rem; font-weight: 800; margin-bottom: 0.9rem; }
