@@ -21,9 +21,10 @@ interface GreenhouseJob {
 export const greenhouseProvider: JobProvider = {
   id: 'greenhouse',
   label: 'Greenhouse job board',
-  configHelp: 'config.board = the board token from the company careers URL (job-boards.greenhouse.io/<board>).',
+  configHelp: 'config.board = the board token from the company careers URL (job-boards.greenhouse.io/<board>); config.hostedApply = true sends applicants to the Greenhouse-hosted job page instead of the company page when the latter is unreliable.',
   async fetchJobs(source, ctx) {
     const board = String(source.config.board || '').trim()
+    const hostedApply = source.config.hostedApply === true
     if (!/^[a-z0-9-]+$/i.test(board)) throw new Error('Greenhouse source needs config.board (letters, digits, dashes)')
     const url = `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(board)}/jobs?content=true`
     ctx.log(`GET ${url}`)
@@ -42,7 +43,7 @@ export const greenhouseProvider: JobProvider = {
       postedAt: j.first_published || null,
       updatedAt: j.updated_at || null,
       sourceUrl: j.absolute_url,
-      applyUrl: j.absolute_url,
+      applyUrl: hostedApply ? `https://job-boards.greenhouse.io/${encodeURIComponent(board)}/jobs/${encodeURIComponent(String(j.id))}` : j.absolute_url,
       raw: { requisitionId: j.requisition_id || null, offices: (j.offices || []).map((o) => o.name), departments: (j.departments || []).map((d) => d.name) },
     }))
   },
