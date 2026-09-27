@@ -7,7 +7,7 @@ export default function NotFound() {
         <span className="text-4xl block mb-3">🧭</span>
         <h1 className="font-display text-2xl font-bold mb-2">Page not found</h1>
         <p className="text-sm text-muted-foreground mb-6">Prep lives on a single page. Head back to your workspace.</p>
-        <Link href="/" className="btn btn-primary">
+        <Link href="/?home=1" className="btn btn-primary">
           Open Prep
         </Link>
       </div>

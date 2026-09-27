@@ -13,7 +13,7 @@ export default function LegalPageLayout({ title, subtitle, lastUpdated, badge, c
   return (
     <div className="legal-page">
       <header className="legal-nav-header">
-        <Link href="/" aria-label="Prep by EVOLW Home">
+        <Link href="/?home=1" aria-label="Prep by EVOLW Home">
           <BrandLogo size={32} />
         </Link>
         <nav className="flex items-center gap-3">

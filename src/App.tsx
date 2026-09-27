@@ -1911,7 +1911,7 @@ export default function App() {
                 </button>
 
                 <a
-                  href="/"
+                  href="/?home=1"
                   className="font-medium text-muted-foreground hover:text-foreground transition-colors hover:underline"
                 >
                   Back to homepage

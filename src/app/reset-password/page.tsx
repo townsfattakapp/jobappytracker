@@ -90,7 +90,7 @@ function ResetForm() {
 export default function ResetPasswordPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-6 bg-background text-foreground">
-      <a href="/" aria-label="Prep home">
+      <a href="/?home=1" aria-label="Prep home">
         <BrandLogo size={34} />
       </a>
       <Suspense fallback={null}>
