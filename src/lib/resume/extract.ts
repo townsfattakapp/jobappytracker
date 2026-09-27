@@ -7,7 +7,7 @@ import { extractSkills } from '../jobs/skills'
  * stay null and a warning explains why.
  */
 
-export const EXTRACTOR_VERSION = 'rules-1'
+export const EXTRACTOR_VERSION = 'rules-2'
 
 export interface Evidence {
   /** 1-based line numbers in the extracted text. */
@@ -19,6 +19,8 @@ export interface Evidence {
 export interface EmploymentEntry {
   title: string | null
   company: string | null
+  /** Short "City, Country" line under the role heading, when the resume has one. */
+  location?: string | null
   start: string | null
   end: string | null
   /** Approximate months of tenure when both dates are readable. */
@@ -66,9 +68,15 @@ const SECTION_HEADINGS: { kind: SectionKind; re: RegExp }[] = [
   { kind: 'experience', re: /^(work\s+|professional\s+|employment\s+)?(experience|history|employment)\b/i },
   { kind: 'projects', re: /^(personal\s+|academic\s+|key\s+|selected\s+)?projects?\b/i },
   { kind: 'education', re: /^(education|academics|qualifications)\b/i },
-  { kind: 'certifications', re: /^(certifications?|certificates|licenses?|courses)\b/i },
+  { kind: 'certifications', re: /^(certifications?|certificates|licenses?|courses|trainings?|professional\s+development|learning|upskilling)\b/i },
   { kind: 'achievements', re: /^(achievements?|awards?|honou?rs|accomplishments|publications)\b/i },
+  // Headings that end the previous section without contributing to the profile.
+  { kind: 'other', re: /^(interests|hobbies|languages|volunteer(ing)?|extra-?curricular|references|declaration|personal\s+details|additional\s+information)\b/i },
 ]
+
+const ROLE_WORDS = /\b(engineer|developer|founder|co-?founder|manager|lead|head|architect|analyst|scientist|consultant|intern|trainee|designer|administrator|specialist|director|officer|associate|executive|owner|freelancer|contractor|sde|swe|cto|ceo|vp)\b/i
+const COMPANY_HINTS = /\b(inc|ltd|llc|llp|pvt|private|limited|technologies|technology|services|solutions|systems|labs|group|corp|corporation|company|co|studio|studios|bank|university|institute|college|academy)\b|\.(in|com|io|ai|co|org|net|dev)\b|\([A-Z&]{2,8}\)/i
+const LOCATION_LINE = /^[A-Za-z][A-Za-z .'-]{1,30},\s*[A-Za-z][A-Za-z .'-]{1,30}(,\s*[A-Za-z .'-]{2,30})?$/
 
 const MONTHS = '(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*'
 const DATE = `(?:${MONTHS}\\.?\\s+)?(\\d{4})`
@@ -97,6 +105,45 @@ function parseRange(text: string, now: Date): { start: string | null; end: strin
   const end = ongoing ? 'present' : `${endYear}${endMonth != null ? `-${String(endMonth + 1).padStart(2, '0')}` : ''}`
   const months = Number.isFinite(startYear) && Number.isFinite(endYear) ? Math.max(0, (endYear - startYear) * 12 + ((endMonth ?? 6) - (startMonth ?? 6))) : null
   return { start, end, months }
+}
+
+/** Months covered by the union of the dated employment ranges, so overlapping roles (a side venture next to a job) are not double counted. */
+function unionMonths(entries: EmploymentEntry[], now: Date): number | null {
+  const toIndex = (value: string, fallbackMonth: number): number => {
+    if (value === 'present') return now.getFullYear() * 12 + now.getMonth()
+    const [y, m] = value.split('-').map(Number)
+    return y * 12 + (Number.isFinite(m) ? m - 1 : fallbackMonth)
+  }
+  const ranges = entries
+    .filter((e) => e.start && e.end && e.months != null)
+    .map((e) => [toIndex(e.start as string, 6), toIndex(e.end as string, 6)] as [number, number])
+    .filter(([a, b]) => b >= a)
+    .sort((x, y) => x[0] - y[0])
+  if (!ranges.length) return null
+  let total = 0
+  let [curStart, curEnd] = ranges[0]
+  for (const [a, b] of ranges.slice(1)) {
+    if (a <= curEnd) curEnd = Math.max(curEnd, b)
+    else {
+      total += curEnd - curStart
+      ;[curStart, curEnd] = [a, b]
+    }
+  }
+  return total + (curEnd - curStart)
+}
+
+/** Joins the wrapped remainder of a list item (a line without a bullet that starts in lower case, or follows a bullet and does not look like a new item) to the item before it. */
+function mergeWrapped(lines: { n: number; text: string }[]): { lines: number[]; text: string }[] {
+  const out: { lines: number[]; text: string }[] = []
+  for (const l of lines) {
+    const prev = out[out.length - 1]
+    const continuation = prev && !BULLET.test(l.text) && (/^[a-z(]/.test(l.text) || (BULLET.test(lines.find((x) => x.n === prev.lines[0])?.text ?? '') && !DATE_RANGE.test(l.text) && !/^[A-Z][A-Z0-9&.' -]{2,}$/.test(l.text)))
+    if (continuation) {
+      prev.lines.push(l.n)
+      prev.text = `${prev.text} ${l.text}`
+    } else out.push({ lines: [l.n], text: l.text })
+  }
+  return out
 }
 
 /** Splits resume text into trimmed lines, keeping 1-based line numbers. */
@@ -138,7 +185,7 @@ export function extractResumeProfile(text: string, now: Date = new Date()): { pr
   const header = lines.filter((l) => l.text && l.n < (sections[1]?.startLine ?? lines.length + 1) - 1).slice(0, 6)
   const contactRe = /@|https?:|www\.|\+?\d[\d\s().-]{8,}/
   const nameLine = header.find((l) => !contactRe.test(l.text) && l.text.length <= 50 && /^[A-Za-z][A-Za-z .'-]+$/.test(l.text) && l.text.split(' ').length <= 5)
-  const headlineLine = header.find((l) => l !== nameLine && !contactRe.test(l.text) && l.text.length <= 80 && !isHeading(l.text))
+  const headlineLine = header.find((l) => l !== nameLine && !contactRe.test(l.text) && l.text.length <= 120 && !isHeading(l.text))
   const name = nameLine?.text ?? null
   const headline = headlineLine?.text ?? null
   const unknown: string[] = []
@@ -170,19 +217,30 @@ export function extractResumeProfile(text: string, now: Date = new Date()): { pr
     ),
   )
 
-  // Employment: entries start at a line with a date range inside the experience section.
+  // Employment: entries start at a line with a date range inside the experience section. Lines without a bullet
+  // that follow a bullet are the wrapped remainder of that bullet (PDF text keeps the visual line breaks); short
+  // "City, Country" lines under the heading are the role's location; anything else under a dated heading is a
+  // description line and is kept as a bullet.
   const employment: EmploymentEntry[] = []
   const expLines = linesIn('experience')
-  let entry: { head: { n: number; text: string }[]; bullets: { n: number; text: string }[]; hasDate: boolean } | null = null
+  type Pending = { head: { n: number; text: string }[]; bullets: { n: number; text: string }[]; location: string | null; hasDate: boolean }
+  let entry: Pending | null = null
   const flush = () => {
     if (!entry) return
     const headText = entry.head.map((h) => h.text).join(' | ')
     const range = parseRange(headText, now)
     const withoutDate = headText.replace(DATE_RANGE, '').replace(/\|\s*\|/g, '|').replace(/^\s*\|\s*|\s*\|\s*$/g, '').trim()
-    const parts = withoutDate.split(/\s+(?:at|@|-|–|—|\|)\s+/).map((p) => p.trim()).filter(Boolean)
+    const parts = withoutDate.split(/\s+(?:at|@|-|–|—|\|)\s+|\s*\|\s*/).map((p) => p.replace(/[,;]\s*$/, '').trim()).filter(Boolean)
+    let title: string | null = parts[0] || null
+    let company: string | null = parts[1] || null
+    // "COMPANY — Title" is as common as "Title — Company": the part with role words is the title.
+    if (title && company && !ROLE_WORDS.test(title) && ROLE_WORDS.test(company)) [title, company] = [company, title]
+    else if (title && company && ROLE_WORDS.test(title) && ROLE_WORDS.test(company) && COMPANY_HINTS.test(title) && !COMPANY_HINTS.test(company)) [title, company] = [company, title]
+    else if (title && !company && !ROLE_WORDS.test(title) && COMPANY_HINTS.test(title)) [title, company] = [null, title]
     employment.push({
-      title: parts[0] || null,
-      company: parts[1] || null,
+      title,
+      company,
+      location: entry.location,
       start: range.start,
       end: range.end,
       months: range.months,
@@ -196,11 +254,30 @@ export function extractResumeProfile(text: string, now: Date = new Date()): { pr
     const bullet = BULLET.test(l.text)
     if (!entry) {
       if (bullet) continue // stray bullet before any role
-      entry = { head: [l], bullets: [], hasDate: dated }
+      entry = { head: [l], bullets: [], location: null, hasDate: dated }
     } else if (bullet) entry.bullets.push(l)
-    else if (entry.bullets.length || (entry.hasDate && dated) || entry.head.length >= 3) {
+    else if (dated && entry.hasDate) {
+      // A second dated line is the next role.
       flush()
-      entry = { head: [l], bullets: [], hasDate: dated }
+      entry = { head: [l], bullets: [], location: null, hasDate: true }
+    } else if (entry.bullets.length) {
+      if (dated || (entry.head.length + entry.bullets.length >= 1 && /^[A-Z][A-Z0-9&.,' -]{2,}(\s+[—–-]\s+.+)?$/.test(l.text) && !/[.!?]$/.test(l.text) && l.text.length <= 90)) {
+        // An undated all-caps heading (company line before its dated title line) starts the next role.
+        flush()
+        entry = { head: [l], bullets: [], location: null, hasDate: dated }
+      } else {
+        // Wrapped remainder of the previous bullet.
+        const last = entry.bullets[entry.bullets.length - 1]
+        entry.bullets[entry.bullets.length - 1] = { n: last.n, text: `${last.text} ${l.text}` }
+      }
+    } else if (entry.hasDate) {
+      if (!entry.location && LOCATION_LINE.test(l.text)) entry.location = l.text
+      else if (l.text.length > 40 || /[.!?]$/.test(l.text)) entry.bullets.push(l) // description sentence under the heading
+      else if (entry.head.length < 3) entry.head.push(l)
+      else entry.bullets.push(l)
+    } else if (entry.head.length >= 3) {
+      flush()
+      entry = { head: [l], bullets: [], location: null, hasDate: dated }
     } else {
       entry.head.push(l)
       entry.hasDate = entry.hasDate || dated
@@ -208,8 +285,7 @@ export function extractResumeProfile(text: string, now: Date = new Date()): { pr
   }
   flush()
   if (expLines.length && !employment.length) warnings.push('An experience section was found but no dated entries could be read from it.')
-  const dated = employment.filter((e) => e.months != null)
-  const totalExperienceMonths = dated.length ? dated.reduce((s, e) => s + (e.months || 0), 0) : null
+  const totalExperienceMonths = unionMonths(employment, now)
   if (totalExperienceMonths == null) unknown.push('years of experience')
 
   // Projects: "Name — description" or "Name: description" lines, bullets belong to the previous project.
@@ -231,8 +307,8 @@ export function extractResumeProfile(text: string, now: Date = new Date()): { pr
   const education: EducationEntry[] = linesIn('education')
     .filter((l) => !BULLET.test(l.text) || /\b(b\.?tech|b\.?e\b|m\.?tech|bachelor|master|b\.?sc|m\.?sc|mca|bca|phd|diploma|university|college|institute)\b/i.test(l.text))
     .map((l) => ({ text: l.text, year: /(?:19|20)\d{2}/.exec(l.text)?.[0] ?? null, evidence: { lines: [l.n], quote: l.text.slice(0, 200) } }))
-  const certifications = linesIn('certifications').map((l) => ({ text: l.text.replace(BULLET, ''), evidence: { lines: [l.n], quote: l.text.slice(0, 200) } }))
-  const achievements = linesIn('achievements').map((l) => ({ text: l.text.replace(BULLET, ''), evidence: { lines: [l.n], quote: l.text.slice(0, 200) } }))
+  const certifications = mergeWrapped(linesIn('certifications')).map((l) => ({ text: l.text.replace(BULLET, ''), evidence: { lines: l.lines, quote: l.text.slice(0, 200) } }))
+  const achievements = mergeWrapped(linesIn('achievements')).map((l) => ({ text: l.text.replace(BULLET, ''), evidence: { lines: l.lines, quote: l.text.slice(0, 200) } }))
   if (!education.length) unknown.push('education')
   if (!certifications.length) unknown.push('certifications')
 

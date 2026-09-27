@@ -176,7 +176,32 @@ export async function getResume(userId: string, id: string): Promise<ResumeDetai
     .leftJoin(resumeProfiles, eq(resumeProfiles.resumeId, resumes.id))
     .where(and(eq(resumes.id, id), eq(resumes.userId, userId)))
   if (!row) return null
-  return { ...meta(row.resume, row.profile), profile: (row.profile?.profile as ResumeProfile | undefined) ?? null, text: row.profile?.text ?? null, extractorVersion: row.profile?.extractorVersion ?? null }
+  const profile = await refreshStaleProfile(row.resume, row.profile)
+  return { ...meta(row.resume, profile), profile: (profile?.profile as ResumeProfile | undefined) ?? null, text: profile?.text ?? null, extractorVersion: profile?.extractorVersion ?? null }
+}
+
+/**
+ * Re-runs extraction on the stored bytes when the rules have moved on since the profile was written (or when the
+ * text could not be read at the time, e.g. before the production PDF fix), so learners never have to re-upload.
+ */
+async function refreshStaleProfile(resume: typeof resumes.$inferSelect, profile: typeof resumeProfiles.$inferSelect | null): Promise<typeof resumeProfiles.$inferSelect | null> {
+  const unreadBefore = Boolean(profile && !profile.text && profile.warnings?.some((w) => /could not be read as text/.test(w)))
+  if (profile && profile.extractorVersion === EXTRACTOR_VERSION && !unreadBefore) return profile
+  const kind: ResumeKind = resume.mimeType === 'application/pdf' ? 'pdf' : 'text'
+  let text = ''
+  const warnings: string[] = []
+  try {
+    text = await extractText(new Uint8Array(resume.content), kind)
+  } catch (error) {
+    logEvent('error', 'resume.extract_failed', { userId: resume.userId, kind, sizeBytes: resume.sizeBytes, error: error instanceof Error ? `${error.name}: ${error.message}`.slice(0, 300) : String(error).slice(0, 300) })
+    if (profile) return profile // keep what we had rather than replacing it with an empty profile
+    warnings.push('The file could not be read as text; it is stored, but analysis needs a text-based PDF.')
+  }
+  const extracted = extractResumeProfile(text)
+  const values = { resumeId: resume.id, text, profile: extracted.profile, extractorVersion: EXTRACTOR_VERSION, warnings: [...warnings, ...extracted.warnings], extractedAt: new Date() }
+  await db.insert(resumeProfiles).values(values).onConflictDoUpdate({ target: resumeProfiles.resumeId, set: { text: values.text, profile: values.profile, extractorVersion: values.extractorVersion, warnings: values.warnings, extractedAt: values.extractedAt } })
+  logEvent('info', 'resume.profile_refreshed', { userId: resume.userId, resumeId: resume.id, from: profile?.extractorVersion ?? null, to: EXTRACTOR_VERSION })
+  return { ...values } as typeof resumeProfiles.$inferSelect
 }
 
 /** The learner's current resume with its profile, or null. */

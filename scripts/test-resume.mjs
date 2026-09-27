@@ -53,6 +53,64 @@ Certifications
 - Oracle Certified Associate, Java SE
 `
 
+/** Resume shaped like a real PDF export: "COMPANY — Title  Dates" headings, wrapped bullet lines, a location line, a
+ * training section and overlapping roles (side venture next to a job). */
+export const WRAPPED_RESUME = `RAVI MENON
+Full Stack Developer · React / Next.js / TypeScript / Node.js · Founder, Example.in
+Pune, MH, India | +91 91234 56789 | ravi.menon@example.invalid | github.com/ravi-example
+SUMMARY
+Full Stack Developer with 3+ years of experience building production web applications with React, Next.js,
+TypeScript and Node.js.
+WORK EXPERIENCE
+EXAMPLE.IN — Founder & Full Stack Developer May 2025 – Present
+Live multi-vendor commerce platform — sole engineer across web, mobile and DevOps.
+• Operate a live platform serving 400+ registered users — handling daily order fulfilment end-to-
+end: checkout, vendor workflows, and push notifications.
+• Reduced average API response time from 320ms to 85ms through Redis caching and MySQL query
+optimisation.
+ACME TECHNOLOGY SERVICES (ATS) — Full Stack Developer Sep 2022 – Jun 2025
+Chennai, India
+• Developed and maintained 8+ React-based web applications used by 500+ stakeholders across engineering
+workflows.
+• Led code reviews for junior developers, reducing PR turnaround time by 25%.
+PROFESSIONAL DEVELOPMENT
+Example Academy — Advanced Software Engineering Program 2025 – Present
+• Structured upskilling in DSA and System Design — pursued alongside
+running Example.in in production.
+SKILLS
+Frontend: React.js, Next.js 14, TypeScript, Tailwind CSS
+Backend: Node.js, Express.js, REST APIs
+EDUCATION
+Bachelor of Engineering — Computer Science Jul 2019 – Jul 2022
+Example College of Engineering, Pune, MH
+`
+
+test('PDF-shaped resume: wrapped bullets, COMPANY — Title headings, location lines, training section and overlapping roles', () => {
+  const { profile, warnings } = extractResumeProfile(WRAPPED_RESUME, new Date('2026-09-27'))
+  assert.deepEqual(warnings, [])
+  assert.equal(profile.name, 'RAVI MENON')
+  assert.match(profile.headline, /^Full Stack Developer · React/)
+  assert.equal(profile.employment.length, 2, 'wrapped lines never start a new role')
+  const [founder, ats] = profile.employment
+  assert.equal(founder.title, 'Founder & Full Stack Developer')
+  assert.equal(founder.company, 'EXAMPLE.IN')
+  assert.deepEqual([founder.start, founder.end, founder.months], ['2025-05', 'present', 16])
+  assert.equal(founder.bullets.length, 3, 'description line plus two bullets')
+  assert.match(founder.bullets[1], /end-to- end: checkout, vendor workflows, and push notifications\.$/)
+  assert.match(founder.bullets[2], /query optimisation\.$/)
+  assert.equal(ats.title, 'Full Stack Developer')
+  assert.equal(ats.company, 'ACME TECHNOLOGY SERVICES (ATS)')
+  assert.equal(ats.location, 'Chennai, India')
+  assert.deepEqual([ats.start, ats.end, ats.months], ['2022-09', '2025-06', 33])
+  assert.equal(ats.bullets.length, 2)
+  assert.equal(profile.totalExperienceMonths, 48, 'Sep 2022 → Sep 2026 as a union, not 16 + 33 summed')
+  assert.equal(profile.certifications.length, 2, 'training programme and its wrapped bullet')
+  assert.match(profile.certifications[1].text, /running Example\.in in production\.$/)
+  assert.equal(profile.sections.find((s) => s.name === 'certifications')?.startLine, 20)
+  assert.equal(profile.education.length, 2)
+  assert.ok(profile.skills.some((s) => s.name === 'Next.js') && profile.skills.some((s) => s.name === 'Redis'))
+})
+
 const job = (over = {}) => ({
   id: 'job-1',
   companyId: 'c1',
