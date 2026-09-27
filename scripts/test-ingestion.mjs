@@ -525,3 +525,41 @@ test('Atlassian adapter reads the listings endpoint once and keeps described rol
   assert.equal(n.workMode, 'remote')
   await assert.rejects(() => atlassian.fetchJobs({ id: 's', name: 'x', provider: 'atlassian', baseUrl: null, config: {} }, { fetch: async () => ({ ok: true, status: 200, text: async () => '{}' }), log: () => {} }), /not an array/)
 })
+
+test('Keka adapter reads the embed list once and maps locations, countries, type and dates', async () => {
+  const keka = providers.providerById('keka')
+  const calls = []
+  const fetchImpl = async (url) => {
+    calls.push(url)
+    return {
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify([
+          { id: 142721, title: 'Backend Engineer', description: '<p>Build the payroll engine in .NET and PostgreSQL.</p>', departmentName: 'Engineering', jobLocations: [{ id: 64, name: 'Hyderabad', city: 'Hyderabad', state: 'TG', countryCode: 'IN' }, { id: 70, name: 'Bengaluru', city: 'Bengaluru', state: 'KA', countryCode: 'IN' }], jobType: 'Full Time', experience: '3', jobNumber: 'KEKA-42', publishedOn: '2026-09-20T05:30:00', skillNames: ['C#', 'SQL'] },
+          { id: 142722, title: 'SDR', description: '<p>Sell.</p>', departmentName: 'Sales', jobLocations: [{ id: 37837, name: 'Manila', city: 'Manila', state: 'BUL', countryCode: 'RP' }], jobType: 'Full Time' },
+          { id: 142723, title: 'No description', description: '', jobLocations: [] },
+        ]),
+    }
+  }
+  const raw = await keka.fetchJobs({ id: 's', name: 'Keka', provider: 'keka', baseUrl: null, config: { host: 'hr.keka.com', identifier: '24040a7e-a7c5-47a5-9cd5-019962c66385' } }, { fetch: fetchImpl, log: () => {} })
+  assert.equal(calls.length, 1)
+  assert.ok(calls[0].endsWith('/careers/api/embedjobs/default/active/24040a7e-a7c5-47a5-9cd5-019962c66385'))
+  assert.equal(raw.length, 2, 'the listing without a description is dropped')
+  const [job, sdr] = raw
+  assert.equal(job.externalId, '142721')
+  assert.equal(job.location, 'Hyderabad, TG, India')
+  assert.deepEqual(job.locations, ['Bengaluru, KA, India'])
+  assert.deepEqual(job.countries, ['India'])
+  assert.equal(job.employmentType, 'Full Time')
+  assert.equal(job.department, 'Engineering')
+  assert.equal(job.sourceUrl, 'https://hr.keka.com/careers/jobdetails/142721')
+  assert.ok(job.postedAt.startsWith('2026-09-'))
+  assert.deepEqual(job.raw.skills, ['C#', 'SQL'])
+  assert.deepEqual(sdr.countries, ['Philippines'])
+  const n = normalize.normalizeRawJob(job)
+  assert.equal(n.region, 'india')
+  assert.equal(n.locationCity, 'Hyderabad')
+  await assert.rejects(() => keka.fetchJobs({ id: 's', name: 'x', provider: 'keka', baseUrl: null, config: { host: 'hr.keka.com', identifier: 'nope' } }, { fetch: fetchImpl, log: () => {} }), /identifier/)
+  await assert.rejects(() => keka.fetchJobs({ id: 's', name: 'x', provider: 'keka', baseUrl: null, config: { host: 'hr.keka.com', identifier: '24040a7e-a7c5-47a5-9cd5-019962c66385' } }, { fetch: async () => ({ ok: true, status: 200, text: async () => '{}' }), log: () => {} }), /not an array/)
+})

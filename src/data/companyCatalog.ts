@@ -19,12 +19,12 @@
  * marked as integrated. No HTML is scraped, no anti-bot measure is bypassed
  * and no third-party copies are used.
  */
-export type CatalogFeedProvider = 'greenhouse' | 'lever' | 'ashby' | 'smartrecruiters' | 'amazon' | 'eightfold' | 'workday' | 'oraclecloud' | 'atlassian'
+export type CatalogFeedProvider = 'greenhouse' | 'lever' | 'ashby' | 'smartrecruiters' | 'amazon' | 'eightfold' | 'workday' | 'oraclecloud' | 'atlassian' | 'keka'
 export type IndiaRelevance = 'strong' | 'moderate' | 'international'
 
 export interface CatalogFeed {
   provider: CatalogFeedProvider
-  /** Board token (Greenhouse/Ashby), site (Lever), company id (SmartRecruiters), "host|domain|api" (Eightfold), "host/tenant/site" (Workday), "host/site" (Oracle Cloud HCM), "amazon.jobs" or "atlassian.com". */
+  /** Board token (Greenhouse/Ashby), site (Lever), company id (SmartRecruiters), "host|domain|api" (Eightfold), "host/tenant/site" (Workday), "host/site" (Oracle Cloud HCM), "host/identifier" (Keka), "amazon.jobs" or "atlassian.com". */
   token: string
   /** Extra provider config merged into the source (search list, caps). */
   config?: Record<string, unknown>
@@ -272,6 +272,7 @@ export const COMPANY_CATALOG: CatalogCompany[] = [
   { slug: 'persistent', name: 'Persistent Systems', website: 'https://www.persistent.com/', careersUrl: 'https://careers.persistent.com/explore-opportunities', headquarters: 'Pune, India', industry: 'IT services and engineering', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site', notes: 'careers.persistent.com renders listings in HTML with no JSON endpoint the page calls; careers link kept.' },
   { slug: 'jio', name: 'Jio (Reliance Jio)', website: 'https://www.jio.com/', careersUrl: 'https://careers.jio.com/', headquarters: 'Navi Mumbai, India', industry: 'Telecommunications and digital services', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site', notes: 'careers.jio.com is a server-rendered ASP.NET portal with no feed; careers link kept.' },
   { slug: 'deloitte-india', name: 'Deloitte India', website: 'https://www2.deloitte.com/in/', careersUrl: 'https://southasiacareers.deloitte.com/go/Deloitte-India/718244/', headquarters: 'Mumbai, India (South Asia careers site)', industry: 'Professional services and technology consulting', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: null, portal: 'careers-site', notes: 'SuccessFactors career site rendered as HTML (no RSS or JSON answered); careers link kept.' },
+  { slug: 'keka', name: 'Keka', website: 'https://www.keka.com/', careersUrl: 'https://hr.keka.com/careers', headquarters: 'Hyderabad, India', industry: 'HR and payroll software', indiaRelevance: 'strong', roleFamilies: ENG_DATA, feed: { provider: 'keka', token: 'hr.keka.com/24040a7e-a7c5-47a5-9cd5-019962c66385', verifiedAt: VERIFIED_4, jobsAtVerification: 57, note: 'Unofficial JSON: the careers page embed endpoint (api/embedjobs/default/active/<identifier>); 57 open roles with full descriptions, mostly Hyderabad and Bengaluru, at verification.' }, portal: 'keka' },
   { slug: 'wednesday', name: 'Wednesday Solutions', website: 'https://www.wednesday.is/', careersUrl: 'https://www.wednesday.is/hiring', headquarters: 'Pune, India', industry: 'Product engineering studio', indiaRelevance: 'strong', roleFamilies: ENG, feed: null, portal: 'careers-site', notes: 'Open roles are listed on the company site itself with no ATS feed behind them; careers link kept.' },
 ]
 

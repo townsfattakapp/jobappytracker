@@ -11,6 +11,7 @@ import { parseWorkdayToken, workdayListRequest } from '../ingestion/providers/wo
 import { oracleListUrl, parseOracleToken } from '../ingestion/providers/oraclecloud'
 import { smartRecruitersListUrl } from '../ingestion/providers/smartrecruiters'
 import { ATLASSIAN_LISTINGS_URL } from '../ingestion/providers/atlassian'
+import { kekaListUrl, parseKekaToken } from '../ingestion/providers/keka'
 
 /**
  * Company source catalog: idempotent seeding of curated companies and their
@@ -59,13 +60,13 @@ export interface CatalogRow {
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null)
 
 /** Providers that read a careers site's own (unofficial) JSON endpoint rather than a documented board API. */
-export const SITE_PROVIDERS = new Set<CatalogFeedProvider>(['amazon', 'eightfold', 'workday', 'oraclecloud', 'atlassian'])
+export const SITE_PROVIDERS = new Set<CatalogFeedProvider>(['amazon', 'eightfold', 'workday', 'oraclecloud', 'atlassian', 'keka'])
 
 export function feedConfig(entry: CatalogCompany): Record<string, unknown> {
   if (!entry.feed) return {}
   const { provider, token, config } = entry.feed
   const base =
-    provider === 'lever' ? { site: token } : provider === 'smartrecruiters' ? { company: token } : provider === 'amazon' || provider === 'atlassian' ? {} : provider === 'eightfold' ? parseEightfoldToken(token) : provider === 'workday' ? parseWorkdayToken(token) : provider === 'oraclecloud' ? parseOracleToken(token) : { board: token }
+    provider === 'lever' ? { site: token } : provider === 'smartrecruiters' ? { company: token } : provider === 'amazon' || provider === 'atlassian' ? {} : provider === 'eightfold' ? parseEightfoldToken(token) : provider === 'workday' ? parseWorkdayToken(token) : provider === 'oraclecloud' ? parseOracleToken(token) : provider === 'keka' ? parseKekaToken(token) : { board: token }
   return { ...base, ...(config ?? {}) }
 }
 
@@ -154,6 +155,7 @@ export const PROBES: Record<CatalogFeedProvider, (token: string) => Probe> = {
   smartrecruiters: (t) => ({ url: smartRecruitersListUrl(t, 0, 1), init: { headers: API_HEADERS }, count: (b) => numberOrNull((b as { totalFound?: unknown })?.totalFound) }),
   oraclecloud: (t) => ({ url: oracleListUrl(parseOracleToken(t), { label: 'probe' }, 0, 1), init: { headers: BROWSER_HEADERS }, count: (b) => numberOrNull((b as { items?: { TotalJobsCount?: unknown }[] })?.items?.[0]?.TotalJobsCount) }),
   atlassian: () => ({ url: ATLASSIAN_LISTINGS_URL, init: { headers: BROWSER_HEADERS }, count: jobsLength }),
+  keka: (t) => ({ url: kekaListUrl(parseKekaToken(t)), init: { headers: { ...BROWSER_HEADERS, accept: 'application/json' } }, count: jobsLength }),
 }
 
 export interface VerifyResult {
