@@ -6,6 +6,7 @@ import { subscriptions, users } from '../db/schema'
 import { computeEntitlement, extendedUntil, type Entitlement } from '../billing/entitlement'
 import { planById } from '../billing/plan'
 import { resolvePlanForUser } from './subscriptions'
+import { sendPassReceipt } from './receipts'
 
 /** Emails that always have access (operators, testers): BILLING_ALLOWLIST="a@x.com,b@y.com". */
 function allowlisted(email: string | null | undefined): boolean {
@@ -58,10 +59,13 @@ export async function grantOrder(orderId: string, paymentId: string | null): Pro
   const { paidUntil } = await paidState(row.userId)
   const now = new Date()
   const start = paidUntil && paidUntil > now ? paidUntil : now
-  await db
+  const updated = await db
     .update(subscriptions)
     .set({ status: 'paid', currentStart: start, currentEnd: extendedUntil(paidUntil, plan.days, now), lastPaymentId: paymentId ?? row.lastPaymentId, updatedAt: now })
     .where(and(eq(subscriptions.id, orderId), eq(subscriptions.status, row.status)))
+    .returning({ id: subscriptions.id })
+  // Exactly one caller wins the transition (webhook and checkout handler may both arrive); only that one emails the receipt.
+  if (updated.length) await sendPassReceipt(orderId)
   return true
 }
 

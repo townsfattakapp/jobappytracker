@@ -5,6 +5,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import BrandLogo, { BrandMark } from '../BrandLogo'
 import { PLAN_FEATURES, PLANS } from '../../lib/billing/plan'
 import PlanCards from '../PlanCards'
+import CompanyLogo from '../jobs/CompanyLogo'
+import { fetchHiringCompanies, type HiringCompanyDto } from '../../lib/jobs/client'
 import {
   MARKETING_CAREER_PATHS,
   MARKETING_DOMAINS,
@@ -126,6 +128,22 @@ const FEATURES = [
 
 const FAQ = [
   {
+    q: 'Can I try it before paying?',
+    a: 'Yes. Create a free account and use Job Discovery (a sample of live openings), the resume workspace, the tracker and the general curriculum browser. A pass unlocks the learning workspaces, the code runner, AI features, the full ranked job feed and job-specific mock interviews.',
+  },
+  {
+    q: 'Is paying safe, and do I get a receipt?',
+    a: 'Payments are processed by Razorpay (UPI, cards, net banking); Prep never sees or stores your card or UPI details. Every purchase gets a receipt with the Razorpay payment id, emailed to you and always available under Settings → Billing.',
+  },
+  {
+    q: 'What if something goes wrong with my purchase?',
+    a: 'Duplicate charges and any failure to deliver access are refunded in full; the refund policy also has a cooling-off window for passes that were not used. Write to hello@evolw.in with the payment id from your receipt and a human answers, not a bot.',
+  },
+  {
+    q: 'Where do the job openings come from?',
+    a: 'Directly from each company’s own careers feed, refreshed daily, with the original application link. Nothing is copied from job boards and no opening is invented: if a company stops listing a role, it disappears here too. The counts on this page are read live from the database.',
+  },
+  {
     q: 'Why do I need my own OpenAI or Groq key?',
     a: 'Because it keeps a 90-day pass at ₹199 and puts you in control. Groq has a free tier that covers normal daily use; OpenAI usage for a heavy week is usually a few rupees. Your key is encrypted at rest and only ever sent to the provider you chose.',
   },
@@ -153,7 +171,110 @@ const FAQ = [
     q: 'Does it work on my phone?',
     a: 'Yes. Everything syncs to your account, so the plan you build on a laptop is on your phone in the morning, including attempts and notes.',
   },
+  {
+    q: 'Who is behind Prep?',
+    a: 'Prep is built and run by Evolw (www.evolw.in), a small product team in India. There is one support address, hello@evolw.in, and it is read by the people who build the product.',
+  },
+  {
+    q: 'What happens to my data?',
+    a: 'Your plan, notes, resume versions and reports belong to you: export everything as a file from Settings at any time, and delete the account yourself from the Data Controls page. AI keys are encrypted at rest; resumes never leave your account.',
+  },
 ]
+
+/** Concrete reasons a first-time visitor can check for themselves; nothing here is a claim we cannot show. */
+const TRUST = [
+  { icon: '🏢', title: 'Real openings, real links', body: 'Every opening comes from the company’s own careers feed with the original application link. Listings that disappear at the source disappear here.' },
+  { icon: '₹', title: 'One payment, no auto-renew', body: 'A pass is a single Razorpay payment. No card on file, nothing renews by itself, and buying another pass simply adds its days.' },
+  { icon: '🧾', title: 'Receipt for every purchase', body: 'A receipt with the Razorpay payment id is emailed to you and kept under Settings → Billing, so support and refunds are straightforward.' },
+  { icon: '↩', title: 'Refunds for real problems', body: 'Duplicate charges and any failure to deliver access are refunded in full, usually within 5 to 7 business days. The policy is public.' },
+  { icon: '🔐', title: 'Your keys, your data', body: 'AI runs on your own key, encrypted at rest and sent only to the provider you chose. Export your data any time; delete the account yourself.' },
+  { icon: '✉️', title: 'A person answers', body: 'hello@evolw.in reaches the team that builds Prep. No ticket bots, no outsourced support.' },
+]
+
+const PASS_INCLUDES = [
+  '157 learning tracks and 20 career blueprints, planned around your calendar',
+  'Runnable worked examples and a code runner for six languages',
+  'The full ranked job feed, level and type filters, and compatibility analysis for every opening',
+  'Resume versions compared against any opening, with evidence from your own resume',
+  'Voice-first mock interviews for the exact job, with a scorecard and replay',
+  'Spaced-repetition flashcards, the tutor, application tracker and reminders',
+]
+
+interface LiveStats {
+  openings: number | null
+  companies: number | null
+  indiaOpenings: number | null
+  learners: number | null
+}
+
+/** Live numbers from the database (never typed in), with the hiring companies' logos. */
+function LiveProof() {
+  const [stats, setStats] = useState<LiveStats | null>(null)
+  const [companies, setCompanies] = useState<HiringCompanyDto[]>([])
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/platform/stats', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: LiveStats | null) => {
+        if (!cancelled && d) setStats(d)
+      })
+      .catch(() => undefined)
+    fetchHiringCompanies({}, 24)
+      .then((list) => {
+        if (!cancelled) setCompanies(list)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [])
+  const showLearners = process.env.NEXT_PUBLIC_SHOW_LEARNER_COUNT === '1' && stats?.learners != null
+  const fmt = (n: number | null | undefined) => (n == null ? '…' : n.toLocaleString('en-IN'))
+  return (
+    <section className="lp-live" aria-label="Live openings">
+      <div className="lp-container">
+        <div className="lp-section-head" data-reveal>
+          <p className="lp-eyebrow">Live right now</p>
+          <h2>Openings from the companies you are preparing for.</h2>
+          <p className="lp-lede">Read from each company’s own careers feed and refreshed daily. These numbers come from the database, not from a marketing page.</p>
+        </div>
+        <div className="lp-live-grid" data-reveal>
+          <div className="lp-live-stat">
+            <strong>{fmt(stats?.openings)}</strong>
+            <span>live openings with the original application link</span>
+          </div>
+          <div className="lp-live-stat">
+            <strong>{fmt(stats?.companies)}</strong>
+            <span>companies hiring: product companies, GCCs and consultancies</span>
+          </div>
+          <div className="lp-live-stat">
+            <strong>{fmt(stats?.indiaOpenings)}</strong>
+            <span>openings in India: Bengaluru, Hyderabad, Pune, Chennai, Mumbai, NCR</span>
+          </div>
+          {showLearners && (
+            <div className="lp-live-stat">
+              <strong>{fmt(stats?.learners)}</strong>
+              <span>learners with an account</span>
+            </div>
+          )}
+        </div>
+        {companies.length > 0 && (
+          <ul className="lp-logo-row" aria-label="Companies with live openings" data-reveal>
+            {companies.map((c) => (
+              <li key={c.id} title={`${c.name}: ${c.jobCount} opening${c.jobCount === 1 ? '' : 's'}`}>
+                <CompanyLogo company={c} size={28} />
+                <span>{c.name}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="lp-fineprint" data-reveal>
+          Openings are shown with their source. Prep never invents a listing, never copies job boards, and never applies on your behalf.
+        </p>
+      </div>
+    </section>
+  )
+}
 
 export default function Landing() {
   useReveal()
@@ -253,6 +374,7 @@ export default function Landing() {
             <a href="#product">Product</a>
             <a href="#how">How it works</a>
             <a href="#pricing">Pricing</a>
+            <a href="#trust">Trust</a>
             <a href="#faq">FAQ</a>
           </nav>
           <div className="lp-nav-actions">
@@ -278,7 +400,7 @@ export default function Landing() {
                 <span className="text-gradient">Start finishing them.</span>
               </h1>
               <p className="lp-lede">
-                Prep turns 157 engineering tracks across 12 disciplines into a personalized day-by-day plan, explains every topic in the language you code in, and keeps your job hunt in the same place, with AI mock interviews that feel like the real round. Passes from ₹{PLANS[0].priceInr} for {PLANS[0].name}.
+                A day-by-day plan across 157 engineering tracks, explanations in the language you code in, live openings from the companies you are preparing for, and a voice mock interview for the exact job. One payment from ₹{PLANS[0].priceInr} for {PLANS[0].name}; nothing renews by itself.
               </p>
               <div className="lp-cta-row">
                 <a href="/app?mode=signup" className="btn btn-primary lp-cta">
@@ -288,7 +410,7 @@ export default function Landing() {
                   Explore curriculum
                 </a>
               </div>
-              <p className="lp-fineprint">One payment, no auto-renew · Bring your own OpenAI or Groq key · Syncs to every device</p>
+              <p className="lp-fineprint">One payment, no auto-renew · Razorpay checkout, receipt by email · Refund if access fails · Built by Evolw, India</p>
             </div>
             <div className="lp-hero-visual">
               <div className="lp-hero-scene">
@@ -321,6 +443,8 @@ export default function Landing() {
             </div>
           </div>
         </section>
+
+        <LiveProof />
 
         <section id="curriculum" className="lp-section lp-curriculum-section">
           <div className="lp-curriculum-glow" aria-hidden="true" />
@@ -626,6 +750,34 @@ export default function Landing() {
           </div>
         </section>
 
+        <section id="trust" className="lp-section">
+          <div className="lp-container">
+            <div className="lp-section-head" data-reveal>
+              <p className="lp-eyebrow">Why you can trust it</p>
+              <h2>Everything on this page can be checked.</h2>
+              <p className="lp-lede">No invented numbers, no fake reviews, no countdown timers. Here is what actually protects you when you pay ₹{PLANS[0].priceInr}.</p>
+            </div>
+            <div className="lp-trust-grid">
+              {TRUST.map((t) => (
+                <article key={t.title} className="lp-trust-card" data-reveal>
+                  <span className="lp-trust-icon" aria-hidden="true">
+                    {t.icon}
+                  </span>
+                  <h3>{t.title}</h3>
+                  <p>{t.body}</p>
+                </article>
+              ))}
+            </div>
+            <div className="lp-trust-links" data-reveal>
+              <a href="/refund">Refund policy</a>
+              <a href="/privacy">Privacy policy</a>
+              <a href="/terms">Terms</a>
+              <a href="/data-deletion">Data controls</a>
+              <a href="mailto:hello@evolw.in">hello@evolw.in</a>
+            </div>
+          </div>
+        </section>
+
         <section id="pricing" className="lp-section lp-section-alt">
           <div className="lp-container">
             <div className="lp-section-head" data-reveal>
@@ -638,19 +790,24 @@ export default function Landing() {
             </div>
             <div className="lp-pricing" data-reveal>
               <div className="lp-price-card">
-                <h3>Every pass includes</h3>
+                <h3>What ₹{PLANS[0].priceInr} for {PLANS[0].name} gets you</h3>
                 <ul className="lp-checks">
-                  {PLAN_FEATURES.map((f) => (
+                  {PASS_INCLUDES.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
+                  {PLAN_FEATURES.filter((f) => !PASS_INCLUDES.some((p) => p.toLowerCase().includes(f.toLowerCase().slice(0, 12)))).map((f) => (
                     <li key={f}>{f}</li>
                   ))}
                 </ul>
-                <p className="lp-fineprint">Paid securely through Razorpay with UPI, cards or net banking. Buying another pass while one is active adds the days to the end.</p>
+                <p className="lp-fineprint">Paid through Razorpay with UPI, cards or net banking; a receipt with the payment id is emailed to you. Buying another pass while one is active adds the days to the end.</p>
               </div>
               <div className="lp-price-aside">
                 <h3>Who it is for</h3>
-                <p>Engineers with one to eight years of experience preparing for product-company rounds, and final-year students who want a plan instead of a playlist.</p>
+                <p>Engineers with one to eight years of experience preparing for product-company and GCC rounds, and final-year students who want a plan instead of a playlist.</p>
                 <h3>Why passes instead of a subscription</h3>
-                <p>Interview prep has a finish line. Buy the stretch you need, sit the interviews, and never think about cancelling.</p>
+                <p>Interview prep has a finish line. Buy the stretch you need, sit the interviews, and never think about cancelling. Less than a single mock-interview session elsewhere.</p>
+                <h3>If it does not work for you</h3>
+                <p>Duplicate charges and access failures are refunded in full; unused passes have a cooling-off window. Details are in the refund policy, and hello@evolw.in answers.</p>
               </div>
             </div>
           </div>
@@ -684,10 +841,11 @@ export default function Landing() {
           <div className="lp-container lp-final-inner" data-reveal>
             <BrandMark size={56} />
             <h2>Your next interview is closer than the end of your bookmarks folder.</h2>
+            <p className="lp-lede">Start free with live openings and your resume. Add a pass when you are ready to prepare properly.</p>
             <a href="/app?mode=signup" className="btn btn-primary lp-cta">
               Get started
             </a>
-            <p className="lp-fineprint">Passes from ₹{PLANS[0].priceInr} · One payment · No auto-renew</p>
+            <p className="lp-fineprint">Passes from ₹{PLANS[0].priceInr} · One payment · No auto-renew · Receipt by email</p>
           </div>
         </section>
       </main>
@@ -696,12 +854,16 @@ export default function Landing() {
         <div className="lp-container lp-footer-inner">
           <div className="lp-footer-brand">
             <BrandLogo size={28} />
-            <p>Interview preparation with a plan, for engineers targeting product companies.</p>
+            <p>Interview preparation with a plan, for engineers targeting product companies and global capability centres.</p>
+            <p>
+              Support: <a href="mailto:hello@evolw.in">hello@evolw.in</a>
+            </p>
           </div>
           <nav className="lp-footer-links" aria-label="Footer">
             <a href="#curriculum">Curriculum</a>
             <a href="#product">Product</a>
             <a href="#pricing">Pricing</a>
+            <a href="#trust">Trust</a>
             <a href="#faq">FAQ</a>
             <a href="/privacy">Privacy</a>
             <a href="/terms">Terms</a>

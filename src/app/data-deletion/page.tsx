@@ -68,7 +68,7 @@ export default function DataDeletionPage() {
               Permanently drops your user record, authentication credentials, curriculum roadmap progress, Career OS records, and active subscription associations.
             </p>
             <p style={{ margin: 0, fontSize: '0.9rem' }}>
-              <strong>How to execute:</strong> Send an account closure request to <a href="mailto:privacy@evolw.in" className="text-primary underline">privacy@evolw.in</a> from your registered email address. Account deletion requests are confirmed and executed within 5 business days.
+              <strong>How to execute:</strong> Send an account closure request to <a href="mailto:hello@evolw.in" className="text-primary underline">hello@evolw.in</a> from your registered email address. Account deletion requests are confirmed and executed within 5 business days.
             </p>
           </div>
         </div>

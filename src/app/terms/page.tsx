@@ -108,7 +108,7 @@ export default function TermsPage() {
         </p>
         <div className="legal-callout">
           <p><strong>Entity:</strong> Evolw Technologies</p>
-          <p><strong>Legal Department:</strong> <a href="mailto:legal@evolw.in" className="text-primary underline">legal@evolw.in</a></p>
+          <p><strong>Legal Department:</strong> <a href="mailto:hello@evolw.in" className="text-primary underline">hello@evolw.in</a></p>
           <p><strong>Address:</strong> Evolw Technologies, Bengaluru, Karnataka, India</p>
         </div>
       </section>

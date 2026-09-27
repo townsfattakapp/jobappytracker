@@ -13,6 +13,7 @@ interface Props {
 /** Settings → Billing: plan, cycle, status, renewal, usage and the actions the provider actually supports. */
 export default function BillingPanel({ signedIn, onSignIn, onToast, onChanged }: Props) {
   const [state, setState] = useState<BillingStateResponse | null>(null)
+  const [receipts, setReceipts] = useState<{ id: string; number: string; plan: string; amountInr: number; paidAt: string | null; paymentId: string | null; buyerEmail: string }[]>([])
   const [usage, setUsage] = useState<UsageResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -60,6 +61,23 @@ export default function BillingPanel({ signedIn, onSignIn, onToast, onChanged }:
       setBusy(false)
     }
   }
+
+  useEffect(() => {
+    if (!signedIn) {
+      setReceipts([])
+      return
+    }
+    let cancelled = false
+    fetch('/api/billing/receipts', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { receipts?: typeof receipts } | null) => {
+        if (!cancelled && d?.receipts) setReceipts(d.receipts)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [signedIn, state])
 
   return (
     <section className="surface rounded-2xl p-6 border border-border space-y-4" aria-labelledby="billing-title">
@@ -127,6 +145,24 @@ export default function BillingPanel({ signedIn, onSignIn, onToast, onChanged }:
               </button>
             )}
           </div>
+          {receipts.length > 0 && (
+            <div>
+              <h3 className="text-sm font-bold mt-2">Receipts</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Each receipt was emailed to {receipts[0].buyerEmail} when the pass was activated; open one to print or save it as PDF.</p>
+              <ul className="mt-2 flex flex-col gap-1.5">
+                {receipts.map((r) => (
+                  <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 text-sm rounded-lg border border-border/60 px-3 py-2">
+                    <span>
+                      <code className="font-mono text-xs">{r.number}</code> · {r.plan} · ₹{r.amountInr.toLocaleString('en-IN')} · {r.paidAt ? new Date(r.paidAt).toLocaleDateString() : ''}
+                    </span>
+                    <a className="btn btn-ghost btn-sm" href={`/api/billing/receipts/${encodeURIComponent(r.id)}`} target="_blank" rel="noreferrer">
+                      View receipt
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {usage && (
             <div>
               <h3 className="text-sm font-bold mt-2">Usage today</h3>

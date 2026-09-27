@@ -25,25 +25,25 @@ export default function ContactPage() {
           <div style={{ padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color, #e2e8f0)', background: 'var(--card-bg, #ffffff)' }}>
             <h3 style={{ margin: '0 0 8px 0', fontSize: '1.05rem', color: 'var(--primary-color, #2563eb)' }}>General &amp; Product Support</h3>
             <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>Questions about curriculums, mock interviews, roadmaps, and account access.</p>
-            <p style={{ margin: 0, fontWeight: 600 }}><a href="mailto:support@evolw.in" className="text-primary underline">support@evolw.in</a></p>
+            <p style={{ margin: 0, fontWeight: 600 }}><a href="mailto:hello@evolw.in" className="text-primary underline">hello@evolw.in</a></p>
           </div>
 
           <div style={{ padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color, #e2e8f0)', background: 'var(--card-bg, #ffffff)' }}>
             <h3 style={{ margin: '0 0 8px 0', fontSize: '1.05rem', color: 'var(--primary-color, #2563eb)' }}>Billing &amp; Subscriptions</h3>
             <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>Invoice queries, plan upgrades, Razorpay payment issues, and refund requests.</p>
-            <p style={{ margin: 0, fontWeight: 600 }}><a href="mailto:billing@evolw.in" className="text-primary underline">billing@evolw.in</a></p>
+            <p style={{ margin: 0, fontWeight: 600 }}><a href="mailto:hello@evolw.in" className="text-primary underline">hello@evolw.in</a></p>
           </div>
 
           <div style={{ padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color, #e2e8f0)', background: 'var(--card-bg, #ffffff)' }}>
             <h3 style={{ margin: '0 0 8px 0', fontSize: '1.05rem', color: 'var(--primary-color, #2563eb)' }}>Privacy &amp; Data Governance</h3>
             <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>DPDP compliance requests, data export requests, and deletion verification.</p>
-            <p style={{ margin: 0, fontWeight: 600 }}><a href="mailto:privacy@evolw.in" className="text-primary underline">privacy@evolw.in</a></p>
+            <p style={{ margin: 0, fontWeight: 600 }}><a href="mailto:hello@evolw.in" className="text-primary underline">hello@evolw.in</a></p>
           </div>
 
           <div style={{ padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color, #e2e8f0)', background: 'var(--card-bg, #ffffff)' }}>
             <h3 style={{ margin: '0 0 8px 0', fontSize: '1.05rem', color: 'var(--primary-color, #2563eb)' }}>Security &amp; Responsible Disclosure</h3>
             <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem' }}>Vulnerability disclosures and security incident reporting.</p>
-            <p style={{ margin: 0, fontWeight: 600 }}><a href="mailto:security@evolw.in" className="text-primary underline">security@evolw.in</a></p>
+            <p style={{ margin: 0, fontWeight: 600 }}><a href="mailto:hello@evolw.in" className="text-primary underline">hello@evolw.in</a></p>
           </div>
         </div>
       </div>
@@ -81,7 +81,7 @@ export default function ContactPage() {
         <div className="legal-callout">
           <p><strong>Operating Entity:</strong> Evolw Technologies</p>
           <p><strong>Registered Office Address:</strong> Evolw Technologies, Bengaluru, Karnataka, India</p>
-          <p><strong>Grievance Officer:</strong> Grievance Officer, Evolw Technologies (<a href="mailto:privacy@evolw.in" className="text-primary underline">privacy@evolw.in</a>)</p>
+          <p><strong>Grievance Officer:</strong> Grievance Officer, Evolw Technologies (<a href="mailto:hello@evolw.in" className="text-primary underline">hello@evolw.in</a>)</p>
           <p><strong>Official Website:</strong> <a href="https://www.evolw.in" target="_blank" rel="noreferrer" className="text-primary underline">www.evolw.in</a></p>
         </div>
       </div>

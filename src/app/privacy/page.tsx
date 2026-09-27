@@ -127,7 +127,7 @@ export default function PrivacyPage() {
         <div className="legal-callout">
           <p><strong>Designation:</strong> Grievance &amp; Data Protection Officer</p>
           <p><strong>Entity:</strong> Evolw Technologies</p>
-          <p><strong>Email:</strong> <a href="mailto:privacy@evolw.in" className="text-primary underline">privacy@evolw.in</a></p>
+          <p><strong>Email:</strong> <a href="mailto:hello@evolw.in" className="text-primary underline">hello@evolw.in</a></p>
           <p><strong>Address:</strong> Evolw Technologies, Bengaluru, Karnataka, India</p>
         </div>
       </section>

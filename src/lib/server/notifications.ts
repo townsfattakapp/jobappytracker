@@ -11,7 +11,7 @@ import { isMailerConfigured, renderEmail, sendMail, siteUrl } from './mailer'
  * the event is logged as skipped, so nothing is sent from development.
  */
 
-export type NotificationKind = 'subscription.activated' | 'payment.failed' | 'subscription.cancelled' | 'renewal.reminder' | 'application.reminder' | 'outreach.follow_up'
+export type NotificationKind = 'subscription.activated' | 'payment.receipt' | 'payment.failed' | 'subscription.cancelled' | 'renewal.reminder' | 'application.reminder' | 'outreach.follow_up'
 
 export interface Notification {
   kind: NotificationKind
@@ -28,6 +28,8 @@ export function buildNotification(kind: NotificationKind, data: Record<string, s
   switch (kind) {
     case 'subscription.activated':
       return { kind, subject: `Your ${data.plan} plan is active`, title: `${data.plan} is active`, intro: `Thanks for subscribing. Your ${data.plan} plan is active${data.periodEnd ? ` and renews on ${data.periodEnd}` : ''}.`, ctaLabel: 'Open Prep', ctaUrl: `${base}/app`, outro: 'You can change or cancel renewal any time from Settings → Billing.' }
+    case 'payment.receipt':
+      return { kind, subject: `Receipt ${data.number}: your Prep pass (${data.plan})`, title: 'Thanks, your pass is active', intro: `Payment of ${data.amount} for the ${data.plan} pass (${data.days} days) is confirmed${data.periodEnd ? `; access runs until ${data.periodEnd}` : ''}. Your receipt is below and stays available under Settings → Billing.`, ctaLabel: 'Open Prep', ctaUrl: `${base}/app`, outro: `One-time payment, nothing renews by itself. Keep the Razorpay payment id for any support or refund request; write to hello@evolw.in.` }
     case 'payment.failed':
       return { kind, subject: 'Payment for your plan did not go through', title: 'Payment failed', intro: `A payment for your ${data.plan} plan failed${data.reason ? ` (${data.reason})` : ''}. Your access continues for a short grace period while the provider retries.`, ctaLabel: 'Review billing', ctaUrl: `${base}/pricing`, outro: 'If the problem persists, update your payment method with the provider.' }
     case 'subscription.cancelled':
@@ -42,14 +44,14 @@ export function buildNotification(kind: NotificationKind, data: Record<string, s
 }
 
 /** Renders, records and (when configured) sends one notification. Never throws. */
-export async function notify(userId: string | null, email: string | null, kind: NotificationKind, data: Record<string, string | number | null | undefined>): Promise<'sent' | 'skipped' | 'failed'> {
+export async function notify(userId: string | null, email: string | null, kind: NotificationKind, data: Record<string, string | number | null | undefined>, rows?: [string, string][]): Promise<'sent' | 'skipped' | 'failed'> {
   const n = buildNotification(kind, data)
   const configured = isMailerConfigured() && Boolean(email)
   let status: 'sent' | 'skipped' | 'failed' = 'skipped'
   let error: string | null = null
   if (configured) {
     try {
-      const { html, text } = renderEmail({ title: n.title, intro: n.intro, ctaLabel: n.ctaLabel, ctaUrl: n.ctaUrl, outro: n.outro })
+      const { html, text } = renderEmail({ title: n.title, intro: n.intro, ctaLabel: n.ctaLabel, ctaUrl: n.ctaUrl, outro: n.outro, rows })
       await sendMail({ to: email!, subject: n.subject, html, text })
       status = 'sent'
     } catch (err) {

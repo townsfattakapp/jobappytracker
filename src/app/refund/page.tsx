@@ -76,7 +76,7 @@ export default function RefundPage() {
         <ol>
           <li>
             Send an email to our billing support team at{' '}
-            <a href="mailto:billing@evolw.in" className="text-primary underline">billing@evolw.in</a> (or <a href="mailto:support@evolw.in" className="text-primary underline">support@evolw.in</a>).
+            <a href="mailto:hello@evolw.in" className="text-primary underline">hello@evolw.in</a>.
           </li>
           <li>Include your registered email address, date of transaction, and the Razorpay payment or order ID from your receipt.</li>
           <li>State the reason for your request clearly.</li>

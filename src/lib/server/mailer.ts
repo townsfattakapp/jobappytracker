@@ -60,7 +60,11 @@ function escapeHtml(value: string): string {
 }
 
 /** Branded wrapper for the short transactional emails we send. */
-export function renderEmail(opts: { title: string; intro: string; ctaLabel: string; ctaUrl: string; outro: string }): { html: string; text: string } {
+export function renderEmail(opts: { title: string; intro: string; ctaLabel: string; ctaUrl: string; outro: string; rows?: [string, string][] }): { html: string; text: string } {
+  const rowsHtml = opts.rows?.length
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 22px;font-size:14px;border-top:1px solid #eeedf5;">${opts.rows.map(([k, v]) => `<tr><td style="padding:9px 0;border-bottom:1px solid #eeedf5;color:#6b6980;width:38%;vertical-align:top;">${escapeHtml(k)}</td><td style="padding:9px 0;border-bottom:1px solid #eeedf5;color:#1c1b2a;vertical-align:top;">${escapeHtml(v)}</td></tr>`).join('')}</table>`
+    : ''
+  const rowsText = opts.rows?.length ? `${opts.rows.map(([k, v]) => `${k}: ${v}`).join('\n')}\n\n` : ''
   const html = `<!doctype html>
 <html><body style="margin:0;padding:0;background:#f5f4fb;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1c1b2a;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f4fb;padding:32px 12px;">
@@ -71,6 +75,7 @@ export function renderEmail(opts: { title: string; intro: string; ctaLabel: stri
           <p style="margin:0 0 6px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#6b6980;font-weight:700;">Prep by EVOLW</p>
           <h1 style="margin:0 0 14px;font-size:24px;line-height:1.25;">${escapeHtml(opts.title)}</h1>
           <p style="margin:0 0 22px;font-size:15px;line-height:1.6;color:#3d3b50;">${escapeHtml(opts.intro)}</p>
+          ${rowsHtml}
           <a href="${opts.ctaUrl}" style="display:inline-block;background:#dd2a7b;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 22px;border-radius:12px;">${escapeHtml(opts.ctaLabel)}</a>
           <p style="margin:22px 0 0;font-size:13px;line-height:1.6;color:#6b6980;">${escapeHtml(opts.outro)}</p>
           <p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#8d8ba3;word-break:break-all;">If the button does not work, open this link: ${escapeHtml(opts.ctaUrl)}</p>
@@ -80,6 +85,6 @@ export function renderEmail(opts: { title: string; intro: string; ctaLabel: stri
     </td></tr>
   </table>
 </body></html>`
-  const text = `${opts.title}\n\n${opts.intro}\n\n${opts.ctaLabel}: ${opts.ctaUrl}\n\n${opts.outro}\n\nPrep by EVOLW · www.evolw.in`
+  const text = `${opts.title}\n\n${opts.intro}\n\n${rowsText}${opts.ctaLabel}: ${opts.ctaUrl}\n\n${opts.outro}\n\nPrep by EVOLW · www.evolw.in`
   return { html, text }
 }

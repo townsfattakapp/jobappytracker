@@ -1,6 +1,6 @@
 # Company source catalog
 
-Generated from `src/data/companyCatalog.ts` on 2026-09-27 by `scripts/docs-company-catalog.mjs`. 176 companies: 127 with a public, documented job-board feed (Greenhouse, Lever, Ashby), 9 read through the JSON endpoint their own careers site calls (Amazon Jobs, Eightfold, Workday), 40 with an official careers portal only (stored as **Not configured / Unsupported**, careers link kept). Read-only identity probes ran on 2026-09-25, 2026-09-26, 2026-09-27.
+Generated from `src/data/companyCatalog.ts` on 2026-09-27 by `scripts/docs-company-catalog.mjs`. 188 companies: 127 with a public, documented job-board feed (Greenhouse, Lever, Ashby), 24 read through the JSON endpoint their own careers site calls (Amazon Jobs, Eightfold, Workday), 37 with an official careers portal only (stored as **Not configured / Unsupported**, careers link kept). Read-only identity probes ran on 2026-09-25, 2026-09-26, 2026-09-27.
 
 Rules: documented board APIs and the careers sites' own JSON endpoints are read the way a browser would, with their page sizes, a cap per run and retries on rate limits; no HTML scraping, no anti-bot bypass, no LinkedIn or Google Jobs, no third-party copies, no fabricated openings. The site endpoints (Amazon, Eightfold, Workday) are unofficial and undocumented: a change on their side shows up as a failed run on /admin/catalog, never as invented data. Google, Meta and Apple offer neither a feed nor a readable endpoint and stay careers-link only. Ingestion keeps only listings that normalise to a supported JobAppy role family; HR, sales, legal, warehouse and operations roles are dropped as irrelevant.
 
@@ -16,7 +16,7 @@ Rules: documented board APIs and the careers sites' own JSON endpoints are read 
 | SAP | Walldorf, DE · India: Bengaluru | strong | 8 families | [careers page](https://jobs.sap.com/) | Not configured (no public feed) |
 | ServiceNow | Santa Clara, US · India: Hyderabad | strong | 8 families | [careers page](https://careers.servicenow.com/) | Not configured (no public feed) |
 | Intuit | Mountain View, US · India: Bengaluru | strong | 8 families | [careers page](https://www.intuit.com/careers/) | Not configured (no public feed) |
-| Cisco | San Jose, US · India: Bengaluru | strong | 6 families | [careers page](https://jobs.cisco.com/) | Not configured (no public feed) |
+| Cisco | San Jose, US · India: Bengaluru | strong | 6 families | workday site JSON (unofficial) `cisco.wd5.myworkdayjobs.com/cisco/Cisco_Careers` (verified 2026-09-27, 1327 listings) | Configured (verified feed) |
 | NVIDIA | Santa Clara, US · India: Bengaluru, Pune, Hyderabad | strong | 6 families | workday site JSON (unofficial) `nvidia.wd5.myworkdayjobs.com/nvidia/NVIDIAExternalCareerSite` (verified 2026-09-27, 2000 listings) | Configured (verified feed) |
 | AMD | Santa Clara, US · India: Bengaluru, Hyderabad | strong | 6 families | [careers page](https://www.amd.com/en/corporate/careers) | Not configured (no public feed) |
 | Qualcomm | San Diego, US · India: Hyderabad, Bengaluru, Chennai | strong | 6 families | [careers page](https://careers.qualcomm.com/) | Not configured (no public feed) |
@@ -24,7 +24,7 @@ Rules: documented board APIs and the careers sites' own JSON endpoints are read 
 | Walmart Global Tech | Bentonville, US · India: Bengaluru, Chennai | strong | 8 families | [careers page](https://careers.walmart.com/) | Not configured (no public feed) |
 | PayPal | San Jose, US · India: Bengaluru, Chennai, Hyderabad | strong | 8 families | workday site JSON (unofficial) `paypal.wd1.myworkdayjobs.com/paypal/jobs` (verified 2026-09-27, 280 listings) | Configured (verified feed) |
 | Autodesk | San Francisco, US · India: Bengaluru, Pune | moderate | 8 families | workday site JSON (unofficial) `autodesk.wd1.myworkdayjobs.com/autodesk/Ext` (verified 2026-09-27, 389 listings) | Configured (verified feed) |
-| Palo Alto Networks | Santa Clara, US · India: Bengaluru | moderate | 6 families | [careers page](https://jobs.paloaltonetworks.com/) | Not configured (no public feed) |
+| Palo Alto Networks | Santa Clara, US · India: Bengaluru | moderate | 6 families | workday site JSON (unofficial) `paloaltonetworks.wd5.myworkdayjobs.com/paloaltonetworks/panwexternalcareers` (verified 2026-09-27, 1508 listings) | Configured (verified feed) |
 | Booking.com | Amsterdam, NL · India: Bengaluru | moderate | 8 families | [careers page](https://jobs.booking.com/) | Not configured (no public feed) |
 | Expedia Group | Seattle, US · India: Gurugram, Bengaluru | moderate | 8 families | [careers page](https://careers.expediagroup.com/) | Not configured (no public feed) |
 | Stripe | San Francisco, US · India: Bengaluru | moderate | 8 families | greenhouse board `stripe` (verified 2026-09-25, 692 listings) | Configured (verified feed) |
@@ -72,7 +72,7 @@ Rules: documented board APIs and the careers sites' own JSON endpoints are read 
 | LinkedIn | Sunnyvale, US · India: Bengaluru | strong | 8 families | [careers page](https://careers.linkedin.com/) | Not configured (no public feed) |
 | Goldman Sachs Engineering | New York, US · India: Bengaluru, Hyderabad | strong | 8 families | [careers page](https://www.goldmansachs.com/careers/) | Not configured (no public feed) |
 | JPMorgan Chase Technology | New York, US · India: Bengaluru, Mumbai, Hyderabad | strong | 8 families | [careers page](https://careers.jpmorgan.com/) | Not configured (no public feed) |
-| Visa | San Francisco, US · India: Bengaluru | strong | 8 families | [careers page](https://www.visa.co.in/careers.html) | Not configured (no public feed) |
+| Visa | San Francisco, US · India: Bengaluru | strong | 8 families | workday site JSON (unofficial) `visa.wd5.myworkdayjobs.com/visa/Visa` (verified 2026-09-27, 776 listings) | Configured (verified feed) |
 | Mastercard | Purchase, US · India: Pune, Gurugram | strong | 8 families | workday site JSON (unofficial) `mastercard.wd1.myworkdayjobs.com/mastercard/CorporateCareers` (verified 2026-09-27, 1043 listings) | Configured (verified feed) |
 | Databricks | San Francisco, US · India: Bengaluru | strong | 8 families | greenhouse board `databricks` (verified 2026-09-26, 888 listings) | Configured (verified feed) |
 | OpenAI | San Francisco, US | international | 7 families | ashby board `openai` (verified 2026-09-26, 830 listings) | Configured (verified feed) |
@@ -182,3 +182,15 @@ Rules: documented board APIs and the careers sites' own JSON endpoints are read 
 | Glance | Bengaluru, India | strong | 8 families | greenhouse board `glance` (verified 2026-09-27, 42 listings) | Configured (verified feed) |
 | Thoughtworks | Chicago, US · India: Pune, Bengaluru, Chennai, Hyderabad, Gurugram, Coimbatore | strong | 8 families | ashby board `thoughtworks` (verified 2026-09-27, 70 listings) | Configured (verified feed) |
 | Turing | Palo Alto, US · remote engineers in India | moderate | 8 families | greenhouse board `turing` (verified 2026-09-27, 34 listings) | Configured (verified feed) |
+| HP | Palo Alto, US · India: Bengaluru | strong | 8 families | workday site JSON (unofficial) `hp.wd5.myworkdayjobs.com/hp/ExternalCareerSite` (verified 2026-09-27, 924 listings) | Configured (verified feed) |
+| Workday | Pleasanton, US · India: Pune | moderate | 8 families | workday site JSON (unofficial) `workday.wd5.myworkdayjobs.com/workday/Workday` (verified 2026-09-27, 382 listings) | Configured (verified feed) |
+| Target (Target in India) | Minneapolis, US · India: Bengaluru | strong | 8 families | workday site JSON (unofficial) `target.wd5.myworkdayjobs.com/target/targetcareers` (verified 2026-09-27, 2000 listings) | Configured (verified feed) |
+| Accenture | Dublin, IE · India: Bengaluru, Hyderabad, Pune, Chennai, Mumbai, Gurugram, Kolkata | strong | 14 families | workday site JSON (unofficial) `accenture.wd103.myworkdayjobs.com/accenture/AccentureCareers` (verified 2026-09-27, 2000 listings) | Configured (verified feed) |
+| Micron Technology | Boise, US · India: Hyderabad, Bengaluru, Gujarat | strong | 8 families | workday site JSON (unofficial) `micron.wd1.myworkdayjobs.com/micron/External` (verified 2026-09-27, 3057 listings) | Configured (verified feed) |
+| Intel | Santa Clara, US · India: Bengaluru, Hyderabad | strong | 8 families | workday site JSON (unofficial) `intel.wd1.myworkdayjobs.com/intel/External` (verified 2026-09-27, 607 listings) | Configured (verified feed) |
+| Cadence Design Systems | San Jose, US · India: Bengaluru, Noida, Pune, Hyderabad | strong | 8 families | workday site JSON (unofficial) `cadence.wd1.myworkdayjobs.com/cadence/External_Careers` (verified 2026-09-27, 610 listings) | Configured (verified feed) |
+| Nike | Beaverton, US · India: Bengaluru (Nike India Technology Center) | moderate | 8 families | workday site JSON (unofficial) `nike.wd1.myworkdayjobs.com/nike/nke` (verified 2026-09-27, 852 listings) | Configured (verified feed) |
+| Citi | New York, US · India: Pune, Chennai, Mumbai, Bengaluru, Gurugram | strong | 8 families | workday site JSON (unofficial) `citi.wd5.myworkdayjobs.com/citi/2` (verified 2026-09-27, 2000 listings) | Configured (verified feed) |
+| Barclays | London, UK · India: Pune, Chennai, Noida, Mumbai | strong | 8 families | workday site JSON (unofficial) `barclays.wd3.myworkdayjobs.com/barclays/External_Career_Site_Barclays` (verified 2026-09-27, 794 listings) | Configured (verified feed) |
+| NXP Semiconductors | Eindhoven, NL · India: Noida, Bengaluru, Hyderabad, Pune | strong | 5 families | workday site JSON (unofficial) `nxp.wd3.myworkdayjobs.com/nxp/careers` (verified 2026-09-27, 827 listings) | Configured (verified feed) |
+| Marvell Technology | Santa Clara, US · India: Bengaluru, Hyderabad, Pune | moderate | 5 families | workday site JSON (unofficial) `marvell.wd1.myworkdayjobs.com/marvell/MarvellCareers` (verified 2026-09-27, 251 listings) | Configured (verified feed) |

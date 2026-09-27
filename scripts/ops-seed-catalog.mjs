@@ -23,6 +23,12 @@ import { loadDevelopmentDatabaseEnv } from './lib/development-database.mjs'
 
 loadDevelopmentDatabaseEnv()
 const args = process.argv.slice(2)
+// Node's bundled undici can throw `assert(!this.paused)` from inside its socket parser on some keep-alive responses
+// (seen with Workday tenants). It is not catchable at the fetch call; the affected request times out and the source
+// records a failure, so the pass must not die with it.
+process.on('uncaughtException', (error) => {
+  console.error(`[uncaught] ${error instanceof Error ? error.stack ?? error.message : String(error)}`.slice(0, 600))
+})
 const arg = (name) => args.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3) ?? null
 const connectionString = process.env.DATABASE_URL
 if (!connectionString) throw new Error('DATABASE_URL is required')
