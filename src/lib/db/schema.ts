@@ -296,6 +296,8 @@ export const subscriptions = pgTable('subscriptions', {
   chargeAt: timestamp('chargeAt'),
   lastPaymentId: text('lastPaymentId'),
   cancelledAt: timestamp('cancelledAt'),
+  /** What the buyer actually paid, in paise, fixed at order time so receipts never follow later price changes. */
+  amountPaise: integer('amountPaise'),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
   updatedAt: timestamp('updatedAt').notNull().defaultNow(),
 })

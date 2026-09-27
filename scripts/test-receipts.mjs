@@ -58,6 +58,11 @@ test('granting an order emails one receipt, derived from the order, visible only
   assert.ok(r.periodEnd && new Date(r.periodEnd) > new Date(r.periodStart), 'access period is set')
   assert.equal((await receipts.listReceipts('u2')).length, 0, 'another learner sees nothing')
   assert.equal(await receipts.getReceipt('u2', 'order_abc123XYZ'), null, 'the order id alone does not open it')
+  // A pass bought before a price change keeps the amount it was bought at.
+  await client.query("insert into subscriptions (id, \"userId\", \"planId\", status, \"amountPaise\", \"lastPaymentId\", \"currentStart\", \"currentEnd\", \"createdAt\", \"updatedAt\") values ('order_old0001', 'u1', 'quarter', 'paid', 19900, 'pay_old', '2026-08-01T10:00:00Z', '2026-10-30T10:00:00Z', '2026-08-01T10:00:00Z', '2026-08-01T10:00:00Z')")
+  const old = (await receipts.listReceipts('u1')).find((x) => x.id === 'order_old0001')
+  assert.equal(old.amountInr, 199, 'historic receipts show the price paid, not the current list price')
+  assert.ok(receipts.receiptHtml(old).includes('₹199'))
 
   const html = receipts.receiptHtml(r)
   assert.ok(html.includes('PREP-20260927-ORDERA') && html.includes('₹299') && html.includes('pay_R1234567890') && html.includes('not a GST tax invoice'))

@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   try {
     const email = session.user?.email || ''
     const order = await createOrder(plan, userId, email)
-    await db.insert(subscriptions).values({ id: order.id, userId, planId: plan.id, status: 'created' }).onConflictDoNothing()
+    await db.insert(subscriptions).values({ id: order.id, userId, planId: plan.id, status: 'created', amountPaise: order.amount }).onConflictDoNothing()
     return NextResponse.json({
       orderId: order.id,
       amount: order.amount,

@@ -58,9 +58,9 @@ test('fresh in-memory PostgreSQL migrates fully and a second run is a no-op', as
     const columns = await client.query("select column_name from information_schema.columns where table_schema='public' and table_name='curriculum_tracks' order by ordinal_position");
     assert.deepEqual(columns.rows.map(row => row.column_name), ['id', 'ownerId', 'status', 'version', 'title', 'family', 'data', 'createdAt', 'updatedAt', 'publishedAt', 'reviewNote']);
     assert.deepEqual((await client.query("select * from curriculum_tracks where status='published'")).rows, []);
-    assert.equal((await client.query('select count(*)::int as count from drizzle.__drizzle_migrations')).rows[0].count, 15);
+    assert.equal((await client.query('select count(*)::int as count from drizzle.__drizzle_migrations')).rows[0].count, 16);
     await migrateInMemory(db);
-    assert.equal((await client.query('select count(*)::int as count from drizzle.__drizzle_migrations')).rows[0].count, 15);
+    assert.equal((await client.query('select count(*)::int as count from drizzle.__drizzle_migrations')).rows[0].count, 16);
     const fk = await client.query("select confdeltype from pg_constraint where conname='curriculum_tracks_ownerId_users_id_fk'");
     assert.equal(fk.rows[0].confdeltype, 'n');
     // Career OS Phase 1 tables (0005).
@@ -133,6 +133,6 @@ test('in-memory database at migration 0003 applies corrected 0004 through 0009',
     await migrateInMemory(db);
     assert.equal((await client.query('select count(*)::int as count from users')).rows[0].count, 1);
     assert.equal((await client.query('select count(*)::int as count from curriculum_tracks')).rows[0].count, 0);
-    assert.equal((await client.query('select count(*)::int as count from drizzle.__drizzle_migrations')).rows[0].count, 15);
+    assert.equal((await client.query('select count(*)::int as count from drizzle.__drizzle_migrations')).rows[0].count, 16);
   } finally { await client.close(); }
 });

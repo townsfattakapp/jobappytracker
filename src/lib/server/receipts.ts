@@ -55,7 +55,8 @@ function toReceipt(row: typeof subscriptions.$inferSelect, user: { email: string
     plan: plan.name,
     planId: plan.id,
     days: plan.days,
-    amountInr: plan.priceInr,
+    // The amount fixed at order time; only orders older than that column fall back to the plan's current price.
+    amountInr: row.amountPaise != null ? Math.round(row.amountPaise) / 100 : plan.priceInr,
     currency: 'INR',
     paymentId: row.lastPaymentId ?? null,
     periodStart: row.currentStart?.toISOString() ?? null,
