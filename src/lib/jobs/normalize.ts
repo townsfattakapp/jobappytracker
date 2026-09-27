@@ -30,7 +30,9 @@ export class ValidationError extends Error {
   }
 }
 
-const TRACKING_PARAMS = /^(utm_|gh_src$|gh_jid$|ref$|source$|src$|fbclid$|gclid$|mc_cid$|mc_eid$|trk$|trackingid$|refid$)/i
+// gh_jid is NOT tracking: on careers sites that embed Greenhouse (MongoDB, Stripe, Databricks, Fivetran, …) it is the
+// only thing that identifies the job page; dropping it sends applicants to a "not found" page.
+const TRACKING_PARAMS = /^(utm_|gh_src$|ref$|source$|src$|fbclid$|gclid$|mc_cid$|mc_eid$|trk$|trackingid$|refid$)/i
 
 /** Keeps scheme, host, path and meaningful query; drops tracking parameters and fragments. */
 export function canonicalApplyUrl(value: string): string {
