@@ -148,9 +148,42 @@ function topicScore(title: string, query: string, options: { preferShort?: boole
  * that substantive topics about the skill win over installation pages and "Advanced topic N" placeholders; the first
  * usable topic of the first track is the last resort.
  */
+const OVERVIEW_TOPIC = /^what is\b/i
+
+/** Words of a track title that name its subject: "Core Java, OOP and Collections" → core, java, oop, collections. */
+function trackSubjectWords(title: string): string[] {
+  return title
+    .toLowerCase()
+    .replace(/\(.*?\)/g, ' ')
+    .replace(/\bapache\b/g, ' ')
+    .split(WORD_SPLIT)
+    .filter(Boolean)
+}
+
+/**
+ * When the phrase names a whole track ("Airflow" for Apache Airflow, "Java" for Core Java, OOP and Collections),
+ * the entry point is the track's overview: "What is X?" when the track has one, otherwise the track's interview
+ * questions (whose lesson opens with "What is X?" and then works through the questions), otherwise the first real
+ * topic that is not an installation step. A learner asked to prepare "Airflow" should land on what Airflow is, not
+ * on a random topic that happens to contain the word.
+ */
+function trackEntryTopic(query: string, trackId: string): TopicRef | null {
+  const words = trackSubjectWords(query).filter((w) => w.length > 1)
+  const track = findTrack(trackId)
+  if (!track || !words.length) return null
+  const titleWords = trackSubjectWords(track.title)
+  if (!words.every((w) => titleWords.includes(w))) return null
+  const topics = getCurriculum().topics.filter((ref) => ref.track.id === trackId && !PLACEHOLDER_TOPIC.test(ref.topic.title))
+  return topics.find((ref) => OVERVIEW_TOPIC.test(ref.topic.title)) ?? topics.find((ref) => INTERVIEW_TOPIC.test(ref.topic.title)) ?? topics.find((ref) => !SETUP_TOPIC.test(ref.topic.title)) ?? topics[0] ?? null
+}
+
 export function resolveTopic(query: string, trackIds: string[]): TopicPointer | null {
   const existing = trackIds.filter((id) => findTrack(id))
   if (!existing.length) return null
+  for (const id of existing) {
+    const entry = trackEntryTopic(query, id)
+    if (entry) return pointer(entry)
+  }
   const candidates = new Map<string, TopicRef>()
   for (const hit of searchCurriculum(query, { trackIds: existing, limit: 12 })) candidates.set(hit.ref.topic.id, hit.ref)
   for (const ref of getCurriculum().topics) if (ref.track.id === existing[0]) candidates.set(ref.topic.id, ref)

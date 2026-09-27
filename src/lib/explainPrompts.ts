@@ -69,15 +69,37 @@ const COMMON = [
   'Finish every section you start; if the budget is tight, shorten the code and the recap rather than stopping mid-sentence.',
 ]
 
+const INTERVIEW_QUESTIONS_TITLE = /^(.+?)\s+interview questions$/i
+const QUESTION_TITLE = /^(what|why|where|when|how|which)\b.*\?$/i
+
+/**
+ * The subject a lesson is about and the heading of its first section. Curriculum titles are not always nouns:
+ * "Airflow interview questions" is about Airflow, and "What is Java?" is already a question, so neither can be
+ * dropped into "What is …?" verbatim.
+ */
+export function lessonSubject(title: string): { subject: string; heading: string; interview: boolean } {
+  const t = title.trim()
+  const iq = t.match(INTERVIEW_QUESTIONS_TITLE)
+  if (iq) return { subject: iq[1].trim(), heading: `## What is ${iq[1].trim()}?`, interview: true }
+  if (QUESTION_TITLE.test(t)) {
+    const subject = t.replace(/^(what is|why use|where is|when to use|how does|which)\s+/i, '').replace(/\?$/, '').trim()
+    return { subject: subject || t, heading: `## ${t}`, interview: false }
+  }
+  return { subject: t, heading: `## What is ${t}?`, interview: false }
+}
+
 function lessonSections(input: ExplainInput, extras: { after: string; sections: string[] }[], codeSection: string[]): string[] {
+  const { heading, interview } = lessonSubject(input.title)
   const base: string[][] = [
-    [`## What is ${input.title}?`, '(2–3 plain-language sentences that define it, then one everyday analogy in **bold** on its own line.)'],
+    [heading, '(2–3 plain-language sentences that define it, then one everyday analogy in **bold** on its own line.)'],
     ['## Why it matters', '(Where it shows up in real products and in interviews. 3 bullets.)'],
     ['## Illustrative example', '(One short, clearly illustrative scenario showing the concept in action: "Imagine a service that…". No real company names presented as fact. 1 short paragraph.)'],
     ['## How it works, step by step', '(A numbered list from the simplest case to the general case.)'],
     codeSection,
     ['## Common mistakes', '(Bullets: mistake → why it happens → fix.)'],
-    ['## Interview questions', '(3 questions, each followed by a one-line model answer.)'],
+    interview
+      ? ['## Interview questions and model answers', '(8–10 questions interviewers actually ask about this subject, from fundamentals to design and troubleshooting, each followed by a 2–4 sentence model answer. This is the heart of the lesson.)']
+      : ['## Interview questions', '(3 questions, each followed by a one-line model answer.)'],
     ['## Quick recap', '(3 bullets a learner can revise from in one minute.)'],
   ]
   const out: string[] = []
@@ -89,7 +111,8 @@ function lessonSections(input: ExplainInput, extras: { after: string; sections: 
 }
 
 export function buildExplainPrompt(input: ExplainInput): { system: string; user: string; noteTitle: string } {
-  const subject = input.parentTitle ? `${input.title} (part of ${input.parentTitle})` : input.title
+  const lesson = lessonSubject(input.title)
+  const subject = input.parentTitle ? `${input.title} (part of ${input.parentTitle})` : lesson.interview ? `${lesson.subject} (the curriculum topic is "${input.title}": teach ${lesson.subject} itself first, then the questions)` : input.title
   const parts = input.parts.length ? input.parts.join(', ') : 'core concept, examples, pitfalls'
   const user = (kind: string) => `${kind}: "${subject}" from the track "${input.trackTitle || 'software engineering'}". Sub-parts the curriculum lists: ${parts}.`
 
