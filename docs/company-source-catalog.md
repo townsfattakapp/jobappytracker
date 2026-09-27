@@ -1,6 +1,6 @@
 # Company source catalog
 
-Generated from `src/data/companyCatalog.ts` on 2026-09-26 by `scripts/docs-company-catalog.mjs`. 168 companies: 119 with a public, documented job-board feed (Greenhouse, Lever, Ashby), 9 read through the JSON endpoint their own careers site calls (Amazon Jobs, Eightfold, Workday), 40 with an official careers portal only (stored as **Not configured / Unsupported**, careers link kept). Read-only identity probes ran on 2026-09-25, 2026-09-26, 2026-09-27.
+Generated from `src/data/companyCatalog.ts` on 2026-09-27 by `scripts/docs-company-catalog.mjs`. 176 companies: 127 with a public, documented job-board feed (Greenhouse, Lever, Ashby), 9 read through the JSON endpoint their own careers site calls (Amazon Jobs, Eightfold, Workday), 40 with an official careers portal only (stored as **Not configured / Unsupported**, careers link kept). Read-only identity probes ran on 2026-09-25, 2026-09-26, 2026-09-27.
 
 Rules: documented board APIs and the careers sites' own JSON endpoints are read the way a browser would, with their page sizes, a cap per run and retries on rate limits; no HTML scraping, no anti-bot bypass, no LinkedIn or Google Jobs, no third-party copies, no fabricated openings. The site endpoints (Amazon, Eightfold, Workday) are unofficial and undocumented: a change on their side shows up as a failed run on /admin/catalog, never as invented data. Google, Meta and Apple offer neither a feed nor a readable endpoint and stay careers-link only. Ingestion keeps only listings that normalise to a supported JobAppy role family; HR, sales, legal, warehouse and operations roles are dropped as irrelevant.
 
@@ -174,3 +174,11 @@ Rules: documented board APIs and the careers sites' own JSON endpoints are read 
 | Zeta | Bengaluru, India | strong | 8 families | lever board `zeta` (verified 2026-09-26, 22 listings) | Configured (verified feed) |
 | Atlan | Bengaluru, India · Singapore | strong | 8 families | ashby board `atlan` (verified 2026-09-26, 8 listings) | Configured (verified feed) |
 | Observe.AI | Bengaluru, India · Redwood City, US | strong | 7 families | greenhouse board `observeai` (verified 2026-09-26, 14 listings) | Configured (verified feed) |
+| FamPay | Bengaluru, India | strong | 6 families | lever board `fampay` (verified 2026-09-27, 15 listings) | Configured (verified feed) |
+| Zenoti | Bellevue, US · India: Hyderabad | strong | 8 families | greenhouse board `zenoti` (verified 2026-09-27, 49 listings) | Configured (verified feed) |
+| HighRadius | Houston, US · India: Hyderabad, Bhubaneswar | strong | 8 families | greenhouse board `highradius` (verified 2026-09-27, 83 listings) | Configured (verified feed) |
+| Zuora | Redwood City, US · India: Chennai | moderate | 8 families | greenhouse board `zuora` (verified 2026-09-27, 27 listings) | Configured (verified feed) |
+| Sigmoid | Bengaluru, India · San Francisco, US | strong | 8 families | greenhouse board `sigmoid` (verified 2026-09-27, 36 listings) | Configured (verified feed) |
+| Glance | Bengaluru, India | strong | 8 families | greenhouse board `glance` (verified 2026-09-27, 42 listings) | Configured (verified feed) |
+| Thoughtworks | Chicago, US · India: Pune, Bengaluru, Chennai, Hyderabad, Gurugram, Coimbatore | strong | 8 families | ashby board `thoughtworks` (verified 2026-09-27, 70 listings) | Configured (verified feed) |
+| Turing | Palo Alto, US · remote engineers in India | moderate | 8 families | greenhouse board `turing` (verified 2026-09-27, 34 listings) | Configured (verified feed) |

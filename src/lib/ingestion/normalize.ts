@@ -2,6 +2,7 @@ import { extractSkills } from '../jobs/skills'
 import { normalizeTitle } from '../jobs/normalize'
 import { ROLE_CATEGORIES, type EmploymentType, type JobLevel, type JobRegion, type RoleFamilyConfig, type WorkMode, effectiveRoleCategories } from '../jobs/taxonomy'
 import type { RawJob } from './types'
+import { canonicalCity, INDIA_STATES } from '../jobs/cities'
 
 /**
  * Deterministic normalisation of a raw provider listing. Everything here is
@@ -181,12 +182,18 @@ export function parseLocation(primary: string | null, extras: string[] = [], cou
         continue
       }
       if (!city && INDIA_CITIES.includes(part)) {
-        city = part.replace(/\b\w/g, (ch) => ch.toUpperCase())
+        city = canonicalCity(part)
         eligible.add('India')
         if (!country) country = 'India'
         continue
       }
-      if (!city && /^[a-z][a-z .'-]{1,40}$/.test(part) && !/^\d/.test(part)) city = part.replace(/\b\w/g, (ch) => ch.toUpperCase())
+      if (INDIA_STATES.includes(part)) {
+        // A state alone ("Karnataka", "Telangana") places the job in India without naming a city.
+        eligible.add('India')
+        if (!country) country = 'India'
+        continue
+      }
+      if (!city && /^[a-z][a-z .'-]{1,40}$/.test(part) && !/^\d/.test(part)) city = canonicalCity(part)
     }
   }
   if (!country && eligible.size === 1) country = Array.from(eligible)[0]

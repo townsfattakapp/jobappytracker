@@ -62,9 +62,15 @@ export interface HiringCompanyDto {
   jobCount: number
 }
 
-/** Companies with published openings, most openings first. */
-export async function fetchHiringCompanies(limit = 60): Promise<HiringCompanyDto[]> {
-  const res = await api<{ companies: HiringCompanyDto[] }>(`/api/jobs/companies?limit=${limit}`)
+/** Companies with openings that match the given filters (company ignored), most openings first. */
+export async function fetchHiringCompanies(filters: JobListFilters = {}, limit = 300): Promise<HiringCompanyDto[]> {
+  const q = new URLSearchParams()
+  for (const [k, v] of Object.entries(filters)) {
+    if (v === undefined || v === '' || v === null || k === 'companyId' || k === 'page' || k === 'pageSize') continue
+    q.set(k, String(v))
+  }
+  q.set('limit', String(limit))
+  const res = await api<{ companies: HiringCompanyDto[] }>(`/api/jobs/companies?${q.toString()}`)
   return res.companies
 }
 

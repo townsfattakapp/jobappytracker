@@ -33,6 +33,7 @@ export async function GET(req: Request) {
       level: advanced ? (url.searchParams.get('level') as JobListFilters['level']) || '' : '',
       employmentType: advanced ? (url.searchParams.get('employmentType') as JobListFilters['employmentType']) || '' : '',
       companyId: url.searchParams.get('companyId') || undefined,
+      city: url.searchParams.get('city') || undefined,
     }
     const disabled = new Set(access.config.disabledRoleFamilies)
     const now = new Date()

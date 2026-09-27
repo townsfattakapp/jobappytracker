@@ -71,7 +71,13 @@ test('htmlToText decodes double-encoded Greenhouse content and keeps list struct
 
 test('parseLocation separates city, country, region and remote scope', () => {
   const blr = normalize.parseLocation('Remote, Bangalore', ['India'])
-  assert.deepEqual([blr.city, blr.country, blr.region, blr.remote, blr.remoteScope], ['Bangalore', 'India', 'india', true, 'country'])
+  assert.deepEqual([blr.city, blr.country, blr.region, blr.remote, blr.remoteScope], ['Bengaluru', 'India', 'india', true, 'country'])
+  const ggn = normalize.parseLocation('Gurgaon, Haryana, India')
+  assert.deepEqual([ggn.city, ggn.country], ['Gurugram', 'India'], 'older spellings map to the canonical city')
+  const stateOnly = normalize.parseLocation('Karnataka, India')
+  assert.deepEqual([stateOnly.city, stateOnly.country, stateOnly.region], [null, 'India', 'india'], 'a state alone is not a city')
+  const office = normalize.parseLocation('Office')
+  assert.equal(office.city, null, 'generic words never become a city')
   const berlin = normalize.parseLocation('Berlin, Germany')
   assert.deepEqual([berlin.city, berlin.country, berlin.region, berlin.remote], ['Berlin', 'Germany', 'international', false])
   const eu = normalize.parseLocation('Remote - European Union', [], ['Spain', 'Italy'])

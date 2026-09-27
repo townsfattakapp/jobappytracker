@@ -7,6 +7,7 @@ import { fetchHiringCompanies, fetchJobs, fetchPreferences, savePreferences, typ
 import { mapJobToCurriculum } from './lib/jobs/curriculumMap'
 import { parsePreferencesInput, ValidationError } from './lib/jobs/normalize'
 import { EMPLOYMENT_TYPES, JOB_LEVELS, REGIONS, REGION_PREFERENCES, ROLE_CATEGORIES, SALARY_CURRENCIES, WORK_MODES, labelOf } from './lib/jobs/taxonomy'
+import { INDIA_CITY_GROUPS } from './lib/jobs/cities'
 import { emptyPreferences, hasPreferences, type JobListFilters, type LearnerJobPreferences } from './lib/jobs/types'
 import type { Goal, KnowledgeWorkspace, RoadmapDay } from './types'
 
@@ -146,10 +147,11 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
       })
   }, [filters, page, prefsLoaded, reloadKey, features])
 
-  // Companies hiring right now, for the strip at the top; independent of the list filters.
+  // Companies hiring for the strip at the top: counts follow every filter except the company chip itself.
+  const stripKey = JSON.stringify({ q: filters.q, roleCategory: filters.roleCategory, region: filters.region, workMode: filters.workMode, level: filters.level, employmentType: filters.employmentType, city: filters.city })
   useEffect(() => {
     let cancelled = false
-    fetchHiringCompanies(300)
+    fetchHiringCompanies(JSON.parse(stripKey) as JobListFilters, 300)
       .then((list) => {
         if (!cancelled) setCompanies(list)
       })
@@ -159,14 +161,15 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
     return () => {
       cancelled = true
     }
-  }, [reloadKey])
+  }, [stripKey, reloadKey])
 
   const setFilter = useCallback((key: keyof JobListFilters, value: string) => {
     setFilters((f) => ({ ...f, [key]: value }))
     setPage(1)
   }, [])
 
-  const anyFilter = Boolean(filters.q || filters.roleCategory || filters.region || filters.workMode || filters.level || filters.employmentType || filters.companyId)
+  const anyFilter = Boolean(filters.q || filters.roleCategory || filters.region || filters.workMode || filters.level || filters.employmentType || filters.companyId || filters.city)
+  const filtersActive = Boolean(filters.q || filters.roleCategory || filters.region || filters.workMode || filters.level || filters.employmentType || filters.city)
   const pages = result ? Math.max(1, Math.ceil(result.total / result.pageSize)) : 1
 
   // Feed sections only for the personalised feed, first page, no filters, enough data.
@@ -211,13 +214,30 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
   return (
     <div className="jobs-layout">
       <div className="min-w-0">
-        <CompanyStrip companies={companies} activeId={filters.companyId ?? null} onPick={(id) => setFilter('companyId', id ?? '')} />
+        <CompanyStrip companies={companies} activeId={filters.companyId ?? null} filtered={filtersActive} onPick={(id) => setFilter('companyId', id ?? '')} />
         <div className="jobs-toolbar" role="search" aria-label="Filter jobs">
           <input className="input-field" type="search" placeholder="Search title, company, skill or city" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search jobs" />
           <div className="jobs-toolbar-row">
             <select className="input-field" value={filters.roleCategory || ''} onChange={(e) => setFilter('roleCategory', e.target.value)} aria-label="Role">
               <option value="">All roles</option>
               {roleOptions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="input-field"
+              value={filters.city || ''}
+              onChange={(e) => {
+                const city = e.target.value
+                setFilters((f) => ({ ...f, city: city || undefined, region: city ? 'india' : f.region }))
+                setPage(1)
+              }}
+              aria-label="City in India"
+            >
+              <option value="">Any city in India</option>
+              {INDIA_CITY_GROUPS.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.label}
                 </option>
@@ -420,15 +440,22 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
 }
 
 /** Horizontal strip of companies with live openings; picking one filters the list to that company. */
-function CompanyStrip({ companies, activeId, onPick }: { companies: HiringCompanyDto[] | null; activeId: string | null; onPick: (id: string | null) => void }) {
-  if (companies && companies.length === 0) return null
+function CompanyStrip({ companies, activeId, filtered, onPick }: { companies: HiringCompanyDto[] | null; activeId: string | null; filtered: boolean; onPick: (id: string | null) => void }) {
   const total = companies?.reduce((s, c) => s + c.jobCount, 0) ?? 0
   return (
     <section className="jobs-companies" aria-label="Companies hiring">
       <div className="jobs-companies-head">
         <span className="jobs-companies-title">Companies hiring</span>
-        {companies ? <span className="jobs-companies-sub">{companies.length} companies · {total.toLocaleString()} openings</span> : <span className="jobs-companies-sub">Loading…</span>}
+        {companies ? (
+          <span className="jobs-companies-sub">
+            {companies.length} {companies.length === 1 ? 'company' : 'companies'} · {total.toLocaleString()} {total === 1 ? 'opening' : 'openings'}
+            {filtered ? ' matching your filters' : ''}
+          </span>
+        ) : (
+          <span className="jobs-companies-sub">Loading…</span>
+        )}
       </div>
+      {companies && companies.length === 0 && <p className="jobs-companies-sub">No company has an opening for these filters. Widen a filter to see more.</p>}
       <div className="jobs-companies-track" role="listbox" aria-label="Filter by company">
         <button type="button" className="company-chip" role="option" aria-selected={!activeId} onClick={() => onPick(null)}>
           <span className="company-logo company-logo-fallback" style={{ width: 28, height: 28, fontSize: 11 }} aria-hidden="true">

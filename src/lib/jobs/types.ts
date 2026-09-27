@@ -166,6 +166,8 @@ export interface JobListFilters {
   level?: JobLevel | ''
   employmentType?: EmploymentType | ''
   companyId?: string
+  /** Indian hub id from src/lib/jobs/cities.ts (bengaluru, hyderabad, delhi-ncr, …). */
+  city?: string
   page?: number
   pageSize?: number
 }

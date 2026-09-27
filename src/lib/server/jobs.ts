@@ -4,6 +4,7 @@ import { companies, jobSources, jobs, learnerJobPreferences, users, userRoles, t
 import { jobFingerprint, normalizeTitle, ValidationError, type CompanyInput, type JobSourceInput } from '../jobs/normalize'
 import type { CompanyDto, JobDto, JobInput, JobListFilters, JobSourceDto, LearnerJobPreferences, Paged } from '../jobs/types'
 import { recordAudit } from './audit'
+import { cityGroup } from '../jobs/cities'
 
 /**
  * Data access for the Jobs module. Route handlers stay thin and every write
@@ -96,13 +97,16 @@ export interface HiringCompany {
   jobCount: number
 }
 
-/** Active companies with published, unexpired openings, most openings first (the strip at the top of Job Discovery). */
-export async function hiringCompanies(limit = 60): Promise<HiringCompany[]> {
+/**
+ * Active companies with published, unexpired openings that match the learner's current filters (everything except the
+ * company itself), most openings first: the strip at the top of Job Discovery, whose counts must agree with the list.
+ */
+export async function hiringCompanies(limit = 60, f: JobListFilters = {}): Promise<HiringCompany[]> {
   const rows = await db
     .select({ id: companies.id, name: companies.name, slug: companies.slug, website: companies.website, careersUrl: companies.careersUrl, logoUrl: companies.logoUrl, headquarters: companies.headquarters, indiaRelevance: companies.indiaRelevance, jobCount: sql<number>`count(${jobs.id})::int` })
     .from(companies)
     .innerJoin(jobs, eq(jobs.companyId, companies.id))
-    .where(and(eq(companies.status, 'active'), eq(jobs.status, 'published'), or(isNull(jobs.expiresAt), gt(jobs.expiresAt, sql`now()`))))
+    .where(jobConditions({ ...f, companyId: undefined, page: undefined, pageSize: undefined }, true))
     .groupBy(companies.id)
     .orderBy(desc(sql`count(${jobs.id})`), asc(companies.name))
     .limit(limit)
@@ -222,6 +226,8 @@ function jobConditions(f: AdminJobFilters, learnerFacing: boolean): SQL | undefi
   if (f.level) conditions.push(eq(jobs.level, f.level))
   if (f.employmentType) conditions.push(eq(jobs.employmentType, f.employmentType))
   if (f.companyId) conditions.push(eq(jobs.companyId, f.companyId))
+  const hub = f.city ? cityGroup(f.city) : null
+  if (hub) conditions.push(sql`lower(${jobs.locationCity}) in ${hub.matches}`)
   return conditions.length ? and(...conditions) : undefined
 }
 
