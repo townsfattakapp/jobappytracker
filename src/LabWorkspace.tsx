@@ -401,8 +401,17 @@ export default function LabWorkspace({ labs, onSelectLab }: LabWorkspaceProps) {
                   <td className="px-5 py-4 font-mono font-bold text-foreground">
                     {lab.ticketId}
                   </td>
-                  <td className="px-5 py-4 font-semibold text-foreground group-hover:text-primary transition-colors max-w-xs sm:max-w-md truncate">
-                    {lab.title}
+                  <td className="px-5 py-4 font-semibold text-foreground group-hover:text-primary transition-colors max-w-xs sm:max-w-md">
+                    <div className="truncate">{lab.title}</div>
+                    {lab.techStack && lab.techStack.length > 0 && (
+                      <div className="flex lg:hidden flex-wrap gap-1 mt-1.5">
+                        {lab.techStack.slice(0, 3).map((tech) => (
+                          <span key={tech} className="text-[10px] px-1.5 py-0.5 rounded bg-muted/80 text-muted-foreground font-medium">
+                            {tech}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </td>
                   <td className="px-5 py-4 text-xs text-muted-foreground whitespace-nowrap">
                     {lab.category || lab.type}

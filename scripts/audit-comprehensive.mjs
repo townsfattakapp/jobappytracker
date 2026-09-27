@@ -127,6 +127,7 @@ async function main() {
         localStorage.setItem('job-app-theme', 'dark');
       });
       await page.reload({ waitUntil: 'networkidle' });
+      await page.waitForSelector('.app-page', { timeout: 10000 });
       await page.waitForTimeout(400);
 
       // Dismiss any lingering guest/onboarding modals if present
@@ -154,7 +155,7 @@ async function main() {
         console.log(`  [NAV] MobileNav bar visible: ${isNavVisible}`);
 
         // Test tapping "Career" menu
-        const careerBtn = page.getByRole('button', { name: /Career/i }).first();
+        const careerBtn = mobileNav.getByRole('button', { name: /Career/i }).first();
         if (await careerBtn.isVisible().catch(() => false)) {
           await careerBtn.click();
           await page.waitForTimeout(200);
@@ -171,7 +172,7 @@ async function main() {
         }
 
         // Test tapping "Jobs" menu
-        const jobsNavBtn = page.getByRole('button', { name: /Jobs/i }).first();
+        const jobsNavBtn = mobileNav.getByRole('button', { name: /Jobs/i }).first();
         if (await jobsNavBtn.isVisible().catch(() => false)) {
           await jobsNavBtn.click();
           await page.waitForTimeout(200);
@@ -180,7 +181,7 @@ async function main() {
         }
 
         // Test tapping "More" menu
-        const moreNavBtn = page.getByRole('button', { name: /More/i }).first();
+        const moreNavBtn = mobileNav.getByRole('button', { name: /More/i }).first();
         if (await moreNavBtn.isVisible().catch(() => false)) {
           await moreNavBtn.click();
           await page.waitForTimeout(200);

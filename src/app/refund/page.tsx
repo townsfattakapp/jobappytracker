@@ -2,8 +2,18 @@ import type { Metadata } from 'next'
 import LegalPageLayout from '../../components/legal/LegalPageLayout'
 
 export const metadata: Metadata = {
-  title: 'Refund & Cancellation Policy · Prep by EVOLW',
-  description: 'Policy regarding subscription cancellations, one-time passes, refund eligibility, and payment reversals.',
+  title: 'Refund & Cancellation Policy',
+  description:
+    'Policy regarding pass durations, cancellations, refund eligibility, and payment reversals for Prep by EVOLW.',
+  alternates: {
+    canonical: '/refund',
+  },
+  openGraph: {
+    title: 'Refund & Cancellation Policy · Prep by EVOLW',
+    description:
+      'Policy regarding pass durations, cancellations, refund eligibility, and payment reversals for Prep by EVOLW.',
+    url: '/refund',
+  },
 }
 
 export default function RefundPage() {

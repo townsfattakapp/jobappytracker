@@ -11,6 +11,7 @@ interface MobileNavProps {
   onSignIn: () => void
   onSignOut: () => void
   hiddenViews?: ViewMode[]
+  adminHref?: string | null
 }
 
 const GROUPS: { label: string; icon: string; matches: ViewMode[]; defaultView: ViewMode }[] = [
@@ -24,7 +25,10 @@ const GROUPS: { label: string; icon: string; matches: ViewMode[]; defaultView: V
 const LABELS = new Map<ViewMode, string>(NAV_SECTIONS.flatMap((s) => s.items.map((i) => [i.id, i.label] as [ViewMode, string])))
 LABELS.set('settings', 'Settings')
 
-export default function MobileNav({ view, setView, theme, setTheme, user, onSignIn, onSignOut, hiddenViews = [] }: MobileNavProps) {
+const ICONS = new Map<ViewMode, string>(NAV_SECTIONS.flatMap((s) => s.items.map((i) => [i.id, i.icon] as [ViewMode, string])))
+ICONS.set('settings', '⚙️')
+
+export default function MobileNav({ view, setView, theme, setTheme, user, onSignIn, onSignOut, hiddenViews = [], adminHref = null }: MobileNavProps) {
   const [sheet, setSheet] = useState<string | null>(null)
   const active = navParent(view)
 
@@ -70,14 +74,27 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
                     setSheet(null)
                   }
                 }}
-                className={`flex flex-col items-center justify-center min-w-[3.6rem] h-14 rounded-xl transition-all ${
+                className={`flex flex-col items-center justify-center min-w-[3.6rem] h-14 rounded-xl transition-all relative ${
                   isActive ? 'text-primary' : 'text-muted-foreground'
                 }`}
               >
-                <span className="text-xl leading-none mb-1" aria-hidden="true">
-                  {group.icon}
-                </span>
-                <span className="text-[10px] font-semibold">{group.label}</span>
+                <div className="relative">
+                  <span className="text-xl leading-none mb-1 inline-block" aria-hidden="true">
+                    {group.icon}
+                  </span>
+                  {!single && (
+                    <span
+                      className={`absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full ${
+                        isActive ? 'bg-primary' : 'bg-muted-foreground/40'
+                      }`}
+                      aria-hidden="true"
+                    />
+                  )}
+                </div>
+                <div className="flex items-center gap-0.5">
+                  <span className="text-[10px] font-semibold">{group.label}</span>
+                  {!single && <span className="text-[8px] opacity-60 leading-none">▾</span>}
+                </div>
               </button>
             )
           })}
@@ -96,7 +113,10 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
             role="dialog"
             aria-label={`${openGroup.label} menu`}
           >
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-2 py-1">{openGroup.label}</h3>
+            <div className="flex items-center justify-between px-2 py-1 mb-1">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{openGroup.label} Views</h3>
+              <span className="text-[10px] font-medium text-muted-foreground/70">Tap any view to jump</span>
+            </div>
             {sheetItems.map((item) => (
               <button
                 key={item}
@@ -105,24 +125,46 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
                   setView(item)
                   setSheet(null)
                 }}
-                className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-colors ${
-                  active === item ? 'bg-primary/10 text-primary' : 'hover:bg-muted text-foreground'
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-3 ${
+                  active === item ? 'bg-primary/10 text-primary font-bold' : 'hover:bg-muted text-foreground'
                 }`}
               >
-                {LABELS.get(item) || item}
+                <span className="w-5 text-center text-lg leading-none" aria-hidden="true">
+                  {ICONS.get(item) || '📄'}
+                </span>
+                <span className="flex-1">{LABELS.get(item) || item}</span>
+                {active === item && (
+                  <span className="text-[10px] uppercase font-bold text-primary px-1.5 py-0.5 bg-primary/10 rounded">
+                    Active
+                  </span>
+                )}
               </button>
             ))}
             {openGroup.label === 'More' && (
               <>
+                {adminHref && (
+                  <a
+                    href={adminHref}
+                    className="w-full text-left px-3.5 py-2.5 rounded-xl font-medium text-foreground hover:bg-muted flex items-center gap-3"
+                  >
+                    <span className="w-5 text-center text-lg leading-none" aria-hidden="true">
+                      🛡️
+                    </span>
+                    <span className="flex-1">Admin Control Center</span>
+                  </a>
+                )}
                 <div className="h-px bg-border my-1" />
                 <button
                   type="button"
                   onClick={() => {
                     setTheme(theme === 'dark' ? 'light' : 'dark')
                   }}
-                  className="w-full text-left px-4 py-3 rounded-xl font-medium hover:bg-muted text-foreground"
+                  className="w-full text-left px-3.5 py-2.5 rounded-xl font-medium hover:bg-muted text-foreground flex items-center gap-3"
                 >
-                  {theme === 'dark' ? '☀️ Light mode' : '🌙 Dark mode'}
+                  <span className="w-5 text-center text-lg leading-none" aria-hidden="true">
+                    {theme === 'dark' ? '☀️' : '🌙'}
+                  </span>
+                  <span>{theme === 'dark' ? 'Switch to Light mode' : 'Switch to Dark mode'}</span>
                 </button>
                 {user ? (
                   <button
@@ -131,9 +173,12 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
                       setSheet(null)
                       onSignOut()
                     }}
-                    className="w-full text-left px-4 py-3 rounded-xl font-medium text-destructive hover:bg-destructive/10"
+                    className="w-full text-left px-3.5 py-2.5 rounded-xl font-medium text-destructive hover:bg-destructive/10 flex items-center gap-3"
                   >
-                    Sign out ({user.email})
+                    <span className="w-5 text-center text-lg leading-none" aria-hidden="true">
+                      🚪
+                    </span>
+                    <span>Sign out ({user.email})</span>
                   </button>
                 ) : (
                   <button
@@ -142,9 +187,12 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
                       setSheet(null)
                       onSignIn()
                     }}
-                    className="w-full text-left px-4 py-3 rounded-xl font-medium text-primary hover:bg-primary/10"
+                    className="w-full text-left px-3.5 py-2.5 rounded-xl font-medium text-primary hover:bg-primary/10 flex items-center gap-3"
                   >
-                    ☁️ Sign in to sync
+                    <span className="w-5 text-center text-lg leading-none" aria-hidden="true">
+                      ☁️
+                    </span>
+                    <span>Sign in to sync progress</span>
                   </button>
                 )}
               </>

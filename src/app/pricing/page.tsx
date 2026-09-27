@@ -3,9 +3,29 @@ import Link from 'next/link'
 import PassPricing from '../../components/billing/PassPricing'
 import BrandLogo from '../../components/BrandLogo'
 
+import { PricingJsonLd } from '../../components/seo/JsonLd'
+
 export const metadata: Metadata = {
-  title: 'Pricing · Prep by EVOLW',
-  description: 'Plans for Prep by EVOLW: what is included, usage limits and billing periods.',
+  title: 'Pricing & Passes',
+  description:
+    'Simple, one-time passes for Prep by EVOLW. 90-day, 180-day, and 365-day access starting from ₹199. No recurring subscriptions or automatic debit.',
+  alternates: {
+    canonical: '/pricing',
+  },
+  openGraph: {
+    title: 'Pricing & Passes · Prep by EVOLW',
+    description:
+      'Simple, one-time passes for Prep by EVOLW. 90-day, 180-day, and 365-day access starting from ₹199. No recurring subscriptions or automatic debit.',
+    url: '/pricing',
+    images: [{ url: '/screens/today.jpg', width: 1440, height: 900, alt: 'Prep by EVOLW Passes and Pricing' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Pricing & Passes · Prep by EVOLW',
+    description:
+      'Simple, one-time passes for Prep by EVOLW. 90-day, 180-day, and 365-day access starting from ₹199. No recurring subscriptions.',
+    images: ['/screens/today.jpg'],
+  },
 }
 
 export const dynamic = 'force-dynamic'
@@ -13,6 +33,7 @@ export const dynamic = 'force-dynamic'
 export default function PricingPage() {
   return (
     <div className="pricing-page bg-background text-foreground">
+      <PricingJsonLd />
       <header className="pricing-header">
         <Link href="/app" aria-label="Open Prep">
           <BrandLogo size={34} />

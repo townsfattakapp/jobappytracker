@@ -227,6 +227,15 @@ export default function SystemDesignWorkspace({ exercises, attemptSummaries, onS
                   </td>
                   <td className="px-6 py-4 font-medium group-hover:text-primary transition-colors">
                     <button type="button" className="text-left hover:underline" onClick={event => { event.stopPropagation(); onSelectExercise(ex.id) }}>{ex.title}</button>
+                    {ex.tags && ex.tags.length > 0 && (
+                      <div className="flex md:hidden flex-wrap gap-1 mt-1.5">
+                        {ex.tags.slice(0, 2).map((tag) => (
+                          <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-muted/80 text-muted-foreground font-medium">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${getStatusColor(ex.status)}`}>

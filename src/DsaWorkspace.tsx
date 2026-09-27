@@ -523,6 +523,15 @@ export default function DsaWorkspace({
                           <span className="text-[10px] font-bold bg-rose-500/10 text-rose-500 px-1.5 py-0.5 rounded border border-rose-500/20">Review</span>
                         )}
                       </div>
+                      {p.companies && p.companies.length > 0 && (
+                        <div className="flex lg:hidden flex-wrap gap-1 mt-1.5">
+                          {p.companies.slice(0, 2).map((c) => (
+                            <span key={c} className="text-[10px] px-1.5 py-0.5 rounded bg-muted/80 text-muted-foreground font-medium">
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">

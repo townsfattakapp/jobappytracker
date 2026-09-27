@@ -2,8 +2,18 @@ import type { Metadata } from 'next'
 import LegalPageLayout from '../../components/legal/LegalPageLayout'
 
 export const metadata: Metadata = {
-  title: 'Terms of Service · Prep by EVOLW',
-  description: 'Terms and conditions governing the use of Prep by EVOLW, curriculum access, subscriptions, and platform services.',
+  title: 'Terms of Service',
+  description:
+    'Terms and conditions governing the use of Prep by EVOLW, curriculum access, subscriptions, and platform services.',
+  alternates: {
+    canonical: '/terms',
+  },
+  openGraph: {
+    title: 'Terms of Service · Prep by EVOLW',
+    description:
+      'Terms and conditions governing the use of Prep by EVOLW, curriculum access, subscriptions, and platform services.',
+    url: '/terms',
+  },
 }
 
 export default function TermsPage() {

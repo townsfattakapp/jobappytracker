@@ -2,8 +2,18 @@ import type { Metadata } from 'next';
 import LegalPageLayout from '../../components/legal/LegalPageLayout';
 
 export const metadata: Metadata = {
-  title: 'Data Deletion & Account Controls · Prep by EVOLW',
-  description: 'Understand how Prep by EVOLW stores your information, how to export your records, and how to execute self-service or permanent data deletion.',
+  title: 'Data Deletion & Account Controls',
+  description:
+    'Understand how Prep by EVOLW stores your information, how to export your records, and how to execute self-service or permanent data deletion.',
+  alternates: {
+    canonical: '/data-deletion',
+  },
+  openGraph: {
+    title: 'Data Deletion & Account Controls · Prep by EVOLW',
+    description:
+      'Understand how Prep by EVOLW stores your information, how to export your records, and how to execute self-service or permanent data deletion.',
+    url: '/data-deletion',
+  },
 };
 
 export default function DataDeletionPage() {

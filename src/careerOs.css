@@ -470,8 +470,8 @@
 /* ---------------------------------------------------------------------------
    Interview room (voice-first mock interviews): calm, minimal, professional
    --------------------------------------------------------------------------- */
-body.iv-focus .app-page > aside, body.iv-focus .app-page > nav { display: none !important; }
-body.iv-focus .app-page > main { margin-left: 0 !important; padding-bottom: 0 !important; }
+body.iv-focus .app-page > aside, body.iv-focus .app-page > nav, body.iv-focus .mobile-header { display: none !important; }
+body.iv-focus .app-page > main { margin-left: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; }
 body.iv-focus .trial-banner, body.iv-focus .app-footer { display: none; }
 .job-detail.is-interview { grid-template-columns: minmax(0, 1fr); }
 .room { display: flex; flex-direction: column; gap: 0.75rem; width: 100%; max-width: 1320px; margin: 0 auto; min-height: calc(100vh - 6rem); color: hsl(var(--foreground)); }

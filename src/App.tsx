@@ -41,6 +41,7 @@ import type { HistoryItem } from './lib/server/interviews'
 import { fetchPlatformConfig, type LearnerJob, type PlatformConfigResponse } from './lib/jobs/client'
 import Sidebar, { type ViewMode } from './Sidebar.tsx'
 import MobileNav from './MobileNav.tsx'
+import MobileHeader from './components/MobileHeader'
 import {
   emptyGmailSyncState,
   emptyLeetCodeConfig,
@@ -952,9 +953,23 @@ export default function App() {
         onSignIn={() => setAuthModalOpen(true)}
         onSignOut={handleSignOut}
         hiddenViews={hiddenViews}
+        adminHref={platformConfig?.canOpenAdmin ? '/admin' : null}
       />
 
-      <main className="flex-1 min-w-0 md:ml-[280px] pb-24 md:pb-0 relative">
+      <MobileHeader
+        view={view}
+        setView={setView}
+        theme={theme}
+        setTheme={setTheme}
+        user={user}
+        syncing={syncing}
+        onSignIn={() => setAuthModalOpen(true)}
+        onSignOut={handleSignOut}
+        hiddenViews={hiddenViews}
+        adminHref={platformConfig?.canOpenAdmin ? '/admin' : null}
+      />
+
+      <main className="flex-1 min-w-0 md:ml-[280px] pt-14 md:pt-0 pb-24 md:pb-0 relative">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background -z-10 pointer-events-none"></div>
         <div className="app-shell pt-5 sm:pt-8">
           {user && billing?.entitlement?.access && !billing.entitlement.complimentary && billing.entitlement.daysLeft <= 7 && (

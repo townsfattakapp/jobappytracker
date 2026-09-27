@@ -1,15 +1,34 @@
 import type { Metadata } from 'next';
 import LegalPageLayout from '../../components/legal/LegalPageLayout';
 import Link from 'next/link';
+import { ContactJsonLd } from '../../components/seo/JsonLd';
 
 export const metadata: Metadata = {
-  title: 'Contact & Support · Prep by EVOLW',
-  description: 'Get in touch with the Prep by EVOLW team for customer support, billing inquiries, enterprise requests, and technical issues.',
+  title: 'Contact & Support',
+  description:
+    'Get in touch with the Prep by EVOLW team for customer support, billing inquiries, enterprise requests, and technical issues.',
+  alternates: {
+    canonical: '/contact',
+  },
+  openGraph: {
+    title: 'Contact & Support · Prep by EVOLW',
+    description:
+      'Get in touch with the Prep by EVOLW team for customer support, billing inquiries, enterprise requests, and technical issues.',
+    url: '/contact',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Contact & Support · Prep by EVOLW',
+    description:
+      'Get in touch with the Prep by EVOLW team for customer support, billing inquiries, enterprise requests, and technical issues.',
+  },
 };
 
 export default function ContactPage() {
   return (
-    <LegalPageLayout
+    <>
+      <ContactJsonLd />
+      <LegalPageLayout
       title="Contact & Support"
       subtitle="We are here to assist you with learning pathways, career tools, billing inquiries, and technical issues."
       lastUpdated="September 2026"
@@ -86,5 +105,6 @@ export default function ContactPage() {
         </div>
       </div>
     </LegalPageLayout>
+    </>
   );
 }

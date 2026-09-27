@@ -4,12 +4,81 @@ import type { Metadata, Viewport } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import { Providers } from './providers'
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://prep.evolw.in'
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://prep.evolw.in'),
-  title: 'Prep by EVOLW',
-  description: 'Track job applications, sync recruiting emails, and run a daily interview-prep plan.',
-  applicationName: 'Prep',
-  icons: { icon: '/favicon.svg', shortcut: '/favicon.svg', apple: '/favicon.svg' },
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: 'Prep by EVOLW — 150+ Engineering Tracks, Interview Prep & Career Roadmaps',
+    template: '%s · Prep by EVOLW',
+  },
+  description:
+    '157 structured engineering tracks across 12 disciplines: Generative AI, Full-Stack, Backend, Mobile, Cloud, DevOps, Cybersecurity, Data Science, Systems & DSA. Explanations from zero in the language you code in, runnable worked examples, interactive system design, AI mock interviews, and your job hunt in one tab.',
+  applicationName: 'Prep by EVOLW',
+  keywords: [
+    'software engineering interview prep',
+    'system design interview',
+    'dsa coding practice',
+    'mock interview ai',
+    'career roadmaps for developers',
+    'full stack developer roadmap',
+    'generative ai engineer roadmap',
+    'tech interview preparation India',
+    'job application tracker',
+    'coding interview questions',
+    'leetcode alternative',
+    'faang interview prep',
+    'backend developer roadmap',
+    'cloud and devops roadmap',
+  ],
+  authors: [{ name: 'EVOLW', url: 'https://www.evolw.in' }],
+  creator: 'Evolw',
+  publisher: 'Evolw',
+  category: 'education',
+  alternates: {
+    canonical: './',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_IN',
+    url: siteUrl,
+    siteName: 'Prep by EVOLW',
+    title: 'Prep by EVOLW — 150+ Engineering Tracks, Interview Prep & Career Roadmaps',
+    description:
+      'Stop collecting resources. Start finishing them. 157 engineering tracks, 20 career path blueprints, 7,000+ topics, and AI mock interviews. Passes from ₹199, no subscription.',
+    images: [
+      {
+        url: '/screens/today.jpg',
+        width: 1440,
+        height: 900,
+        alt: 'Prep by EVOLW: Action plan and daily interview preparation',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Prep by EVOLW — 150+ Engineering Tracks, Interview Prep & Career Roadmaps',
+    description:
+      'Stop collecting resources. Start finishing them. 157 engineering tracks, 20 career path blueprints, 7,000+ topics, and AI mock interviews.',
+    images: ['/screens/today.jpg'],
+    creator: '@evolw',
+  },
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
 }
 
 export const viewport: Viewport = {
