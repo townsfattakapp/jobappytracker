@@ -79,8 +79,8 @@ export default function PlansPanel({ plans, canEdit }: { plans: PlanDto[]; canEd
             <thead>
               <tr>
                 <th>Plan</th>
-                <th>Monthly</th>
-                <th>Annual</th>
+                <th>Shortest pass (90 days)</th>
+                <th>1-year pass</th>
                 <th>Features</th>
                 <th>Flags</th>
                 <th>Provider ids</th>
@@ -155,11 +155,11 @@ export default function PlansPanel({ plans, canEdit }: { plans: PlanDto[]; canEd
             </label>
             <div className="admin-grid-4">
               <label className="admin-field">
-                <span>Monthly price (minor units)</span>
+                <span>Shortest pass price, paise (90 days ₹199 = 19900)</span>
                 <input className="input-field" inputMode="numeric" value={editing.draft.monthlyPriceMinor} onChange={(e) => set('monthlyPriceMinor', e.target.value)} />
               </label>
               <label className="admin-field">
-                <span>Annual price (minor units)</span>
+                <span>1-year pass price, paise (₹799 = 79900)</span>
                 <input className="input-field" inputMode="numeric" value={editing.draft.annualPriceMinor} onChange={(e) => set('annualPriceMinor', e.target.value)} />
               </label>
               <label className="admin-field">
