@@ -662,8 +662,10 @@ export default function KnowledgeWorkspaceDetail({
         parts: curriculumInfo.topic?.subtopics.map((s) => s.title) || [],
         language: codeProfile.label,
       });
+      // A full lesson (or a design walkthrough with diagrams) does not fit the gateway's 1 200-token default and was being cut off mid-section.
       const text = await chatWithAI({
         temperature: 0.3,
+        maxTokens: explainMode === "hld" || explainMode === "lld" ? 6000 : 4000,
         messages: [
           { role: "system", content: prompt.system },
           { role: "user", content: prompt.user },

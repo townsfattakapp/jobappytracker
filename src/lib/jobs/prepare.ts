@@ -85,14 +85,87 @@ function pointer(ref: TopicRef): TopicPointer {
   return { trackId: ref.track.id, trackTitle: ref.track.title, topicId: ref.topic.id, topicTitle: ref.topic.title, subtopicId: ref.topic.subtopics[0]?.id ?? null, categoryTitle: ref.category.title }
 }
 
-/** Best existing topic for a phrase inside the given tracks, else the first topic of the first existing track. */
+/** Curriculum rows that are scaffolding rather than substance: never the topic a candidate should prepare. */
+const PLACEHOLDER_TOPIC = /^(foundational|intermediate|advanced|architecture|real-world|core|practice) (topic|concepts?) \d+ for\b/i
+const SETUP_TOPIC = /\b(install|installation|installing|setup|set up|getting started|environment|introduction to|what is|why (should i )?learn|overview|hello world|first program|tooling|ide)\b/i
+const INTERVIEW_TOPIC = /interview questions/i
+
+/** Words a listing uses that the curriculum names differently. */
+const TOPIC_HINTS: Record<string, RegExp> = {
+  'dynamic programming': /memoization|1d.2d dp/i,
+  trees: /^binary trees$/i,
+  arrays: /^arrays and strings$/i,
+  rabbitmq: /queue|messag|pub.?sub|broker/i,
+  sqs: /queue|messag/i,
+  'message queues': /queue|messag/i,
+  kafka: /kafka|stream|log/i,
+  redis: /redis|cach/i,
+  memcached: /cach/i,
+  docker: /container|docker|image/i,
+  kubernetes: /kubernetes|k8s|pod|deployment/i,
+  terraform: /terraform|infrastructure as code|iac/i,
+  grpc: /grpc|protobuf|rpc/i,
+  graphql: /graphql|schema|resolver/i,
+  oauth: /oauth|auth|token/i,
+  jwt: /jwt|auth|token/i,
+  testing: /testing|test|tdd|mock/i,
+  etl: /etl|pipeline|batch/i,
+  spark: /spark|rdd|dataframe|partition/i,
+  airflow: /airflow|dag|orchestrat/i,
+  azure: /azure/i,
+  aws: /aws|s3|lambda|ec2|iam/i,
+  gcp: /gcp|google cloud|bigquery|gke/i,
+  microservices: /microservice|service boundar|api gateway/i,
+  'system design': /scalab|design|architect/i,
+}
+
+/** Ranks a topic for a query: real subject matter about the query first, curriculum placeholders and setup pages last. */
+const WORD_SPLIT = /[^a-z0-9+#.]+/
+
+function topicScore(title: string, query: string, options: { preferShort?: boolean } = {}): number {
+  const t = title.toLowerCase()
+  const q = query.toLowerCase().replace(/\s*\(.*?\)\s*/g, ' ').trim()
+  const words = q.split(WORD_SPLIT).filter((w) => w.length > 1)
+  const titleWords = t.split(WORD_SPLIT).filter(Boolean)
+  const has = (w: string) => titleWords.some((tw) => tw === w || tw === `${w}s` || tw === `${w}es` || w === `${tw}s`)
+  let score = 0
+  const all = words.length > 0 && words.every(has)
+  if (all) score += 40
+  else if (words.some(has)) score += 20
+  // Across unrelated tracks, prefer the topic that is about the subject itself ("Kubernetes fundamentals")
+  // over one that mentions it in passing ("Kubernetes executor and the Helm chart").
+  if (all && options.preferShort) score += Math.max(0, 12 - 3 * Math.max(0, titleWords.length - words.length))
+  const hint = TOPIC_HINTS[q]
+  if (hint && hint.test(t)) score += 25
+  if (INTERVIEW_TOPIC.test(t)) score += 15
+  if (PLACEHOLDER_TOPIC.test(t)) score -= 100
+  if (SETUP_TOPIC.test(t)) score -= 30
+  return score
+}
+
+/**
+ * Best existing topic for a phrase inside the given tracks: the search hits and the tracks' own topics are ranked so
+ * that substantive topics about the skill win over installation pages and "Advanced topic N" placeholders; the first
+ * usable topic of the first track is the last resort.
+ */
 export function resolveTopic(query: string, trackIds: string[]): TopicPointer | null {
   const existing = trackIds.filter((id) => findTrack(id))
   if (!existing.length) return null
-  const hit = searchCurriculum(query, { trackIds: existing, limit: 1 })[0]
-  if (hit) return pointer(hit.ref)
-  const first = getCurriculum().topics.find((t) => t.track.id === existing[0])
-  return first ? pointer(first) : null
+  const candidates = new Map<string, TopicRef>()
+  for (const hit of searchCurriculum(query, { trackIds: existing, limit: 12 })) candidates.set(hit.ref.topic.id, hit.ref)
+  for (const ref of getCurriculum().topics) if (ref.track.id === existing[0]) candidates.set(ref.topic.id, ref)
+  const rank = (refs: Iterable<TopicRef>, preferShort = false) =>
+    Array.from(refs)
+      .map((ref, index) => ({ ref, score: topicScore(ref.topic.title, query, { preferShort }) - index * 0.01 }))
+      .filter((r) => !PLACEHOLDER_TOPIC.test(r.ref.topic.title))
+      .sort((a, b) => b.score - a.score)
+  const best = rank(candidates.values())[0]
+  if (best) return pointer(best.ref)
+  // The preferred tracks only hold placeholder topics (43 library tracks are still unwritten):
+  // fall back to a real topic about the same subject anywhere in the curriculum, or to nothing.
+  // A placeholder is never shown to a learner.
+  const fallback = rank(searchCurriculum(query, { limit: 12 }).map((hit) => hit.ref), true).find((r) => r.score >= 20)
+  return fallback ? pointer(fallback.ref) : null
 }
 
 function topicProgress(topicId: string, progress: LearnerProgress): 'done' | 'started' | 'none' {
@@ -236,7 +309,18 @@ export function buildPrepBlueprint(input: {
     if (!item.ref) return null
     const ref = getCurriculum().byId.get(item.ref.topicId)
     const quiz = (ref?.topic.quiz ?? []).slice(0, 2).map((q) => ({ prompt: q.question, source: 'curriculum' as const }))
-    const generated: KitQuestion[] = quiz.length ? [] : [{ prompt: `Explain ${item.ref.topicTitle} and describe where you have used it.`, source: 'generated' }, { prompt: `What goes wrong with ${item.ref.topicTitle} at scale or under load, and how would you handle it?`, source: 'generated' }]
+    const subject = item.kind === 'skill' ? item.title.replace(/\s*\(.*?\)\s*$/, '') : item.ref.topicTitle
+    const generated: KitQuestion[] = quiz.length
+      ? []
+      : INTERVIEW_TOPIC.test(item.ref.topicTitle)
+        ? [
+            { prompt: `Work through the ${item.ref.trackTitle} interview questions in the curriculum; answer each aloud in under two minutes.`, source: 'generated' },
+            { prompt: `Which ${subject} question would you find hardest today, and what is your honest answer to it?`, source: 'generated' },
+          ]
+        : [
+            { prompt: `Explain ${item.ref.topicTitle} in your own words, then describe where you have used ${subject}.`, source: 'generated' },
+            { prompt: `What goes wrong with ${subject} at scale or under load, and how would you handle it?`, source: 'generated' },
+          ]
     return { title: item.title, ref: item.ref, questions: [...quiz, ...generated] }
   }
   const section = (sid: string, title: string, items: PrepItem[]) => {

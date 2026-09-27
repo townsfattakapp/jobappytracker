@@ -62,7 +62,7 @@ export class AiRequestError extends Error {
   }
 }
 
-export async function chatWithAI(options: { messages: AIMessage[]; temperature?: number; json?: boolean; provider?: 'openai' | 'groq' | 'gemini' | 'mistral' | 'openrouter' | 'auto' }): Promise<string> {
+export async function chatWithAI(options: { messages: AIMessage[]; temperature?: number; json?: boolean; maxTokens?: number; provider?: 'openai' | 'groq' | 'gemini' | 'mistral' | 'openrouter' | 'auto' }): Promise<string> {
   let response: Response
   try {
     response = await fetch('/api/ai/chat', {
@@ -72,6 +72,7 @@ export async function chatWithAI(options: { messages: AIMessage[]; temperature?:
         messages: options.messages,
         temperature: options.temperature,
         json: options.json,
+        maxTokens: options.maxTokens,
         provider: options.provider || 'auto',
       }),
     })

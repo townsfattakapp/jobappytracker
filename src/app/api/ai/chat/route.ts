@@ -49,7 +49,8 @@ export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => null)
     if (!body) return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
-    const { messages: rawMessages, temperature = 0.3, json = false, provider = 'auto' } = body
+    const { messages: rawMessages, temperature = 0.3, json = false, provider = 'auto', maxTokens } = body
+    const budget = typeof maxTokens === 'number' && Number.isFinite(maxTokens) ? Math.min(8000, Math.max(256, Math.floor(maxTokens))) : undefined
     const messages = sanitizeMessages(rawMessages)
     if (!messages) return NextResponse.json({ error: 'Invalid or oversized messages array' }, { status: 400 })
     const gate = await requireAccess()
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
     const limited = rateLimited(req, 'ai.chat', 30, 60_000, gate.userId)
     if (limited) return limited
     const prefer = typeof provider === 'string' && (AI_PROVIDER_IDS as string[]).includes(provider) ? (provider as AiProviderId) : null
-    const outcome = await runAi({ feature: 'chat', messages, temperature: typeof temperature === 'number' ? temperature : 0.3, json: Boolean(json), sensitivity: 'normal', userId: gate.userId, preferProvider: prefer })
+    const outcome = await runAi({ feature: 'chat', messages, temperature: typeof temperature === 'number' ? temperature : 0.3, json: Boolean(json), maxTokens: budget, sensitivity: 'normal', userId: gate.userId, preferProvider: prefer })
     if (!outcome.ok) {
       const { kind, errorId, message } = outcome.error
       const friendly =

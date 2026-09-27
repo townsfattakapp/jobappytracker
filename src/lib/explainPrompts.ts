@@ -62,13 +62,18 @@ const MERMAID_RULES = [
   'Mermaid rules: node ids are single words (letters, digits, underscore); every label goes in square brackets with double quotes, e.g. API["API gateway"]; at most 25 nodes; declare sequenceDiagram participants first; no HTML, no notes, no comments, no styling.',
 ]
 
-const COMMON = ['Write GitHub-flavoured Markdown with real line breaks. Short paragraphs, bullets on their own lines. No preamble or closing remarks.']
+const COMMON = [
+  'Write GitHub-flavoured Markdown with real line breaks. Short paragraphs, bullets on their own lines. No preamble or closing remarks.',
+  'Accuracy rules: state only what you are sure is true; when a detail depends on the runtime, version or implementation, say so instead of guessing. Language semantics follow the official documentation. Do not repeat folk simplifications: for example in C#, Java and Go a value type is stored wherever its variable lives (a local may be on the stack, a field of a class instance or an array element is on the heap), so never write that "value types live on the stack" or that a field is "on the stack inside the object".',
+  'Never invent companies, teams, products, incidents, statistics, dates or quotations. If you give a scenario, call it illustrative ("Imagine a photo-sharing service…") and do not attribute it to a real organisation unless the fact is well documented and you name the source.',
+  'Finish every section you start; if the budget is tight, shorten the code and the recap rather than stopping mid-sentence.',
+]
 
 function lessonSections(input: ExplainInput, extras: { after: string; sections: string[] }[], codeSection: string[]): string[] {
   const base: string[][] = [
     [`## What is ${input.title}?`, '(2–3 plain-language sentences that define it, then one everyday analogy in **bold** on its own line.)'],
     ['## Why it matters', '(Where it shows up in real products and in interviews. 3 bullets.)'],
-    ['## Real-world example', '(One concrete story from a product people know, showing the concept in action. 1 short paragraph.)'],
+    ['## Illustrative example', '(One short, clearly illustrative scenario showing the concept in action: "Imagine a service that…". No real company names presented as fact. 1 short paragraph.)'],
     ['## How it works, step by step', '(A numbered list from the simplest case to the general case.)'],
     codeSection,
     ['## Common mistakes', '(Bullets: mistake → why it happens → fix.)'],
