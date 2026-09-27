@@ -48,6 +48,13 @@ export const FEATURES: FeatureDef[] = [
   { key: 'interview.voice', label: 'Voice interviews', description: 'The interviewer speaks the questions and the learner can answer by microphone (browser speech; text always available).' },
   { key: 'interview.premiumVoice', label: 'Premium interviewer voice', description: 'Server-side neural voice for the interviewer when a voice provider is configured; browser speech otherwise.' },
   { key: 'interview.replay', label: 'Interview replay', description: 'Timeline and transcript of a completed interview with per-section feedback.' },
+  // Verified referral network. None of these buys a referral: they gate JobAppy's own verification, matching and coordination work.
+  { key: 'referral.viewAvailability', label: 'Referral network: see availability', description: 'See on a job whether verified referrers are available for that company and what a request involves.' },
+  { key: 'referral.readiness', label: 'Referral readiness check', description: 'Factual readiness review of the resume against the job before a request can reach a referrer.' },
+  { key: 'referral.request', label: 'Referral requests', description: 'Submit referral requests (subject to the monthly and active-request limits and to referral credits).' },
+  { key: 'referral.priorityMatching', label: 'Priority matching', description: 'Requests are matched ahead of standard requests when several wait for the same referrer pool.' },
+  { key: 'referral.reassignment', label: 'Automatic reassignment', description: 'A declined request is offered to the next eligible referrer instead of closing.' },
+  { key: 'referral.history', label: 'Referral history', description: 'Full history of past requests, assignments and messages in the Referral Center.' },
   { key: 'ai.highLimits', label: 'Higher AI usage limits', description: 'Larger daily AI allowance.' },
 ]
 
@@ -55,7 +62,7 @@ export const FEATURE_KEYS = FEATURES.map((f) => f.key)
 
 /** Default entitlements; admins override these in Platform settings. */
 export const DEFAULT_TIER_FEATURES: Record<'free' | 'pro', string[]> = {
-  free: ['jobs.discovery', 'tracker.basic', 'resume.profile', 'jobs.networkingBasic', 'jobs.preparationBasic', 'interview.jobPreview', 'interview.voice'],
+  free: ['jobs.discovery', 'tracker.basic', 'resume.profile', 'jobs.networkingBasic', 'jobs.preparationBasic', 'interview.jobPreview', 'interview.voice', 'referral.viewAvailability', 'referral.readiness'],
   pro: FEATURE_KEYS,
 }
 
@@ -107,6 +114,12 @@ export interface TierLimits {
   interviewsPerMonth: number
   /** Longest interview a learner on this plan can configure, in minutes. */
   interviewMaxMinutes: number
+  /** Referral requests per calendar month; also the monthly credit allowance granted by the plan. */
+  referralRequestsMonthly: number
+  /** Referral requests that may be open at the same time. */
+  referralActiveRequests: number
+  /** Times a declined request is offered to another referrer before it closes. */
+  referralReassignmentAttempts: number
 }
 
 export const LIMIT_KEYS: { key: keyof TierLimits; label: string }[] = [
@@ -118,11 +131,14 @@ export const LIMIT_KEYS: { key: keyof TierLimits; label: string }[] = [
   { key: 'interviewsPerDay', label: 'Job mock interviews per day' },
   { key: 'interviewsPerMonth', label: 'Job mock interviews per month' },
   { key: 'interviewMaxMinutes', label: 'Longest job mock interview (minutes)' },
+  { key: 'referralRequestsMonthly', label: 'Referral requests per month (credit allowance)' },
+  { key: 'referralActiveRequests', label: 'Referral requests open at once' },
+  { key: 'referralReassignmentAttempts', label: 'Referral reassignment attempts after a decline' },
 ]
 
 export const DEFAULT_TIER_LIMITS: Record<'free' | 'pro', TierLimits> = {
-  free: { jobFeed: 12, analysesPerDay: 0, resumeAnalysesPerDay: 0, messageDraftsPerDay: 3, preparationPlansPerDay: 0, interviewsPerDay: 1, interviewsPerMonth: 3, interviewMaxMinutes: 15 },
-  pro: { jobFeed: 0, analysesPerDay: 100, resumeAnalysesPerDay: 50, messageDraftsPerDay: 60, preparationPlansPerDay: 20, interviewsPerDay: 10, interviewsPerMonth: 120, interviewMaxMinutes: 60 },
+  free: { jobFeed: 12, analysesPerDay: 0, resumeAnalysesPerDay: 0, messageDraftsPerDay: 3, preparationPlansPerDay: 0, interviewsPerDay: 1, interviewsPerMonth: 3, interviewMaxMinutes: 15, referralRequestsMonthly: 0, referralActiveRequests: 0, referralReassignmentAttempts: 0 },
+  pro: { jobFeed: 0, analysesPerDay: 100, resumeAnalysesPerDay: 50, messageDraftsPerDay: 60, preparationPlansPerDay: 20, interviewsPerDay: 10, interviewsPerMonth: 120, interviewMaxMinutes: 60, referralRequestsMonthly: 3, referralActiveRequests: 2, referralReassignmentAttempts: 2 },
 }
 
 export function normalizeTierLimits(value: unknown): Record<'free' | 'pro', TierLimits> {

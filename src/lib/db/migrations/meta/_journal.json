@@ -99,6 +99,13 @@
       "when": 1790300000010,
       "tag": "0013_ai_key_pool",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790300000011,
+      "tag": "0014_referral_network",
+      "breakpoints": true
     }
   ]
 }

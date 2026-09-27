@@ -88,7 +88,7 @@ test('a rate-limited key cools down and moves to the back of the rotation; a rej
     await keys.recordKeyOutcome(k1.id, 'rate_limit', { message: 'provider is rate limiting', retryAfterMs: 90_000 }, now)
     let pool = await keys.getUserAiKeys('u3', now)
     assert.deepEqual(pool.keys.map((k) => k.id), [k2.id, k3.id, k1.id], 'cooling key goes last but is still available')
-    let list = await keys.listUserAiKeys('u3')
+    let list = await keys.listUserAiKeys('u3', now)
     const cooling = list.find((k) => k.id === k1.id)
     assert.equal(cooling.status, 'cooling')
     assert.equal(cooling.cooldownUntil, '2026-09-27T10:01:30.000Z')
@@ -97,18 +97,18 @@ test('a rate-limited key cools down and moves to the back of the rotation; a rej
     assert.deepEqual(pool.keys.map((k) => k.id), [k1.id, k2.id, k3.id])
     // No Retry-After: an hour by default.
     await keys.recordKeyOutcome(k2.id, 'rate_limit', {}, now)
-    list = await keys.listUserAiKeys('u3')
+    list = await keys.listUserAiKeys('u3', now)
     assert.equal(list.find((k) => k.id === k2.id).cooldownUntil, '2026-09-27T11:00:00.000Z')
     // A rejected key drops out of the rotation entirely and says why.
     await keys.recordKeyOutcome(k3.id, 'auth', { message: 'provider rejected the API key (401)' }, now)
     pool = await keys.getUserAiKeys('u3', now)
     assert.deepEqual(pool.keys.map((k) => k.id), [k1.id, k2.id])
-    list = await keys.listUserAiKeys('u3')
+    list = await keys.listUserAiKeys('u3', now)
     assert.equal(list.find((k) => k.id === k3.id).status, 'invalid')
     assert.match(list.find((k) => k.id === k3.id).lastError, /401/)
     // Success clears the state.
     await keys.recordKeyOutcome(k1.id, 'ok', {}, now)
-    list = await keys.listUserAiKeys('u3')
+    list = await keys.listUserAiKeys('u3', now)
     assert.equal(list.find((k) => k.id === k1.id).status, 'active')
     assert.equal(list.find((k) => k.id === k1.id).lastUsedAt, now.toISOString())
     // When every key is invalid there is no pool.

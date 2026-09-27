@@ -5,6 +5,7 @@ export type ViewMode =
   | 'home'
   | 'today'
   | 'board'
+  | 'referrals'
   | 'list'
   | 'dashboard'
   | 'prepKit'
@@ -38,6 +39,7 @@ export const NAV_SECTIONS: { category: string; items: { id: ViewMode; label: str
       { id: 'dashboard', label: 'Dashboard', icon: '📊' },
       { id: 'board', label: 'Kanban Board', icon: '🗂️' },
       { id: 'list', label: 'Applications', icon: '📋' },
+      { id: 'referrals', label: 'Referrals', icon: '🤝' },
     ],
   },
   {

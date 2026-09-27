@@ -1,4 +1,55 @@
-﻿# Phase 12 — "Minified React error #441" fix and portal-company ingestion (Amazon, Microsoft, Netflix, Adobe, NVIDIA, Salesforce, PayPal, Autodesk, Mastercard) — 2026-09-27 IST
+﻿# Phase 13 — Verified referral network (invite-only beta) — 2026-09-28 IST — BUILT AND VERIFIED LOCALLY, NOT DEPLOYED
+
+Nothing was deployed, no production migration ran, the hosted database was not touched, no real payment flow was enabled and no employee payout exists. Architecture: `docs/career-os-architecture.md` §7f; beta operations, risks and legal items: `docs/launch-readiness.md` §7.
+
+## What it is (and is not)
+
+JobAppy verifies candidates (readiness), verifies referrers (corporate mailbox + admin review), matches privately, coordinates and tracks. A referral is never guaranteed; the copy on every surface says so (`TRUST_LINE`, `PRICING_LINE` in `src/lib/referrals/client.ts`). A credit pays for JobAppy's coordination of one request, not for an employee's recommendation. The employee decides on every request and submits through the employer's official process; JobAppy never submits on an employee's behalf.
+
+## Migration (additive, `0014_referral_network`, journal idx 14)
+
+`referrer_profiles`, `referrer_invites`, `referrer_verifications`, `company_referral_policies`, `referral_requests`, `referral_assignments`, `referral_messages`, `referral_status_events`, `referral_credit_ledger`, `referral_identity_disclosures` (`src/lib/db/referralSchema.ts`, re-exported from `schema.ts`). FKs: learner rows cascade with the user; referrer rows set null and are anonymised, never deleted; jobs set null with the title/company snapshotted; companies restricted. `scripts/test-development-migrations.mjs` now expects 15 migrations. Applied to the local PGlite dev database only (`npm run db:migrate -- --confirm-development=127.0.0.1:55432/jobappy_dev`).
+
+## Lifecycle, readiness, matching, credits, verification, privacy
+
+- **State machine** `src/lib/referrals/states.ts`: DRAFT → READINESS_REQUIRED/READY → SUBMITTED → SCREENING → MATCHING → ASSIGNED → REFERRER_REVIEW ⇄ CLARIFICATION_REQUESTED → ACCEPTED → REFERRAL_PENDING → REFERRAL_SUBMITTED → REFERRAL_CONFIRMED → CLOSED; DECLINED → REASSIGNING → MATCHING; CANCELLED, EXPIRED. Only `transition()` in the service writes `status`; every move is a `referral_status_events` row. Learners see collapsed stages (a decline reads "Matching").
+- **Readiness** `readiness.ts`: job live, no duplicate open request, already-applied rule (tracker document + synced career state, honoured per company policy), resume uploaded, profile complete, resume evidence from the stored resume-vs-job analysis (required skills demonstrated / weak / missing), curriculum gaps, preparation, consent. READY / NEEDS_IMPROVEMENT / BLOCKED with checks, missing evidence and next steps; never a probability, never "add this skill".
+- **Matching** `matching.ts`: policy gate → eligibility (same company, VERIFIED + unexpired, available, active and monthly capacity, never saw this request, never declined this learner, role family aliases, location) → fairness score (load shares + recency penalty − relevance − responsiveness where declining counts as responding). Manual-review companies wait in MATCHING for an admin.
+- **Credits** `credits.ts` + ledger: RESERVE on submit, CONSUME on accept, RELEASE on every non-completion close, REFUND when an accepted referrer becomes invalid, EXPIRE for unused monthly allowance; the plan allowance (`referralRequestsMonthly`) is granted once per period on first read. Balance is derived, never stored.
+- **Verification**: invite (hashed token, 14 days) → accept (profile shell + `referrer` role) → onboarding (free-mail domains refused) → corporate-email link (SHA-256, 1 h, single use, 3/day; token cleared on use) → admin `verify` (12 months) / `reject` / `suspend` / `reverify`. Lapsed or suspended referrers lose live assignments through `invalidateReferrerAssignments` (pending → reassigned; accepted-unsubmitted → refund + re-match).
+- **Privacy** `privacy.ts`: learner sees `publicId`, company, broad area, verified, availability, and the experience band only when the company's verified pool ≥ 3. `assertNoPrivateFields` guards learner payloads in tests. Identity reaches a learner only through an explicit, audited disclosure by the referrer after acceptance. Foreign ids answer 404 on every learner and referrer route.
+- **Sweep** `sweepReferrals` (`GET /api/cron/referrals`, `CRON_SECRET`; "Run sweep now" in the console): verification expiry, assignment timeouts (`assignmentTtlHours`), job expiry, request TTL.
+
+## Surfaces
+
+- Job detail: "Request referral" tab + overview CTA (`src/components/jobs/ReferralTab.tsx`), states Referral network available / unavailable / Complete profile / readiness / submitted / matching / under review / accepted / declined-as-matching / submitted / closed.
+- Learner Referral Center: view `referrals` (`src/ReferralsWorkspace.tsx`, deep link `/app?view=referrals`, sidebar under Job Tracker, mobile Jobs group): Active / Needs action / Completed / History, credits and ledger, thread, timeline, tracker hand-off (source "Referral", status Applied, `applicationId` link, no duplicates).
+- Referrer portal `/referrer` (`src/components/referrer/ReferrerPortal.tsx`; `/referrer/invite`, `/referrer/verify`): invitation, onboarding, verification, dashboard (pending / awaiting / accepted / completed / capacity / availability), assigned requests only, review with accept / decline reasons / clarification / message / mark submitted / optional identity disclosure. The `referrer` role never opens `/admin`.
+- Admin `/admin/referrals` (`src/components/admin/ReferralsPanel.tsx`, nav "Referral network", roles admin + support read, admin writes): metrics, requests (assign, reassign, retry matching, close with reason, note, confirm), referrers (invite, verify, reject, suspend, re-verify, pause/resume, capacity, notes), company coverage + policy editor (status, source, restrictions, constraints, manual review), identity disclosures, beta settings (mode, attempts, TTLs, unknown-policy switch, credit requirement, sweep). Audit entity types added to `/admin/audit`.
+- Entitlements: features `referral.viewAvailability`, `referral.readiness` (free), `referral.request`, `referral.priorityMatching`, `referral.reassignment`, `referral.history`; limits `referralRequestsMonthly` / `referralActiveRequests` / `referralReassignmentAttempts` (free 0/0/0, pro 3/2/2). Stored plan rows need the new keys ticked in `/admin/plans` (seed only covers new databases).
+- Notifications: 13 new kinds in `src/lib/server/notifications.ts`; subjects and bodies never name a referrer or learner; without a mailer they land in `notification_log` as `skipped`.
+- Deletion: `deleteLearnerCareerData` now cancels open requests (credits released) and removes the learner's request rows (ledger kept); `anonymizeReferrer` scrubs identity, keeps history, removes the role.
+
+## Routes
+
+`GET/POST /api/jobs/[id]/referral` (state, readiness, submit), `GET /api/referrals`, `GET/POST /api/referrals/[id]` (cancel, message, link_application), `GET/POST /api/referrer` (portal, accept_invite, onboarding, availability, send_verification), `GET/POST /api/referrer/assignments/[id]`, `POST /api/referrer/verify` (public, rate limited), `GET/POST /api/admin/referrals` (console, invite, policy, settings, grant_credits, sweep), `POST /api/admin/referrals/requests/[id]`, `POST /api/admin/referrals/referrers/[id]`, `GET /api/cron/referrals`. Rate limits: readiness 20/h, submit 10/h, learner actions 60/h, referrer actions 60/h, verify 30 per 15 min per client.
+
+## Tests
+
+- `npm run test:referrals` → **16/16** (`scripts/test-referrals.mjs`, PGlite with the real migrations): state machine; readiness; ledger math; matching exclusions, fairness and 10-request distribution; privacy projection; entitlement keys; full lifecycle with clarification, acceptance, disclosure, submission, tracker link and admin confirmation; decline → reassignment with one consumption; no referrer / attempts exhausted with release; policy unknown/disabled/verified-needs-source and coverage; job expiry, assignment timeout and verification expiry via the sweep; suspension refund; cross-account and suspended access, token replay, single-use invites, free-mail rule; plan limits, duplicates, message sanitising and daily cap; deletion and anonymisation; admin manual assignment, reassignment, close, credit grants, audit.
+- `npm run test:e2e:referrals` (Chromium, `BASE_URL=http://localhost:3001`, local PGlite) → **All 13 checks passed** (final run 2026-09-28 after four locator/fixture fixes and two product fixes found by the run: the admin console rendered locale-dependent timestamps during SSR, and a reply in the Referral Center hid the card it belonged to) (`scripts/e2e-referrals.mjs`, screenshots `scratch/referrals-e2e/`): A successful referral, B decline → reassignment → success, C no referrer, D job expires, E free learner, F paid learner credits, G cross-account, H learner vs referrer/admin APIs, I referrer vs unassigned candidate, J suspended referrer, K mobile (360px, no horizontal scroll), L refresh / sign-out / sign-in persistence, plus the admin console, audit and notification_log checks.
+- Regressions after the change: migrations dev 5/5, interviews 9/9, interview room 14/14, mock rounds 4/4, billing phase 5 7/7, billing 5/5, jobs domain 11/11, matching 5/5, resume 2/2, security 3/3, learning domain 3/3, ai 8/8, ai keys 2/2 (its fixture clock was 2026-09-27; the test now passes its clock to `listUserAiKeys`), catalog 3/3, scheduler 4/4, verification 5/5, receipts 1/1, monitoring 1/1, phase 4 11/11, curriculum pass, merge 4/4, ingestion 17/17. Browser regressions: REGRESSION_E2E. `npm run typecheck` clean, `npm run lint` clean on every touched file, `npx next build --webpack` clean (all referral routes and pages listed, 0 errors).
+
+## NOT TESTED
+
+Real mail delivery of invites and verification links (no mailer locally; `notification_log` rows are `skipped`); the referrer portal after a real Brevo mail; production data; any Razorpay flow (none exists for credits); behaviour at scale (matching loads a company's referrer rows per request, fine for a beta, not indexed for thousands of referrers per company); admin console on a phone (it uses the existing scrollable admin tables); the `?next=/referrer` continuation after Google sign-in (tested with password sign-in only).
+
+## Remaining risks and decisions
+
+See `docs/launch-readiness.md` §7: identity proof is mailbox + human review; small pools can be identifying; readiness inherits the resume analysis's limits; consent scope (resume profile and name to the assigned referrer); legal review of referrer terms, consent text, retention and any future incentive; concierge product and compensation are NOT ENABLED.
+
+
+# Phase 12 — "Minified React error #441" fix and portal-company ingestion (Amazon, Microsoft, Netflix, Adobe, NVIDIA, Salesforce, PayPal, Autodesk, Mastercard) — 2026-09-27 IST
 
 ## The React #441 the owner saw in production: root cause and fix
 

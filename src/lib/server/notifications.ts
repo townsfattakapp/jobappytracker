@@ -11,7 +11,28 @@ import { isMailerConfigured, renderEmail, sendMail, siteUrl } from './mailer'
  * the event is logged as skipped, so nothing is sent from development.
  */
 
-export type NotificationKind = 'subscription.activated' | 'payment.receipt' | 'payment.failed' | 'subscription.cancelled' | 'renewal.reminder' | 'application.reminder' | 'outreach.follow_up'
+export type NotificationKind =
+  | 'subscription.activated'
+  | 'payment.receipt'
+  | 'payment.failed'
+  | 'subscription.cancelled'
+  | 'renewal.reminder'
+  | 'application.reminder'
+  | 'outreach.follow_up'
+  // Verified referral network. Subjects and bodies never name a referrer or a learner; identity stays inside the app.
+  | 'referral.request_received'
+  | 'referral.needs_action'
+  | 'referral.assigned'
+  | 'referral.clarification'
+  | 'referral.learner_replied'
+  | 'referral.accepted'
+  | 'referral.declined'
+  | 'referral.submitted'
+  | 'referral.closed'
+  | 'referrer.invite'
+  | 'referrer.verify_email'
+  | 'referrer.verified'
+  | 'referrer.status'
 
 export interface Notification {
   kind: NotificationKind
@@ -40,6 +61,32 @@ export function buildNotification(kind: NotificationKind, data: Record<string, s
       return { kind, subject: `Follow up: ${data.company}`, title: `Follow up with ${data.company}`, intro: `Your tracker has a follow-up due for ${data.role} at ${data.company}.`, ctaLabel: 'Open tracker', ctaUrl: `${base}/app`, outro: 'Reminders come from the follow-up dates you set.' }
     case 'outreach.follow_up':
       return { kind, subject: `Outreach follow-up: ${data.contact}`, title: `Follow up with ${data.contact}`, intro: `You planned to follow up with ${data.contact}${data.company ? ` about ${data.company}` : ''} today.`, ctaLabel: 'Open the job workspace', ctaUrl: `${base}/app`, outro: 'You decide whether and how to send it; JobAppy never messages anyone for you.' }
+    case 'referral.request_received':
+      return { kind, subject: `Referral request received: ${data.role} at ${data.company}`, title: 'Referral request received', intro: `Your request for ${data.role} at ${data.company} is being screened and matched with a verified employee. A request does not guarantee a referral, interview or job.`, ctaLabel: 'Open Referral Center', ctaUrl: `${base}/app?view=referrals`, outro: 'You will hear from us at each step.' }
+    case 'referral.needs_action':
+      return { kind, subject: `Update on your referral request: ${data.role} at ${data.company}`, title: 'Your referral request has an update', intro: `There is a new message or update on your request for ${data.role} at ${data.company}.`, ctaLabel: 'Open Referral Center', ctaUrl: `${base}/app?view=referrals`, outro: 'Everything runs through JobAppy; no personal contact details are shared.' }
+    case 'referral.assigned':
+      return { kind, subject: `A referral request is waiting for your review: ${data.role}`, title: 'New referral request to review', intro: `A candidate asked for a referral for ${data.role} at ${data.company}. You have about ${data.hours} hours to accept, decline or ask a question; declining is always fine.`, ctaLabel: 'Review in the referrer portal', ctaUrl: `${base}/referrer`, outro: 'You decide. JobAppy never submits a referral on your behalf.' }
+    case 'referral.clarification':
+      return { kind, subject: `The referrer has a question: ${data.role} at ${data.company}`, title: 'A verified referrer asked a question', intro: `Before deciding, the referrer reviewing your request for ${data.role} at ${data.company} needs a little more information.`, ctaLabel: 'Reply in the Referral Center', ctaUrl: `${base}/app?view=referrals`, outro: 'Replies go through JobAppy.' }
+    case 'referral.learner_replied':
+      return { kind, subject: `The candidate replied: ${data.role}`, title: 'The candidate replied', intro: `The candidate answered your question on the request for ${data.role} at ${data.company}.`, ctaLabel: 'Continue the review', ctaUrl: `${base}/referrer`, outro: '' }
+    case 'referral.accepted':
+      return { kind, subject: `Accepted: your referral request for ${data.role} at ${data.company}`, title: 'A verified referrer accepted your request', intro: `The referrer will submit through their employer’s official process and mark it done here. A referral is not an interview; keep preparing.`, ctaLabel: 'Open Referral Center', ctaUrl: `${base}/app?view=referrals`, outro: 'One referral credit was used for JobAppy’s coordination of this request.' }
+    case 'referral.declined':
+      return { kind, subject: `Matching again: ${data.role} at ${data.company}`, title: 'Your request is being matched again', intro: `The referrer who reviewed your request for ${data.role} at ${data.company} could not take it on. It is being offered to another verified employee; if nobody is available the request closes and your credit is returned.`, ctaLabel: 'Open Referral Center', ctaUrl: `${base}/app?view=referrals`, outro: '' }
+    case 'referral.submitted':
+      return { kind, subject: `Referral submitted: ${data.role} at ${data.company}`, title: 'Referral submitted by a verified referrer', intro: `A verified referrer has submitted your referral for ${data.role} at ${data.company} through their employer’s process. This is not a guaranteed interview; the company decides what happens next.`, ctaLabel: 'Update your tracker', ctaUrl: `${base}/app?view=referrals`, outro: 'Prepare for the screening round in the meantime.' }
+    case 'referral.closed':
+      return { kind, subject: `Referral request closed: ${data.role} at ${data.company}`, title: 'Your referral request was closed', intro: `Your request for ${data.role} at ${data.company} was closed (${String(data.reason ?? '').replace(/_/g, ' ')}). Any reserved credit has been returned.`, ctaLabel: 'Open Referral Center', ctaUrl: `${base}/app?view=referrals`, outro: '' }
+    case 'referrer.invite':
+      return { kind, subject: `You are invited to JobAppy’s verified referrer network (${data.company})`, title: 'Join the verified referrer network', intro: `JobAppy invited you to review referral requests from prepared candidates for ${data.company}. You decide on every request; nothing is submitted on your behalf. The link works for ${data.days} days.`, ctaLabel: 'Accept the invitation', ctaUrl: `${base}/referrer/invite?token=${encodeURIComponent(String(data.token ?? ''))}`, outro: 'Referral requests are reviewed by verified referrers; a request never guarantees a referral, interview or job.' }
+    case 'referrer.verify_email':
+      return { kind, subject: 'Confirm your corporate email for JobAppy', title: 'Confirm your corporate email', intro: 'Open the link below from this mailbox to confirm it belongs to you. The link works once and expires in an hour.', ctaLabel: 'Confirm email', ctaUrl: `${base}/referrer/verify?token=${encodeURIComponent(String(data.token ?? ''))}`, outro: 'This address is used only for verification and is never shown to candidates.' }
+    case 'referrer.verified':
+      return { kind, subject: 'You are a verified referrer on JobAppy', title: 'Verification complete', intro: 'An admin verified your referrer profile. Set yourself to Available in the portal to start receiving requests that match your role family and locations.', ctaLabel: 'Open the referrer portal', ctaUrl: `${base}/referrer`, outro: '' }
+    case 'referrer.status':
+      return { kind, subject: 'Your referrer status changed', title: 'Referrer status update', intro: `Your referrer verification status is now ${String(data.status ?? '').toLowerCase().replace(/_/g, ' ')}. Open the portal for details or contact hello@evolw.in.`, ctaLabel: 'Open the referrer portal', ctaUrl: `${base}/referrer`, outro: '' }
   }
 }
 

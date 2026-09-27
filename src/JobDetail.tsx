@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import LockedFeature from './components/LockedFeature'
+import ReferralTab from './components/jobs/ReferralTab'
 import { eligibilityLabel, freshnessLabel, locationLabel, salaryLabel } from './JobsWorkspace'
 import type { AppUser } from './lib/cloudSync'
 import { ApiError } from './lib/adminClient'
@@ -38,13 +39,14 @@ interface JobDetailProps {
   onAddPlan: (roadmap: RoadmapDay[]) => Promise<void>
   onOpenResumes: () => void
   onOpenTracker: () => void
-  onAddToTracker: (job: LearnerJob, analysisId?: string | null) => void
+  onAddToTracker: (job: LearnerJob, analysisId?: string | null, opts?: { source?: string; status?: 'Applied' }) => string | null
+  onOpenReferrals: () => void
   onAddGaps: (trackIds: string[]) => Promise<{ ok: boolean; message: string }>
   onSignIn: () => void
   onUpgrade: () => void
 }
 
-type Tab = 'overview' | 'match' | 'gaps' | 'resume' | 'strategy' | 'networking' | 'prepare' | 'interview' | 'tracker'
+type Tab = 'overview' | 'match' | 'gaps' | 'resume' | 'strategy' | 'networking' | 'referral' | 'prepare' | 'interview' | 'tracker'
 const TABS: { id: Tab; label: string; feature?: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'match', label: 'Match', feature: 'jobs.matching' },
@@ -52,6 +54,7 @@ const TABS: { id: Tab; label: string; feature?: string }[] = [
   { id: 'resume', label: 'Resume', feature: 'jobs.resumeAnalysis' },
   { id: 'strategy', label: 'Application strategy', feature: 'jobs.applicationStrategy' },
   { id: 'networking', label: 'Networking & Referrals' },
+  { id: 'referral', label: 'Request referral' },
   { id: 'prepare', label: 'Prepare', feature: 'jobs.preparation' },
   { id: 'interview', label: 'Mock interview', feature: 'interview.jobFull' },
   { id: 'tracker', label: 'Tracker' },
@@ -75,7 +78,7 @@ const GAP_LABEL: Record<TrackAlignment['gapStatus'], string> = { covered: 'Alrea
 
 
 /** One coherent job workspace: overview → match → curriculum gaps → resume → application strategy → tracker. */
-export default function JobDetail({ jobId, user, features, goals, roadmap, knowledgeWorkspaces, applications, onBack, onOpenTrack, onOpenTopic, onAddPlan, onOpenResumes, onOpenTracker, onAddToTracker, onAddGaps, onSignIn, onUpgrade }: JobDetailProps) {
+export default function JobDetail({ onOpenReferrals, jobId, user, features, goals, roadmap, knowledgeWorkspaces, applications, onBack, onOpenTrack, onOpenTopic, onAddPlan, onOpenResumes, onOpenTracker, onAddToTracker, onAddGaps, onSignIn, onUpgrade }: JobDetailProps) {
   const [job, setJob] = useState<LearnerJob | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -351,6 +354,9 @@ export default function JobDetail({ jobId, user, features, goals, roadmap, knowl
                 <button type="button" className="btn btn-ghost" onClick={() => setTab('interview')}>
                   Mock Interview for This Job
                 </button>
+                <button type="button" className="btn btn-ghost" onClick={() => setTab('referral')} data-testid="request-referral-cta">
+                  Request Referral
+                </button>
               </div>
               <section className="job-section" aria-labelledby="job-skills">
                 <h3 id="job-skills" className="job-section-title">
@@ -614,6 +620,19 @@ export default function JobDetail({ jobId, user, features, goals, roadmap, knowl
             />
           )}
 
+          {tab === 'referral' && (
+            <ReferralTab
+              job={job}
+              signedIn={Boolean(user)}
+              tracked={Boolean(tracked && tracked.status !== 'Wishlist')}
+              preparationStarted={Boolean(preparation)}
+              onSignIn={onSignIn}
+              onUpgrade={onUpgrade}
+              onOpenTab={(t) => setTab(t)}
+              onOpenReferrals={onOpenReferrals}
+              onAddToTracker={(j, opts) => onAddToTracker(j, resumeAnalysis?.id ?? null, opts)}
+            />
+          )}
           {tab === 'tracker' && (
             <section className="job-section" aria-labelledby="job-tracker">
               <h3 id="job-tracker" className="job-section-title">

@@ -103,3 +103,32 @@ Keep the database store for launch (files are small, owner-scoped, and deletion 
 5. Set `CRON_SECRET` and point a scheduler at the two cron endpoints (or keep running ingestion from the admin panel).
 6. Decide on `RESUME_STORE` (database is fine for launch).
 7. Review `/admin/launch` on the deployed environment; every row must read Healthy or an accepted Not configured.
+
+## 7. Verified referral network (Phase 13, 2026-09-28) — beta operations and readiness
+
+Status: implemented and verified locally (PGlite suite, Chromium e2e on the local dev server). **Not deployed, no production migration, no production data touched, no real payment, no employee payout.**
+
+### Before switching it on in production
+
+1. Apply migration `0014_referral_network` through the approval-gated runbook (`scripts/migrate-production.mjs`, preflight first). It only creates tables and indexes.
+2. Add the referral features to the stored pass plan in `/admin/plans` (existing plan rows keep their stored feature lists): `referral.request`, `referral.priorityMatching`, `referral.reassignment`, `referral.history`; the free plan gets `referral.viewAvailability` and `referral.readiness`. Set the limits (`referralRequestsMonthly`, `referralActiveRequests`, `referralReassignmentAttempts`).
+3. Keep `/admin/referrals → Beta settings → Network mode` on **Invite-only**. Public referrer applications stay off.
+4. For every company that should take requests: record the policy with a **source** (`VERIFIED_POLICY`) or leave it `UNKNOWN`. `UNKNOWN` blocks requests unless "Let requests proceed at companies whose policy is unknown" is switched on; that switch is a product decision, not a default.
+5. Invite the first referrers by corporate email; verify them only after the mailbox is confirmed **and** identity is checked by a person. Verification lasts 12 months by default.
+6. Coverage is real only when `/admin/referrals → Company coverage` shows *available*: a verified, available referrer with free capacity **and** a permitting policy. The job page says "Referral assistance unavailable" everywhere else. Do not announce company coverage from the catalog list.
+7. Point the scheduler at `GET /api/cron/referrals` (bearer `CRON_SECRET`) daily, or use "Run sweep now" in the console.
+8. Mail: with `BREVO_API_KEY` set, invites, verification links and status mails go out from hello@evolw.in; without it they are logged as `skipped` and the admin hands over the invite link shown once in the console.
+
+### Not enabled, needs a decision before any change
+
+- **Paid referral credits / "Verified Referral Assistance" one-time product**: the ledger supports a `purchase` source; there is no checkout, no price and no Razorpay product. Pricing must be admin-configured and the flow approved separately. Copy must never say "buy a referral".
+- **Referrer compensation**: NOT ENABLED. No code path pays employees. Company policies commonly forbid compensated referral sourcing; policy and legal review required before designing one.
+- **Public referrer registration**: setting exists, off.
+
+### Known risks
+
+- Identity proof is mailbox control plus human review; a departed employee keeps a mailbox for a while. Verification expiry (12 months) and the "re-verify" action are the mitigations; a periodic re-check cadence is an operations decision.
+- Small pools at a company can make "Verified employee · Company · Engineering" identifying in practice even with the experience band hidden; the console shows pool sizes so admins can pause coverage at a company with one referrer if the referrer asks.
+- The readiness review is only as good as the resume-vs-job analysis it reuses; it reports facts and never a probability, but it can under-count evidence in unusual resumes.
+- Referrers receive the candidate's resume profile and name once assigned; that is what consent covers. Learners are told exactly this before submitting.
+- Legal/policy review items: referral terms for referrers (policy acknowledgement text), candidate consent text, data retention for closed requests (currently kept until career-data deletion), and whether any future incentive is permissible per company.

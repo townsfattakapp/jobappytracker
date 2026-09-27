@@ -49,6 +49,8 @@
     "test:e2e:interview": "node scripts/e2e-interview-room.mjs",
     "test:interview:room": "node --test scripts/test-interview-room.mjs",
     "test:mock:rounds": "node --test scripts/test-mock-rounds.mjs",
+    "test:referrals": "node --test scripts/test-referrals.mjs",
+    "test:e2e:referrals": "node scripts/e2e-referrals.mjs",
     "db:dev:pglite": "node scripts/dev-pglite-server.mjs",
     "curriculum:audit": "node scripts/auditCurriculum.mjs",
     "curriculum:check": "node scripts/checkCurriculumContent.mjs",

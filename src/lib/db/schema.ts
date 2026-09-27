@@ -342,7 +342,8 @@ export const curriculumTracks = pgTable('curriculum_tracks', {
 // preferences and platform settings. See docs/career-os-architecture.md.
 // ---------------------------------------------------------------------------
 
-export const PLATFORM_ROLES = ['admin', 'content_editor', 'jobs_editor', 'support'] as const
+/** `referrer` is a verified-referral-network participant: it opens /referrer only, never the admin panel. */
+export const PLATFORM_ROLES = ['admin', 'content_editor', 'jobs_editor', 'support', 'referrer'] as const
 export type PlatformRole = (typeof PLATFORM_ROLES)[number]
 
 export const userRoles = pgTable('user_roles', {
@@ -763,3 +764,6 @@ export const aiUsageLog = pgTable('ai_usage_log', {
   index('ai_usage_log_user_created_idx').on(t.userId, t.createdAt),
   index('ai_usage_log_provider_created_idx').on(t.provider, t.createdAt),
 ])
+
+// Verified referral network tables live in their own module; re-exported so every consumer keeps importing from ./schema.
+export * from './referralSchema'

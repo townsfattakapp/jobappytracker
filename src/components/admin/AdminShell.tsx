@@ -23,6 +23,7 @@ const NAV: { href: string; label: string; roles: PlatformRole[] }[] = [
   { href: '/admin/users', label: 'Users & roles', roles: ['admin', 'support'] },
   { href: '/admin/plans', label: 'Plans', roles: ['admin', 'support'] },
   { href: '/admin/subscriptions', label: 'Subscriptions', roles: ['admin', 'support'] },
+  { href: '/admin/referrals', label: 'Referral network', roles: ['admin', 'support'] },
   { href: '/admin/billing', label: 'Billing status', roles: ['admin', 'support'] },
   { href: '/admin/ai', label: 'AI configuration', roles: ['admin', 'support'] },
   { href: '/admin/launch', label: 'Launch readiness', roles: ['admin', 'support'] },

@@ -32,6 +32,7 @@ const KnowledgeWorkspaceDetail = dynamic(() => import('./KnowledgeWorkspaceDetai
 const InterviewQuestionWorkspace = dynamic(() => import('./InterviewQuestionWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Interview Question Workspace...</div> })
 const SettingsWorkspace = dynamic(() => import('./SettingsWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Settings Workspace...</div> })
 const JobsWorkspace = dynamic(() => import('./JobsWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Jobs...</div> })
+const ReferralsWorkspace = dynamic(() => import('./ReferralsWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading…</div> })
 const JobDetail = dynamic(() => import('./JobDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading job...</div> })
 const CommandCenter = dynamic(() => import('./CommandCenter'), { ssr: false, loading: () => <div className="cc-grid" aria-busy="true">{Array.from({ length: 6 }, (_, i) => <div key={i} className="cc-card cc-skeleton" />)}</div> })
 const OnboardingFlow = dynamic(() => import('./components/onboarding/OnboardingFlow'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading setup...</div> })
@@ -139,7 +140,7 @@ function sortApplications(
 }
 
 /** Views a signed-in account without a pass may use (job discovery and the application tracker). */
-const FREE_VIEWS: ViewMode[] = ['home', 'jobs', 'jobDetail', 'resume', 'dashboard', 'board', 'list', 'settings']
+const FREE_VIEWS: ViewMode[] = ['home', 'jobs', 'jobDetail', 'resume', 'dashboard', 'board', 'list', 'referrals', 'settings']
 
 const HEADER_COPY: Partial<Record<ViewMode, { title: string; subtitle: string }>> = {
   dashboard: { title: 'Your job search, organized.', subtitle: 'Track applications, follow-ups, and recruiting emails in one workspace.' },
@@ -151,6 +152,7 @@ const HEADER_COPY: Partial<Record<ViewMode, { title: string; subtitle: string }>
   prepKit: { title: 'Preparation notes', subtitle: 'Company briefs, STAR stories, and cheat sheets with AI help.' },
   jobs: { title: 'Job discovery', subtitle: 'Openings matching tech and product engineering tracks, ranked by your preferences with verified direct links.' },
   resume: { title: 'Your resume', subtitle: 'Keep resume versions privately in Prep and compare them against any opening.' },
+  referrals: { title: 'Referral Center', subtitle: 'Requests reviewed by verified employees. A request never guarantees a referral, interview or job.' },
 }
 
 export default function App() {
@@ -190,6 +192,18 @@ export default function App() {
   const [preferences, setPreferences] = useState<UserPreferences>(() => ({ codeLanguage: getCodeLanguage(), ...(stored.preferences || {}) }))
 
   const [user, setUser] = useState<AppUser | null>(null)
+  // Continue to a same-origin page (e.g. the referrer portal) once the sign-in that was asked for has happened.
+  useEffect(() => {
+    if (!user) return
+    let next: string | null
+    try {
+      next = sessionStorage.getItem('prep-next')
+      if (next) sessionStorage.removeItem('prep-next')
+    } catch {
+      next = null
+    }
+    if (next && next.startsWith('/') && !next.startsWith('//')) window.location.assign(next)
+  }, [user])
   const [billing, setBilling] = useState<BillingState | null>(null)
   const [authReady, setAuthReady] = useState(false)
   const [guestMode, setGuestMode] = useState(() => readLocal(GUEST_MODE_KEY) === '1')
@@ -585,7 +599,8 @@ export default function App() {
   useEffect(() => {
     if (!user || homeLanded.current) return
     homeLanded.current = true
-    setViewState('home')
+    // A deep link (email → /app?view=referrals) wins over the once-per-session landing on Home.
+    setViewState(typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'referrals' ? 'referrals' : 'home')
     // A mock interview in progress survives a refresh: restore the room instead of landing on Home.
     void readActiveMock()?.then((saved) => {
       if (!saved) return
@@ -614,6 +629,16 @@ export default function App() {
     const modeParam = params.get('mode')
     if (modeParam === 'signup' || modeParam === 'signin') {
       setAuthMode(modeParam)
+    }
+    if (params.get('view') === 'referrals') setView('referrals')
+    // Same-origin continuation after sign-in (the referrer portal sends people here with ?next=/referrer).
+    const next = params.get('next')
+    if (next && /^\/[a-z0-9/?=&%._-]*$/i.test(next) && !next.startsWith('//')) {
+      try {
+        sessionStorage.setItem('prep-next', next)
+      } catch {
+        // ignore
+      }
     }
     const verified = params.get('verified')
     const authError = params.get('error')
@@ -711,11 +736,17 @@ export default function App() {
   }
 
   /** Reuses the existing tracker: one application per canonical apply URL, starting in Wishlist. */
-  const addJobToTracker = (job: LearnerJob, resumeAnalysisId?: string | null) => {
+  const addJobToTracker = (job: LearnerJob, resumeAnalysisId?: string | null, opts?: { source?: string; status?: 'Applied' }): string | null => {
     const existing = applications.find((a) => a.jobUrl === job.applyUrl || a.jobRef?.jobId === job.id)
     if (existing) {
+      if (opts?.source && existing.source !== opts.source) {
+        // A referral was submitted for an opening already tracked: record the source and move it to Applied without duplicating it.
+        setApplications((prev) => prev.map((a) => (a.id === existing.id ? { ...a, source: opts.source ?? a.source, status: existing.status === 'Wishlist' ? (opts.status ?? a.status) : a.status, appliedDate: a.appliedDate ?? new Date().toISOString().slice(0, 10), notes: `${a.notes}\nReferral submitted by a verified referrer through JobAppy.`, updatedAt: new Date().toISOString() } : a)))
+        showToast(`${job.company.name} updated in your tracker (source: ${opts.source})`)
+        return existing.id
+      }
       showToast(`${job.company.name} is already in your tracker (${existing.status})`)
-      return
+      return existing.id
     }
     const location = [job.locationCity, job.locationCountry].filter(Boolean).join(', ') || (job.workMode === 'remote' ? 'Remote' : '')
     const salary = job.salaryMin != null || job.salaryMax != null ? [job.salaryCurrency, [job.salaryMin, job.salaryMax].filter((n) => n != null).join('–'), job.salaryPeriod ? `/ ${job.salaryPeriod}` : ''].filter(Boolean).join(' ') : ''
@@ -726,10 +757,10 @@ export default function App() {
       jobUrl: job.applyUrl,
       location,
       salary: salary || null,
-      appliedDate: null,
-      source: job.source ? job.source.name : 'JobAppy job discovery',
-      notes: `Added from JobAppy job discovery.\nOriginal listing: ${job.sourceUrl || job.applyUrl}`,
-      status: 'Wishlist',
+      appliedDate: opts?.status === 'Applied' ? new Date().toISOString().slice(0, 10) : null,
+      source: opts?.source ?? (job.source ? job.source.name : 'JobAppy job discovery'),
+      notes: opts?.source === 'Referral' ? `Referral submitted by a verified referrer through JobAppy.\nOriginal listing: ${job.sourceUrl || job.applyUrl}` : `Added from JobAppy job discovery.\nOriginal listing: ${job.sourceUrl || job.applyUrl}`,
+      status: opts?.status ?? 'Wishlist',
       followUpDate: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -740,6 +771,7 @@ export default function App() {
     }
     setApplications((prev) => [newApp, ...prev])
     showToast(`Added ${job.company.name} to your tracker`)
+    return newApp.id
   }
 
   /**
@@ -923,7 +955,7 @@ export default function App() {
   const selectedLab = selectedLabId ? engineeringLabs.find((l) => l.id === selectedLabId) : undefined
   const selectedExercise = selectedSystemDesignId ? systemDesignExercises.find((e) => e.id === selectedSystemDesignId) : undefined
   const showAuthGate = !user && !guestMode
-  const hiddenViews: ViewMode[] = platformConfig && !platformConfig.flags.jobsModule ? ['jobs', 'jobDetail'] : []
+  const hiddenViews: ViewMode[] = platformConfig && !platformConfig.flags.jobsModule ? ['jobs', 'jobDetail', 'referrals'] : []
   /** Paid access follows the resolved plan (subscription, pass or allowlist); the legacy entitlement is the fallback while config loads. */
   const onFreePlan = platformConfig ? platformConfig.plan.isDefault : Boolean(billing?.entitlement && !billing.entitlement.access)
 
@@ -1398,11 +1430,24 @@ export default function App() {
                 onUpgrade={() => setPaywallForced(true)}
                 onToast={showToast}
               />
+            ) : view === 'referrals' ? (
+              <ReferralsWorkspace
+                signedIn={Boolean(user)}
+                applications={applications}
+                onSignIn={() => setAuthModalOpen(true)}
+                onUpgrade={() => setPaywallForced(true)}
+                onOpenJob={(id) => {
+                  setSelectedJobId(id)
+                  setView('jobDetail')
+                }}
+                onAddToTracker={(job, opts) => addJobToTracker(job, null, opts)}
+              />
             ) : view === 'jobDetail' && selectedJobId ? (
               <JobDetail
                 key={selectedJobId}
                 jobId={selectedJobId}
                 user={user}
+                onOpenReferrals={() => setView('referrals')}
                 features={platformConfig?.features ?? []}
                 goals={goals}
                 roadmap={roadmap}

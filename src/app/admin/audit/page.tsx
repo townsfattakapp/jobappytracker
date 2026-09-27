@@ -5,7 +5,7 @@ import { listAudit } from '../../../lib/server/audit'
 
 export const dynamic = 'force-dynamic'
 
-const ENTITY_TYPES = ['job', 'company', 'job_source', 'user', 'platform_settings']
+const ENTITY_TYPES = ['job', 'company', 'job_source', 'user', 'platform_settings', 'referral_request', 'referrer', 'referrer_invite', 'company_referral_policy', 'referral_settings', 'referral_credit']
 
 export default async function AdminAuditPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requireAdminPage('admin', 'support')

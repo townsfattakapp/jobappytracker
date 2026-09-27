@@ -87,8 +87,8 @@ export async function getUserAiKey(userId: string): Promise<{ provider: AiProvid
   return pool ? { provider: pool.provider, ...pool.keys[0] } : null
 }
 
-export async function listUserAiKeys(userId: string): Promise<UserAiKeySummary[]> {
-  return (await rowsFor(userId)).map((r) => summarize(r))
+export async function listUserAiKeys(userId: string, now = new Date()): Promise<UserAiKeySummary[]> {
+  return (await rowsFor(userId)).map((r) => summarize(r, now))
 }
 
 /** First key as a one-line summary (older callers); null when the learner has none. */
