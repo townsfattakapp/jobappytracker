@@ -21,7 +21,7 @@ export interface HealthCheck {
   detail: string
 }
 
-const EXPECTED_MIGRATIONS = 13
+const EXPECTED_MIGRATIONS = 14
 
 export async function launchHealth(): Promise<HealthCheck[]> {
   const checks: HealthCheck[] = []

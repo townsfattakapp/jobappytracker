@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import LockedFeature from './components/LockedFeature'
 import type { AppUser } from './lib/cloudSync'
 import { ApiError } from './lib/adminClient'
-import { fetchJobs, fetchPreferences, savePreferences, type JobListResponse, type LearnerJob } from './lib/jobs/client'
+import CompanyLogo from './components/jobs/CompanyLogo'
+import { fetchHiringCompanies, fetchJobs, fetchPreferences, savePreferences, type HiringCompanyDto, type JobListResponse, type LearnerJob } from './lib/jobs/client'
 import { mapJobToCurriculum } from './lib/jobs/curriculumMap'
 import { parsePreferencesInput, ValidationError } from './lib/jobs/normalize'
 import { EMPLOYMENT_TYPES, JOB_LEVELS, REGIONS, REGION_PREFERENCES, ROLE_CATEGORIES, SALARY_CURRENCIES, WORK_MODES, labelOf } from './lib/jobs/taxonomy'
@@ -89,6 +90,7 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
   const [prefsLoaded, setPrefsLoaded] = useState(false)
   const [prefsOpen, setPrefsOpen] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [companies, setCompanies] = useState<HiringCompanyDto[] | null>(null)
   const can = useCallback((key: string) => features.includes(key), [features])
   const advanced = can('jobs.advancedFilters')
   const personalFeed = can('jobs.personalizedFeed')
@@ -144,12 +146,27 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
       })
   }, [filters, page, prefsLoaded, reloadKey, features])
 
+  // Companies hiring right now, for the strip at the top; independent of the list filters.
+  useEffect(() => {
+    let cancelled = false
+    fetchHiringCompanies(300)
+      .then((list) => {
+        if (!cancelled) setCompanies(list)
+      })
+      .catch(() => {
+        if (!cancelled) setCompanies([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [reloadKey])
+
   const setFilter = useCallback((key: keyof JobListFilters, value: string) => {
     setFilters((f) => ({ ...f, [key]: value }))
     setPage(1)
   }, [])
 
-  const anyFilter = Boolean(filters.q || filters.roleCategory || filters.region || filters.workMode || filters.level || filters.employmentType)
+  const anyFilter = Boolean(filters.q || filters.roleCategory || filters.region || filters.workMode || filters.level || filters.employmentType || filters.companyId)
   const pages = result ? Math.max(1, Math.ceil(result.total / result.pageSize)) : 1
 
   // Feed sections only for the personalised feed, first page, no filters, enough data.
@@ -194,6 +211,7 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
   return (
     <div className="jobs-layout">
       <div className="min-w-0">
+        <CompanyStrip companies={companies} activeId={filters.companyId ?? null} onPick={(id) => setFilter('companyId', id ?? '')} />
         <div className="jobs-toolbar" role="search" aria-label="Filter jobs">
           <input className="input-field" type="search" placeholder="Search title, company, skill or city" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search jobs" />
           <div className="jobs-toolbar-row">
@@ -401,6 +419,38 @@ export default function JobsWorkspace({ user, features, disabledRoleFamilies, go
   )
 }
 
+/** Horizontal strip of companies with live openings; picking one filters the list to that company. */
+function CompanyStrip({ companies, activeId, onPick }: { companies: HiringCompanyDto[] | null; activeId: string | null; onPick: (id: string | null) => void }) {
+  if (companies && companies.length === 0) return null
+  const total = companies?.reduce((s, c) => s + c.jobCount, 0) ?? 0
+  return (
+    <section className="jobs-companies" aria-label="Companies hiring">
+      <div className="jobs-companies-head">
+        <span className="jobs-companies-title">Companies hiring</span>
+        {companies ? <span className="jobs-companies-sub">{companies.length} companies · {total.toLocaleString()} openings</span> : <span className="jobs-companies-sub">Loading…</span>}
+      </div>
+      <div className="jobs-companies-track" role="listbox" aria-label="Filter by company">
+        <button type="button" className="company-chip" role="option" aria-selected={!activeId} onClick={() => onPick(null)}>
+          <span className="company-logo company-logo-fallback" style={{ width: 28, height: 28, fontSize: 11 }} aria-hidden="true">
+            All
+          </span>
+          <span className="company-chip-name">All companies</span>
+        </button>
+        {(companies ?? []).map((c) => {
+          const active = c.id === activeId
+          return (
+            <button key={c.id} type="button" className="company-chip" role="option" aria-selected={active} onClick={() => onPick(active ? null : c.id)} title={`${c.name}: ${c.jobCount} opening${c.jobCount === 1 ? '' : 's'}`}>
+              <CompanyLogo company={c} size={28} />
+              <span className="company-chip-name">{c.name}</span>
+              <span className="company-chip-count">{c.jobCount}</span>
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 function JobCard({ job, onOpen }: { job: LearnerJob; onOpen: () => void }) {
   const fresh = freshnessLabel(job.freshness, job.lifecycle)
   const salary = salaryLabel(job)
@@ -410,11 +460,14 @@ function JobCard({ job, onOpen }: { job: LearnerJob; onOpen: () => void }) {
   return (
     <button type="button" className="job-card" onClick={onOpen} aria-label={`${job.title} at ${job.company.name}`}>
       <div className="job-card-top">
-        <div className="min-w-0">
-          <div className="job-card-title">{job.title}</div>
-          <div className="job-card-company">
-            {job.company.name}
-            {job.company.headquarters ? ` · ${job.company.headquarters}` : ''}
+        <div className="job-card-head min-w-0">
+          <CompanyLogo company={job.company} size={40} />
+          <div className="min-w-0">
+            <div className="job-card-title">{job.title}</div>
+            <div className="job-card-company">
+              {job.company.name}
+              {job.company.headquarters ? ` · ${job.company.headquarters}` : ''}
+            </div>
           </div>
         </div>
         <span className={`job-chip ${fresh.tone === 'fresh' ? 'job-chip-fresh' : fresh.tone === 'stale' ? 'job-chip-stale' : ''}`}>{fresh.text}</span>

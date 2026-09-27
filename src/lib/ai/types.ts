@@ -36,6 +36,8 @@ export interface AiRequest {
   userId: string | null
   /** The learner's own key, if they configured one; used only for its provider. */
   userKey?: { provider: AiProviderId; key: string } | null
+  /** Several of the learner's keys for one provider; tried in order when one is rate limited or rejected. Takes precedence over userKey. */
+  userKeys?: { provider: AiProviderId; keys: { id: string; key: string }[] } | null
   /** Provider preference from the caller (e.g. the learner picked one); must still pass policy. */
   preferProvider?: AiProviderId | null
 }

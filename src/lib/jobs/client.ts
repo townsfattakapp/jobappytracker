@@ -50,6 +50,24 @@ export function fetchJobs(filters: JobListFilters & { ranked?: boolean }): Promi
   return api<JobListResponse>(`/api/jobs?${q.toString()}`)
 }
 
+export interface HiringCompanyDto {
+  id: string
+  name: string
+  slug: string
+  website: string | null
+  careersUrl: string | null
+  logoUrl: string | null
+  headquarters: string | null
+  indiaRelevance: string | null
+  jobCount: number
+}
+
+/** Companies with published openings, most openings first. */
+export async function fetchHiringCompanies(limit = 60): Promise<HiringCompanyDto[]> {
+  const res = await api<{ companies: HiringCompanyDto[] }>(`/api/jobs/companies?limit=${limit}`)
+  return res.companies
+}
+
 export function fetchJob(id: string): Promise<LearnerJob> {
   return api<LearnerJob>(`/api/jobs/${encodeURIComponent(id)}`)
 }

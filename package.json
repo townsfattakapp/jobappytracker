@@ -36,6 +36,7 @@
     "test:billing:phase5": "node scripts/test-billing-phase5.mjs",
     "test:interviews": "node --test scripts/test-interviews.mjs",
     "test:ai": "node --test scripts/test-ai-gateway.mjs",
+    "test:ai:keys": "node scripts/test-ai-keys.mjs",
     "test:catalog": "node --test scripts/test-catalog.mjs",
     "test:migration-workflow": "node --test scripts/test-migration-workflow.mjs",
     "test:security": "node --test scripts/test-security.mjs",

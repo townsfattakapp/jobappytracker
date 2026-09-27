@@ -174,6 +174,46 @@ test('policy switches, daily cap, learner keys first, per-feature provider and m
   assert.equal(normalized.features.chat.models.groq, 'llama')
 })
 
+test('a learner key pool rotates: a rate-limited key is set aside and the next key answers; rejected keys are marked invalid; sensitive requests stay on one provider', async () => {
+  // Every call carries the key it was made with, so the test can see which pooled key answered.
+  const seen = []
+  const groq = {
+    id: 'groq',
+    label: 'groq',
+    models: ['g1'],
+    keyFromEnv: () => '',
+    isConfigured: () => false,
+    async call(input, apiKey) {
+      seen.push(apiKey)
+      if (apiKey === 'k1') throw new AiError('rate_limit', 'groq rate_limit', 429, 90_000)
+      if (apiKey === 'k2') throw new AiError('auth', 'groq auth', 401)
+      return { content: `answered with ${apiKey}`, usage: { promptTokens: 1, completionTokens: 1 }, model: 'g1' }
+    },
+  }
+  const outcomes = []
+  const d = deps([groq], {})
+  d.onKeyOutcome = async (keyId, outcome, detail) => void outcomes.push([keyId, outcome, detail.retryAfterMs ?? null])
+  const pool = { provider: 'groq', keys: [{ id: 'id1', key: 'k1' }, { id: 'id2', key: 'k2' }, { id: 'id3', key: 'k3' }] }
+  const out = await runGateway(req({ userKeys: pool }), d)
+  assert.equal(out.ok, true)
+  assert.equal(out.result.content, 'answered with k3')
+  assert.deepEqual(seen, ['k1', 'k2', 'k3'], 'no retry on the rate-limited key: the next key of the pool is tried at once')
+  assert.deepEqual(outcomes, [['id1', 'rate_limit', 90_000], ['id2', 'auth', null], ['id3', 'ok', null]])
+  assert.equal(d.sleeps.length, 0, 'switching keys replaces the backoff wait')
+  assert.deepEqual(out.result.attempts.map((x) => `${x.errorKind ?? 'ok'}`), ['rate_limit', 'auth', 'ok'])
+
+  // Sensitive requests keep every pooled key of the learner's provider but never add a platform provider.
+  const platform = scripted('gemini', [])
+  const cands = resolveCandidates(req({ feature: 'resume.insights', sensitivity: 'sensitive', userKeys: pool }), deps([groq, platform]))
+  assert.deepEqual(cands.map((c) => `${c.adapter.id}:${c.keyId}`), ['groq:id1', 'groq:id2', 'groq:id3'])
+  // Normal requests: the pool first, then platform providers.
+  const cands2 = resolveCandidates(req({ userKeys: pool }), deps([groq, platform]))
+  assert.deepEqual(cands2.map((c) => `${c.adapter.id}:${c.own}`), ['groq:true', 'groq:true', 'groq:true', 'gemini:false'])
+  // A single legacy userKey still works as a pool of one.
+  const cands3 = resolveCandidates(req({ userKey: { provider: 'gemini', key: 'own' } }), deps([groq, platform]))
+  assert.deepEqual(cands3.map((c) => `${c.adapter.id}:${c.own}:${c.keyId ?? '-'}`), ['gemini:true:-'], 'the platform key of the same provider is not tried after the learner key, as before')
+})
+
 test('adapters build correct provider requests and classify provider errors (no network)', async () => {
   const seen = []
   const fetchImpl = async (url, init) => {

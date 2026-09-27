@@ -300,14 +300,28 @@ export const subscriptions = pgTable('subscriptions', {
   updatedAt: timestamp('updatedAt').notNull().defaultNow(),
 })
 
-export const userAiKeys = pgTable('user_ai_keys', {
-  userId: text('userId').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
-  provider: text('provider').notNull(),
-  encryptedKey: text('encryptedKey').notNull(),
-  keyHint: text('keyHint').notNull(),
-  createdAt: timestamp('createdAt').notNull().defaultNow(),
-  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
-})
+/** A learner's own AI keys: several rows per learner, all for one provider; the gateway rotates through them (0013). */
+export const userAiKeys = pgTable(
+  'user_ai_keys',
+  {
+    id: text('id').primaryKey(),
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    provider: text('provider').notNull(),
+    encryptedKey: text('encryptedKey').notNull(),
+    keyHint: text('keyHint').notNull(),
+    label: text('label'),
+    position: integer('position').notNull().default(0),
+    status: text('status').notNull().default('active'), // active | cooling | invalid
+    cooldownUntil: timestamp('cooldownUntil'),
+    lastUsedAt: timestamp('lastUsedAt'),
+    lastError: text('lastError'),
+    createdAt: timestamp('createdAt').notNull().defaultNow(),
+    updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+  },
+  (t) => [index('user_ai_keys_user_idx').on(t.userId)],
+)
 
 export const curriculumTracks = pgTable('curriculum_tracks', {
   id: text('id').primaryKey(),

@@ -98,6 +98,20 @@
    --------------------------------------------------------------------------- */
 .jobs-layout { display: grid; gap: 1.25rem; grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 1100px) { .jobs-layout { grid-template-columns: minmax(0, 1fr) 320px; align-items: start; } }
+/* Companies hiring: logo strip above the filters. */
+.jobs-companies { margin-bottom: 1rem; }
+.jobs-companies-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.75rem; margin-bottom: 0.5rem; }
+.jobs-companies-title { font-weight: 800; font-size: 0.95rem; letter-spacing: -0.01em; }
+.jobs-companies-sub { font-size: 0.8rem; color: hsl(var(--muted-foreground)); }
+.jobs-companies-track { display: flex; gap: 0.5rem; overflow-x: auto; padding: 0.15rem 0.15rem 0.6rem; scroll-snap-type: x proximity; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+.company-chip { flex: 0 0 auto; scroll-snap-align: start; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.75rem 0.4rem 0.45rem; border-radius: 999px; border: 1px solid hsl(var(--border) / 0.7); background: hsl(var(--card)); color: inherit; font: inherit; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: border-color 150ms ease, background 150ms ease, transform 150ms ease; max-width: 240px; }
+.company-chip:hover { border-color: hsl(var(--primary) / 0.5); background: hsl(var(--muted) / 0.6); }
+.company-chip[aria-selected='true'] { border-color: hsl(var(--primary)); background: hsl(var(--primary) / 0.12); }
+.company-chip-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.company-chip-count { font-size: 0.72rem; font-weight: 700; color: hsl(var(--muted-foreground)); background: hsl(var(--muted) / 0.8); border-radius: 999px; padding: 0.05rem 0.45rem; }
+.company-logo { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; border-radius: 8px; object-fit: contain; background: #fff; border: 1px solid hsl(var(--border) / 0.6); }
+.company-logo-fallback { background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); font-weight: 800; letter-spacing: 0.02em; }
+.job-card-head { display: flex; align-items: flex-start; gap: 0.75rem; }
 .jobs-toolbar { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1rem; }
 .jobs-toolbar-row { display: grid; gap: 0.5rem; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .jobs-toolbar .input-field { padding: 0.6rem 0.85rem; font-size: 0.9rem; }

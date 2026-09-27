@@ -5,7 +5,7 @@ import { ADAPTERS } from '../ai/adapters'
 import { runGateway, type GatewayDeps, type GatewayOutcome, type UsageRecord } from '../ai/gateway'
 import { DEFAULT_AI_POLICY, normalizeAiPolicy, type AiPolicy } from '../ai/policy'
 import { AI_FEATURES, type AiFeature, type AiProviderId, type AiRequest } from '../ai/types'
-import { getUserAiKey } from './aiKeys'
+import { getUserAiKey, getUserAiKeys, recordKeyOutcome } from './aiKeys'
 import { readSetting, writeSetting } from './settings'
 import { utcDay } from './entitlements'
 
@@ -37,7 +37,7 @@ async function callsToday(userId: string): Promise<number> {
 }
 
 export async function gatewayDeps(): Promise<GatewayDeps> {
-  return { adapters: ADAPTERS, policy: await getAiPolicy(), record, callsToday }
+  return { adapters: ADAPTERS, policy: await getAiPolicy(), record, callsToday, onKeyOutcome: (keyId, outcome, detail) => recordKeyOutcome(keyId, outcome, detail) }
 }
 
 /**
@@ -45,14 +45,18 @@ export async function gatewayDeps(): Promise<GatewayDeps> {
  * matches policy). Returns the gateway outcome; callers keep their
  * deterministic result whatever happens here.
  */
-export async function runAi<T = Record<string, unknown>>(input: Omit<AiRequest, 'userKey'> & { userKey?: AiRequest['userKey'] }, validate?: (data: Record<string, unknown>) => T | null): Promise<GatewayOutcome<T>> {
+export async function runAi<T = Record<string, unknown>>(input: Omit<AiRequest, 'userKey' | 'userKeys'> & { userKey?: AiRequest['userKey']; userKeys?: AiRequest['userKeys'] }, validate?: (data: Record<string, unknown>) => T | null): Promise<GatewayOutcome<T>> {
   const deps = await gatewayDeps()
   let userKey = input.userKey ?? null
-  if (input.userKey === undefined && input.userId) {
-    const own = await getUserAiKey(input.userId)
-    if (own) userKey = { provider: own.provider as AiProviderId, key: own.key }
+  let userKeys: AiRequest['userKeys'] = input.userKeys ?? null
+  if (input.userKey === undefined && input.userKeys === undefined && input.userId) {
+    const pool = await getUserAiKeys(input.userId)
+    if (pool) {
+      userKeys = { provider: pool.provider as AiProviderId, keys: pool.keys.map((k) => ({ id: k.id, key: k.key })) }
+      userKey = { provider: pool.provider as AiProviderId, key: pool.keys[0].key }
+    }
   }
-  return runGateway<T>({ ...input, userKey }, deps, validate)
+  return runGateway<T>({ ...input, userKey, userKeys }, deps, validate)
 }
 
 /** Whether any provider could answer a feature right now (for UI hints and health). */

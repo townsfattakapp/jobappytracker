@@ -346,6 +346,25 @@ try {
   assert.ok(freeConfig.features.includes('jobs.discovery') && !freeConfig.features.includes('jobs.matching'))
   pass('a signed-in learner without a pass lands on the Command Center on the free plan and opens Job Discovery')
 
+  // Companies hiring strip: every company with published openings, with a logo or initials, and a chip filters the list.
+  const strip = free.getByRole('region', { name: 'Companies hiring' })
+  await strip.waitFor()
+  const hiring = await free.evaluate(() => fetch('/api/jobs/companies?limit=300').then((r) => r.json()))
+  assert.ok(Array.isArray(hiring.companies) && hiring.companies.length >= 1, 'companies endpoint lists hiring companies')
+  assert.ok(hiring.companies.every((c) => c.jobCount >= 1 && c.name && c.id), 'every entry has a name, id and a positive count')
+  assert.ok(hiring.companies.some((c) => c.name === companyName), 'the seeded company is in the strip')
+  const chip = strip.getByRole('option', { name: new RegExp('^' + companyName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b') }).first()
+  await chip.waitFor()
+  assert.equal((await strip.locator('.company-logo').count()) >= 2, true, 'chips render a logo or initials')
+  await chip.click()
+  await free.waitForResponse((r) => r.url().includes('/api/jobs?') && r.url().includes('companyId='))
+  await free.waitForTimeout(400)
+  const chipFiltered = await free.locator('.job-card .job-card-company').allInnerTexts()
+  assert.ok(chipFiltered.length >= 1 && chipFiltered.every((t) => t.startsWith(companyName)), `company chip filters the list: ${chipFiltered.slice(0, 3).join(' | ')}`)
+  await strip.getByRole('option', { name: 'All companies' }).click()
+  await free.waitForTimeout(400)
+  pass('the companies-hiring strip lists companies with logos and filters the openings by company')
+
   // Free feed cap: set the free limit to 1, the learner sees one job plus the locked "more openings" card.
   const limitsSet = await admin.evaluate(() => fetch('/api/admin/plans/free', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ limits: { jobFeed: 1, analysesPerDay: 0 } }) }).then((r) => r.status))
   assert.equal(limitsSet, 200)

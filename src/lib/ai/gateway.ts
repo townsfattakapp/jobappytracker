@@ -33,6 +33,8 @@ export interface GatewayDeps {
   now?: () => number
   /** Calls the learner made today, for the per-user daily cap. */
   callsToday?: (userId: string) => Promise<number>
+  /** Told what happened to a pooled learner key (cooldown on rate limits, invalid on auth failures, cleared on success). */
+  onKeyOutcome?: (keyId: string, outcome: 'ok' | 'rate_limit' | 'auth', detail: { message?: string; retryAfterMs?: number | null }) => Promise<void>
 }
 
 export type GatewayOutcome<T> = { ok: true; result: AiResult<T> } | { ok: false; error: AiGatewayError }
@@ -57,27 +59,37 @@ export function extractJsonObject(text: string): Record<string, unknown> | null 
 }
 
 /** Provider/model candidates for a request in policy order, honouring configuration, the learner's own key and data-handling rules. */
-export function resolveCandidates(req: AiRequest, deps: GatewayDeps): { adapter: AiAdapter; model: string; apiKey: string; own: boolean }[] {
+export interface Candidate {
+  adapter: AiAdapter
+  model: string
+  apiKey: string
+  own: boolean
+  /** Id of the learner's pooled key behind apiKey, when it came from the pool. */
+  keyId?: string
+}
+
+export function resolveCandidates(req: AiRequest, deps: GatewayDeps): Candidate[] {
   const policy = deps.policy
   const fp = policy.features[req.feature]
   const order = fp?.providers.length ? fp.providers : policy.providerOrder
-  const out: { adapter: AiAdapter; model: string; apiKey: string; own: boolean }[] = []
-  const push = (id: AiProviderId, own: boolean) => {
+  const out: Candidate[] = []
+  const push = (id: AiProviderId, own: boolean, apiKey: string, keyId?: string) => {
     const adapter = deps.adapters.find((a) => a.id === id)
-    if (!adapter) return
-    const apiKey = own ? req.userKey!.key : adapter.keyFromEnv()
-    if (!apiKey) return
-    if (out.some((o) => o.adapter.id === id)) return
+    if (!adapter || !apiKey) return
+    if (out.some((o) => o.adapter.id === id && (!own || o.apiKey === apiKey))) return
     const model = fp?.models[id] || adapter.models[0]
-    out.push({ adapter, model, apiKey, own })
+    out.push({ adapter, model, apiKey, own, ...(keyId ? { keyId } : {}) })
   }
-  if (req.userKey && order.includes(req.userKey.provider)) push(req.userKey.provider, true)
-  if (req.preferProvider) push(req.preferProvider, false)
-  for (const id of order) push(id, false)
+  // The learner's own keys first (one provider, every key of the pool in rotation order), then platform keys in policy order.
+  const own = req.userKeys?.keys.length ? req.userKeys : req.userKey ? { provider: req.userKey.provider, keys: [{ id: '', key: req.userKey.key }] } : null
+  if (own && order.includes(own.provider)) for (const k of own.keys) push(own.provider, true, k.key, k.id || undefined)
+  if (req.preferProvider) push(req.preferProvider, false, deps.adapters.find((a) => a.id === req.preferProvider)?.keyFromEnv() ?? '')
+  for (const id of order) push(id, false, deps.adapters.find((a) => a.id === id)?.keyFromEnv() ?? '')
   if (req.sensitivity === 'sensitive') {
-    // Sensitive content goes to one provider only: the learner's own key, or the first allowed configured provider. No cross-provider fallback.
+    // Sensitive content goes to one provider only: the learner's own key(s), or the first allowed configured provider. No cross-provider fallback.
     const allowed = policy.sensitiveProviders.length ? out.filter((o) => o.own || policy.sensitiveProviders.includes(o.adapter.id)) : out
-    return allowed.slice(0, 1)
+    const first = allowed[0]
+    return first ? allowed.filter((o) => o.adapter.id === first.adapter.id && o.own === first.own) : []
   }
   return out
 }
@@ -140,6 +152,7 @@ export async function runGateway<T = Record<string, unknown>>(req: AiRequest, de
           data = valid
         }
         attempts.push({ provider: c.adapter.id, model: c.model, status: 'ok', latencyMs })
+        if (c.keyId && deps.onKeyOutcome) await deps.onKeyOutcome(c.keyId, 'ok', {}).catch(() => undefined)
         const usage: AiUsage = reply.usage
         await deps.record({ requestId, userId: req.userId, feature: req.feature, provider: c.adapter.id, model: reply.model, status: 'ok', errorKind: null, errorId: null, promptChars, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, latencyMs: now() - started, attempts: attempts.length, sensitivity: req.sensitivity })
         return { ok: true, result: { content: reply.content, data, provider: c.adapter.id, model: reply.model, usage, latencyMs: now() - started, attempts, requestId } }
@@ -149,11 +162,16 @@ export async function runGateway<T = Record<string, unknown>>(req: AiRequest, de
         attempts.push({ provider: c.adapter.id, model: c.model, status: 'error', errorKind: e.kind, latencyMs: now() - t0 })
         lastKind = e.kind
         lastMessage = e.message
+        if (c.keyId && deps.onKeyOutcome && (e.kind === 'auth' || e.kind === 'rate_limit')) {
+          // A pooled learner key that is rejected or rate limited is set aside and the next key of the pool is tried at once.
+          await deps.onKeyOutcome(c.keyId, e.kind, { message: e.message, retryAfterMs: e.retryAfterMs ?? null }).catch(() => undefined)
+          break
+        }
         if (e.kind === 'auth' || !RETRYABLE.has(e.kind)) break
         if (attempt < deps.policy.maxRetries) await sleep(Math.min(e.retryAfterMs ?? 500 * 2 ** attempt, 5000))
       }
     }
-    // Next provider (never for sensitive requests: candidates is already a single entry).
+    // Next candidate: another key of the learner's pool, or the next provider (sensitive requests stay on one provider).
   }
   return fail(lastKind, lastMessage, candidates[candidates.length - 1]?.adapter.id ?? null, candidates[candidates.length - 1]?.model ?? null)
 }

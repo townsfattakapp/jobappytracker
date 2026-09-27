@@ -1,19 +1,18 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import type { AppUser } from './lib/cloudSync'
 import type { BillingState } from './lib/billing/client'
 import type { Entitlement } from './lib/billing/entitlement'
 import { BILLING_CHANGED_EVENT } from './lib/billing/client'
 import { isGmailConfigured } from './lib/gmail'
 import { CODE_LANGUAGES, useCodeLanguage, type CodeLanguage } from './lib/preferences'
-import { invalidateAiStatus } from './lib/aiGatewayClient'
 import { api } from './lib/adminClient'
 import BillingPanel from './components/billing/BillingPanel'
 import SubscriptionPanel from './components/SubscriptionPanel'
 import CurriculumStudio from './components/CurriculumStudio'
+import AiProvidersPanel from './components/settings/AiProvidersPanel'
 import {
   AccountVector,
   CloudSyncVector,
-  AiProviderVector,
   DataVaultVector,
   SettingsAmbientBackground,
   CardWatermark
@@ -40,53 +39,7 @@ interface SettingsWorkspaceProps {
 
 type SettingsTab = 'account' | 'sync' | 'ai' | 'data' | 'billing' | 'appearance' | 'admin'
 
-type AiProvider = 'groq' | 'openai' | 'gemini' | 'mistral' | 'openrouter'
 
-const PROVIDER_META: Record<
-  AiProvider,
-  { label: string; badge: string; placeholder: string; consoleUrl: string; speed: string; blurb: string }
-> = {
-  groq: {
-    label: 'Groq Cloud',
-    badge: 'Recommended · Ultra-Fast',
-    placeholder: 'gsk_••••••••••••••••••••••••',
-    consoleUrl: 'https://console.groq.com/keys',
-    speed: 'Sub-second (Llama 3.3 70B)',
-    blurb: 'Free tier with near-instant token streaming. Ideal for DSA hints, code reviews & mock interviews.'
-  },
-  openai: {
-    label: 'OpenAI',
-    badge: 'Standard Reasoning',
-    placeholder: 'sk-proj-••••••••••••••••••••',
-    consoleUrl: 'https://platform.openai.com/api-keys',
-    speed: 'High Quality (GPT-4o & 4o-mini)',
-    blurb: 'Industry standard for complex architectural design feedback and detailed code critiques.'
-  },
-  gemini: {
-    label: 'Google Gemini',
-    badge: 'Generous Free Tier',
-    placeholder: 'AIza••••••••••••••••••••••••',
-    consoleUrl: 'https://aistudio.google.com/app/apikey',
-    speed: 'Fast (Gemini 1.5 Flash)',
-    blurb: 'Fast, highly scalable model with massive context window from Google AI Studio.'
-  },
-  mistral: {
-    label: 'Mistral AI',
-    badge: 'European AI',
-    placeholder: '••••••••••••••••••••••••••••',
-    consoleUrl: 'https://console.mistral.ai/api-keys',
-    speed: 'High (Mistral Small / Large)',
-    blurb: 'European open-weight provider offering sovereign data processing and strong coding abilities.'
-  },
-  openrouter: {
-    label: 'OpenRouter',
-    badge: 'Multi-Model Unified',
-    placeholder: 'sk-or-••••••••••••••••••••••',
-    consoleUrl: 'https://openrouter.ai/keys',
-    speed: 'Configurable by Model',
-    blurb: 'Unified key to access Claude 3.5 Sonnet, DeepSeek V3, Llama 3, and 100+ open-source models.'
-  }
-}
 
 export default function SettingsWorkspace({
   user,
@@ -120,83 +73,7 @@ export default function SettingsWorkspace({
   const historyInput = useRef<HTMLInputElement>(null)
   const gmailConfigured = isGmailConfigured()
 
-  // AI Key Management State
-  const [aiLoaded, setAiLoaded] = useState(false)
-  const [aiSaved, setAiSaved] = useState<{ provider: AiProvider; hint: string } | null>(null)
-  const [aiProvider, setAiProvider] = useState<AiProvider>('groq')
-  const [aiKey, setAiKey] = useState('')
-  const [showAiKey, setShowAiKey] = useState(false)
-  const [aiBusy, setAiBusy] = useState(false)
-  const [aiError, setAiError] = useState<string | null>(null)
 
-  // Load AI Key on mount if signed in
-  useEffect(() => {
-    if (!user) {
-      setAiSaved(null)
-      setAiLoaded(true)
-      return
-    }
-    let cancelled = false
-    fetch('/api/ai/key', { cache: 'no-store' })
-      .then(r => (r.ok ? r.json() : null))
-      .then((data: { key?: { provider: AiProvider; hint: string } | null } | null) => {
-        if (cancelled) return
-        setAiSaved(data?.key ?? null)
-        if (data?.key) setAiProvider(data.key.provider)
-        setAiLoaded(true)
-      })
-      .catch(() => setAiLoaded(true))
-    return () => {
-      cancelled = true
-    }
-  }, [user])
-
-  const handleSaveAiKey = async () => {
-    setAiError(null)
-    setAiBusy(true)
-    try {
-      const res = await fetch('/api/ai/key', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: aiProvider, key: aiKey })
-      })
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string
-        key?: { provider: AiProvider; hint: string }
-        verified?: boolean
-      }
-      if (!res.ok || !data.key) throw new Error(data.error || 'Failed to verify and save the AI key.')
-      setAiSaved(data.key)
-      setAiKey('')
-      invalidateAiStatus()
-      onToast(
-        data.verified
-          ? `✨ ${PROVIDER_META[aiProvider].label} key verified and connected!`
-          : `Saved ${PROVIDER_META[aiProvider].label} key (verification queued)`
-      )
-    } catch (err) {
-      setAiError(err instanceof Error ? err.message : 'Could not save the key.')
-    } finally {
-      setAiBusy(false)
-    }
-  }
-
-  const handleRemoveAiKey = async () => {
-    if (!window.confirm('Remove your active AI API key? AI-driven reviews and tutor queries will be paused.')) {
-      return
-    }
-    setAiBusy(true)
-    try {
-      await fetch('/api/ai/key', { method: 'DELETE' })
-      setAiSaved(null)
-      invalidateAiStatus()
-      onToast('AI key removed')
-    } catch {
-      onToast('Failed to remove AI key')
-    } finally {
-      setAiBusy(false)
-    }
-  }
 
   // Force sync pulse feedback
   const [manualSyncing, setManualSyncing] = useState(false)
@@ -307,7 +184,6 @@ export default function SettingsWorkspace({
           }`}
         >
           <span>🧠</span> AI Providers
-          {aiSaved && <span className="w-2 h-2 rounded-full bg-emerald-500" />}
         </button>
 
         <button
@@ -589,164 +465,7 @@ export default function SettingsWorkspace({
       {/* ========================================================================= */}
       {/* TAB 3: AI PROVIDERS & INTELLIGENCE HUB                                    */}
       {/* ========================================================================= */}
-      {activeTab === 'ai' && (
-        <div className="flex flex-col gap-6">
-          <div className="surface p-6 rounded-2xl border border-border flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
-            <CardWatermark variant="ai" />
-            <div className="flex flex-col gap-2 z-10">
-              <span className="text-xs font-bold text-primary uppercase tracking-wider">
-                Bring Your Own Key (BYOK)
-              </span>
-              <h2 className="text-xl font-bold text-foreground">AI Intelligence Providers</h2>
-              <p className="text-sm text-muted-foreground max-w-xl">
-                Antigravity uses your own API key for tutor guidance, code reviews, system design grading, and mock interviews.
-                Your keys are encrypted at rest with AES-256 and never shared with other users.
-              </p>
-            </div>
-
-            <div className="hidden md:flex shrink-0 opacity-90 hover:opacity-100 transition-opacity z-10">
-              <AiProviderVector />
-            </div>
-          </div>
-
-          {!user ? (
-            <div className="surface p-8 rounded-2xl border border-border text-center flex flex-col items-center gap-3">
-              <div className="text-3xl">🔑</div>
-              <h3 className="text-lg font-bold text-foreground">Sign In to Connect Your AI Key</h3>
-              <p className="text-sm text-muted-foreground max-w-md">
-                Once saved to your profile, your AI key is encrypted and automatically unlocks AI capabilities
-                across all your devices without needing to re-enter it.
-              </p>
-              <button type="button" className="btn btn-primary text-sm px-6 mt-2" onClick={onSignIn}>
-                Sign in to Configure AI
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-6">
-              {/* Connected Status Banner */}
-              {aiLoaded && aiSaved && (
-                <div className="surface p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
-                    <div>
-                      <p className="text-sm font-bold text-emerald-400">
-                        Connected: {PROVIDER_META[aiSaved.provider]?.label || aiSaved.provider}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Active key ending with <code className="font-mono text-foreground font-semibold">{aiSaved.hint}</code>
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={aiBusy}
-                    onClick={() => void handleRemoveAiKey()}
-                    className="btn btn-ghost text-xs text-destructive hover:bg-destructive/10 border border-destructive/20"
-                  >
-                    Disconnect Key
-                  </button>
-                </div>
-              )}
-
-              {/* Provider Selection Grid */}
-              <div className="flex flex-col gap-3">
-                <label className="text-sm font-bold text-foreground">Select AI Engine Provider</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {(Object.keys(PROVIDER_META) as AiProvider[]).map(id => {
-                    const active = aiProvider === id
-                    const meta = PROVIDER_META[id]
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => setAiProvider(id)}
-                        className={`p-4 rounded-xl border text-left flex flex-col justify-between gap-3 transition-all ${
-                          active
-                            ? 'border-primary bg-primary/10 shadow-sm'
-                            : 'border-border bg-muted/20 hover:border-border/80 hover:bg-muted/40'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="font-bold text-sm text-foreground">{meta.label}</p>
-                            <span className="text-[10px] font-semibold text-primary">{meta.badge}</span>
-                          </div>
-                          {active && <span className="w-2.5 h-2.5 rounded-full bg-primary" />}
-                        </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2">{meta.blurb}</p>
-                        <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[11px] text-muted-foreground">
-                          <span>{meta.speed}</span>
-                          <span className="text-primary hover:underline">Get Key ↗</span>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* API Key Input Form */}
-              <div className="surface p-6 rounded-2xl border border-border flex flex-col gap-4">
-                <div>
-                  <h3 className="text-sm font-bold text-foreground">
-                    {aiSaved
-                      ? `Replace with new ${PROVIDER_META[aiProvider].label} Key`
-                      : `Enter ${PROVIDER_META[aiProvider].label} API Key`}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Grab your key from the{' '}
-                    <a
-                      href={PROVIDER_META[aiProvider].consoleUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-primary font-semibold hover:underline"
-                    >
-                      {PROVIDER_META[aiProvider].label} Console ↗
-                    </a>
-                    . Keys are tested live before saving.
-                  </p>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      id="settings-ai-key"
-                      type={showAiKey ? 'text' : 'password'}
-                      className="input-field font-mono text-sm w-full pr-16"
-                      placeholder={PROVIDER_META[aiProvider].placeholder}
-                      value={aiKey}
-                      onChange={e => setAiKey(e.target.value)}
-                      autoComplete="off"
-                      spellCheck={false}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowAiKey(!showAiKey)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground px-2 py-1"
-                    >
-                      {showAiKey ? 'Hide' : 'Show'}
-                    </button>
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={aiBusy || !aiKey.trim()}
-                    onClick={() => void handleSaveAiKey()}
-                    className="btn btn-primary text-sm px-6 whitespace-nowrap font-medium"
-                  >
-                    {aiBusy ? 'Testing & Verifying…' : 'Save & Verify Key'}
-                  </button>
-                </div>
-
-                {aiError && (
-                  <p className="text-xs text-destructive bg-destructive/10 p-2.5 rounded-lg border border-destructive/20">
-                    ⚠️ {aiError}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {activeTab === 'ai' && <AiProvidersPanel user={user} onSignIn={onSignIn} onToast={onToast} />}
 
       {/* ========================================================================= */}
       {/* TAB 4: DATA VAULT & PRIVACY                                               */}

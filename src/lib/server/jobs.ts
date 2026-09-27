@@ -84,6 +84,31 @@ export async function listCompanies(opts: { q?: string; status?: string; page?: 
   return { items: rows.map((r) => ({ ...toCompanyDto(r.company), jobCount: r.jobCount })), total: count, page, pageSize }
 }
 
+export interface HiringCompany {
+  id: string
+  name: string
+  slug: string
+  website: string | null
+  careersUrl: string | null
+  logoUrl: string | null
+  headquarters: string | null
+  indiaRelevance: string | null
+  jobCount: number
+}
+
+/** Active companies with published, unexpired openings, most openings first (the strip at the top of Job Discovery). */
+export async function hiringCompanies(limit = 60): Promise<HiringCompany[]> {
+  const rows = await db
+    .select({ id: companies.id, name: companies.name, slug: companies.slug, website: companies.website, careersUrl: companies.careersUrl, logoUrl: companies.logoUrl, headquarters: companies.headquarters, indiaRelevance: companies.indiaRelevance, jobCount: sql<number>`count(${jobs.id})::int` })
+    .from(companies)
+    .innerJoin(jobs, eq(jobs.companyId, companies.id))
+    .where(and(eq(companies.status, 'active'), eq(jobs.status, 'published'), or(isNull(jobs.expiresAt), gt(jobs.expiresAt, sql`now()`))))
+    .groupBy(companies.id)
+    .orderBy(desc(sql`count(${jobs.id})`), asc(companies.name))
+    .limit(limit)
+  return rows.map((r) => ({ ...r, jobCount: Number(r.jobCount) }))
+}
+
 export async function allActiveCompanies(): Promise<Pick<CompanyDto, 'id' | 'name' | 'slug'>[]> {
   const rows = await db.select({ id: companies.id, name: companies.name, slug: companies.slug }).from(companies).where(eq(companies.status, 'active')).orderBy(asc(companies.name))
   return rows
