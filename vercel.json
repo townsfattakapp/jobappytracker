@@ -1,6 +1,16 @@
 {
   "crons": [
-    { "path": "/api/cron/ingestion", "schedule": "15 1 * * *" },
-    { "path": "/api/cron/reminders", "schedule": "30 3 * * *" }
+    {
+      "path": "/api/cron/ingestion",
+      "schedule": "15 1 * * *"
+    },
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/referrals",
+      "schedule": "45 3 * * *"
+    }
   ]
 }
