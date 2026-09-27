@@ -2,18 +2,8 @@ import type { Metadata } from 'next'
 import LegalPageLayout from '../../components/legal/LegalPageLayout'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy',
-  description:
-    'How Prep by EVOLW collects, handles, stores and protects your personal learning, resume, and authentication data.',
-  alternates: {
-    canonical: '/privacy',
-  },
-  openGraph: {
-    title: 'Privacy Policy · Prep by EVOLW',
-    description:
-      'How Prep by EVOLW collects, handles, stores and protects your personal learning, resume, and authentication data.',
-    url: '/privacy',
-  },
+  title: 'Privacy Policy · Prep by EVOLW',
+  description: 'How Prep by EVOLW collects, handles, stores and protects your personal learning, resume, and authentication data.',
 }
 
 export default function PrivacyPage() {
