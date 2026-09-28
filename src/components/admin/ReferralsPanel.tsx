@@ -44,6 +44,17 @@ export default function ReferralsPanel({ initial, companies, canEdit }: { initia
   const m = data.metrics
   return (
     <div className="referrals-admin">
+      <section className="admin-card">
+        <h2 className="font-semibold">Launch and manage your referral network</h2>
+        <ol className="list-decimal pl-5 text-sm space-y-2 mt-3">
+          <li><button className="btn btn-link btn-sm" onClick={() => setTab('coverage')}>Review company coverage</button> Record the employer policy and enable referrals for eligible companies.</li>
+          <li><button className="btn btn-link btn-sm" onClick={() => setTab('referrers')}>Invite employees</button> Send a personal invitation, then track acceptance below Referrers.</li>
+          <li>Employees accept, complete their profile and confirm their personal email. Review their evidence in Referrers and record how you confirmed employment, and approve eligible employees.</li>
+          <li>Verified employees set availability and capacity. Candidates open a job, check readiness and submit through its Referral tab.</li>
+          <li><button className="btn btn-link btn-sm" onClick={() => setTab('requests')}>Manage requests</button> Monitor matching, replies and submission. Assign or retry matching when help is needed.</li>
+        </ol>
+        <p className="admin-help mt-3">An accepted invitation is only the first step. Coverage needs an eligible company policy and an available, verified employee with capacity.</p>
+      </section>
       <div className="admin-stat-grid">
         <StatCard label="Verified referrers" value={m.verifiedReferrers} hint={`${m.availableReferrers} available`} />
         <StatCard label="Companies covered" value={m.companiesCovered} hint="with an active verified referrer" />
@@ -77,7 +88,7 @@ export default function ReferralsPanel({ initial, companies, canEdit }: { initia
         ))}
       </div>
       {tab === 'requests' && <Requests requests={data.requests} referrers={data.referrers} canEdit={canEdit} busy={busy} run={run} />}
-      {tab === 'referrers' && <Referrers referrers={data.referrers} companies={companies} canEdit={canEdit} busy={busy} run={run} />}
+      {tab === 'referrers' && <Referrers referrers={data.referrers} invites={data.invites} companies={companies} canEdit={canEdit} busy={busy} run={run} />}
       {tab === 'coverage' && <Coverage coverage={data.coverage} canEdit={canEdit} busy={busy} run={run} />}
       {tab === 'disclosures' && (
         <div className="admin-table-wrap">
@@ -265,10 +276,21 @@ function Requests({ requests, referrers, canEdit, busy, run }: { requests: Admin
   )
 }
 
-function Referrers({ referrers, companies, canEdit, busy, run }: { referrers: AdminReferrerDto[]; companies: { id: string; name: string }[]; canEdit: boolean; busy: boolean; run: (fn: () => Promise<string | void>) => Promise<void> }) {
+function Referrers({ referrers, invites, companies, canEdit, busy, run }: { referrers: AdminReferrerDto[]; invites: AdminReferralConsole['invites']; companies: { id: string; name: string }[]; canEdit: boolean; busy: boolean; run: (fn: () => Promise<string | void>) => Promise<void> }) {
   const when = useWhen()
   const [invite, setInvite] = useState({ email: '', companyId: '', note: '' })
   const [link, setLink] = useState<string | null>(null)
+  const [shareMessage, setShareMessage] = useState('')
+  const [copyStatus, setCopyStatus] = useState('')
+  const copy = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopyStatus('Copied.')
+    } catch {
+      setCopyStatus('Copy is unavailable in this browser. Select and copy the text below.')
+    }
+  }
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({})
   const [notes, setNotes] = useState<Record<string, string>>({})
   const [caps, setCaps] = useState<Record<string, { a: number; m: number }>>({})
   const [credit, setCredit] = useState({ userId: '', amount: 1, reason: 'Beta credit' })
@@ -280,17 +302,21 @@ function Referrers({ referrers, companies, canEdit, busy, run }: { referrers: Ad
           onSubmit={(e) => {
             e.preventDefault()
             run(async () => {
-              const r = (await adminReferralAction({ action: 'invite', ...invite })) as { invite?: { link: string } }
-              setLink(r.invite?.link ?? null)
+              const r = (await adminReferralAction({ action: 'invite', ...invite })) as { invite: { link: string; expiresAt: string; emailStatus: 'sent' | 'skipped' | 'failed' | 'unknown' } }
+              const url = `${window.location.origin}${r.invite.link}`
+              setLink(url)
+              setCopyStatus('')
+              setShareMessage(`Hi! I'd like to invite you to join JobAppy's verified referrer network for ${companies.find((c) => c.id === invite.companyId)?.name ?? 'your company'}.\n\nYou can review candidate requests, ask questions, and accept or decline each one. Set your own capacity and pause whenever needed. Your name and personal email stay private unless you choose to share your identity.\n\nJoin here: ${url}\n\nCreate an account or sign in, accept the invitation, complete your profile, and confirm your personal email (no work email is required). Our team then separately reviews your employment. JobAppy is independent and does not represent your employer. If you accept a candidate, submit through your employer's process and mark it submitted in JobAppy.\n\nThis personal link expires ${when(r.invite.expiresAt)}. A request never guarantees a referral, interview, or job.`)
               setInvite({ email: '', companyId: '', note: '' })
-              return 'Invitation created. If mail is not configured, hand over the link shown below.'
+              return r.invite.emailStatus === 'sent' ? 'Invitation created. The email provider accepted the message; you can also copy the invitation below.' : r.invite.emailStatus === 'failed' ? 'Invitation created, but email sending failed. Copy and share the invitation below.' : r.invite.emailStatus === 'skipped' ? 'Invitation created. Email delivery is not configured; copy and share the invitation below.' : 'Invitation created. Email delivery is unconfirmed; copy and share the invitation below.'
             })
           }}
         >
           <h3 className="font-semibold">Invite a referrer (invite-only beta)</h3>
+          <p className="admin-help">Invite a friend or employee who agreed to join. Use their Gmail or other personal email; no work address is required. They must sign in with this same address. Links expire after 14 days. Share each link only with its intended recipient. Invitation emails require configured email delivery.</p>
           <div className="admin-grid-3">
             <label className="admin-field">
-              <span>Corporate email</span>
+              <span>Personal email</span>
               <input className="input-field" type="email" required value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} />
             </label>
             <label className="admin-field">
@@ -313,12 +339,29 @@ function Referrers({ referrers, companies, canEdit, busy, run }: { referrers: Ad
             Send invitation
           </button>
           {link && (
-            <p className="admin-help">
-              Invitation link (shown once): <code className="admin-code">{typeof window !== 'undefined' ? `${window.location.origin}${link}` : link}</code>
-            </p>
+            <div className="referral-invite">
+              <label className="admin-field"><span>Personal invitation link (save before leaving this tab)</span><input className="input-field" readOnly value={link} onFocus={(e) => e.target.select()} /></label>
+              <label className="admin-field"><span>Ready to share by email, LinkedIn or WhatsApp</span><textarea className="input-field" rows={9} readOnly value={shareMessage} onFocus={(e) => e.target.select()} /></label>
+              <div className="referral-actions">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => copy(link)}>Copy invitation link</button>
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => copy(shareMessage)}>Copy invitation message</button>
+              </div>
+              {copyStatus && <p role="status" className="admin-help">{copyStatus}</p>}
+            </div>
           )}
         </form>
       )}
+      <section className="admin-card referral-invite">
+        <h3 className="font-semibold">Invitation history</h3>
+        <p className="admin-help">Latest 200 invitations. Pending means the link has not been accepted; it does not confirm email delivery. For an expired invitation, create a new one above.</p>
+        <div className="admin-table-wrap"><table className="admin-table">
+          <thead><tr><th>Employee email</th><th>Company</th><th>Status</th><th>Invited</th><th>Expires</th></tr></thead>
+          <tbody>
+            {invites.length === 0 && <tr><td colSpan={5}>No invitations yet.</td></tr>}
+            {invites.map((i) => <tr key={i.id}><td>{i.email}</td><td>{i.companyName}</td><td><Pill tone={i.status === 'accepted' ? 'good' : i.status === 'expired' ? 'neutral' : 'warn'}>{i.status}</Pill></td><td>{when(i.createdAt)}</td><td>{when(i.expiresAt)}</td></tr>)}
+          </tbody>
+        </table></div>
+      </section>
       {canEdit && (
         <form
           className="admin-card referral-invite"
@@ -374,9 +417,10 @@ function Referrers({ referrers, companies, canEdit, busy, run }: { referrers: Ad
                 <td>
                   <strong>{r.fullName || '(onboarding not completed)'}</strong>
                   <div className="job-section-sub">
-                    {r.corporateEmail ?? '—'} · account {r.userEmail ?? '—'}
+                    {r.contactEmail ?? '—'} · account {r.userEmail ?? '—'}
                   </div>
                   <div className="job-section-sub">{r.title ?? ''}</div>
+                  <details className="admin-details"><summary>Employment review history</summary><ul className="referral-admin-list">{r.verifications.filter((v) => v.method === 'admin_review').map((v) => <li key={v.id}>{when(v.createdAt)} · {v.status} · {v.note}</li>)}</ul></details>
                 </td>
                 <td>
                   {r.companyName}
@@ -388,7 +432,7 @@ function Referrers({ referrers, companies, canEdit, busy, run }: { referrers: Ad
                   <Pill tone={r.verificationStatus === 'VERIFIED' ? 'good' : r.verificationStatus === 'PENDING' || r.verificationStatus === 'REQUIRES_REVERIFICATION' ? 'warn' : statusTone(r.verificationStatus)}>{r.verificationStatus.toLowerCase().replace(/_/g, ' ')}</Pill>
                   <div className="job-section-sub">
                     {r.availability}
-                    {r.verifications.some((v) => v.method === 'corporate_email' && v.status === 'confirmed') ? ' · mailbox confirmed' : ' · mailbox not confirmed'}
+                    {r.contactEmailVerifiedAt ? ' · personal email confirmed' : ' · personal email not confirmed'}
                     {r.verificationExpiresAt ? ` · until ${when(r.verificationExpiresAt)}` : ''}
                   </div>
                 </td>
@@ -402,9 +446,12 @@ function Referrers({ referrers, companies, canEdit, busy, run }: { referrers: Ad
                   {canEdit && (
                     <div className="referral-admin-actions">
                       {['PENDING', 'REQUIRES_REVERIFICATION', 'EXPIRED', 'REJECTED', 'SUSPENDED'].includes(r.verificationStatus) && (
-                        <button type="button" className="btn btn-primary btn-sm" disabled={busy || !r.onboardingCompletedAt} title={r.onboardingCompletedAt ? '' : 'Onboarding not completed'} onClick={() => run(async () => { await adminReferrerAction(r.id, { action: 'verify' }); return 'Verified for 12 months.' })}>
-                          Verify
-                        </button>
+                        <div className="referral-invite">
+                          <label className="admin-field"><span>Employment review note</span><textarea className="input-field" maxLength={300} value={reviewNotes[r.id] ?? ''} onChange={(e) => setReviewNotes({ ...reviewNotes, [r.id]: e.target.value })} placeholder="How and when you confirmed current employment, e.g. personally known colleague; confirmed company and role on a call." /></label>
+                          <p className="admin-help">Confirm current employment and referral-policy eligibility. Email confirmation only proves mailbox access. Do not record confidential employer documents.</p>
+                          <button type="button" className="btn btn-primary btn-sm" disabled={busy || !r.onboardingCompletedAt || !r.contactEmailVerifiedAt || (reviewNotes[r.id] ?? '').trim().length < 15} onClick={() => run(async () => { await adminReferrerAction(r.id, { action: 'verify', note: reviewNotes[r.id] }); return 'Employment approved for 12 months. The referrer can now become available.' })}>Verify</button>
+                          {!r.onboardingCompletedAt ? <p className="admin-help">Waiting for profile completion.</p> : !r.contactEmailVerifiedAt ? <p className="admin-help">Waiting for personal email confirmation.</p> : null}
+                        </div>
                       )}
                       {r.verificationStatus === 'VERIFIED' && (
                         <>

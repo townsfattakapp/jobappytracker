@@ -471,7 +471,7 @@ async function runMatching(d: Deps, request: RequestRow, settings: ReferralSetti
   const assignment: typeof schema.referralAssignments.$inferInsert = { id: randomUUID(), requestId: request.id, referrerId: chosen.id, referrerPublicId: chosen.publicId, status: 'PENDING', assignedBy: actor.role === 'admin' ? 'admin' : 'system', assignedAt: now, expiresAt: new Date(now.getTime() + settings.assignmentTtlHours * 36e5), createdAt: now }
   await d.db.insert(schema.referralAssignments).values(assignment)
   const next = await transition(d, request, 'ASSIGNED', actor, { patch: { currentAssignmentId: assignment.id, attempts: request.attempts + 1 }, meta: { assignmentId: assignment.id } })
-  const referrer = (await d.db.select({ userId: schema.referrerProfiles.userId, email: schema.users.email }).from(schema.referrerProfiles).leftJoin(schema.users, eq(schema.users.id, schema.referrerProfiles.userId)).where(eq(schema.referrerProfiles.id, chosen.id)).limit(1))[0]
+  const referrer = (await d.db.select({ userId: schema.referrerProfiles.userId, email: schema.referrerProfiles.contactEmail }).from(schema.referrerProfiles).leftJoin(schema.users, eq(schema.users.id, schema.referrerProfiles.userId)).where(eq(schema.referrerProfiles.id, chosen.id)).limit(1))[0]
   if (referrer?.userId) await d.notify(referrer.userId, referrer.email ?? null, 'referral.assigned', { company: request.companyName, role: request.jobTitle, hours: settings.assignmentTtlHours })
   return next
 }
@@ -532,7 +532,7 @@ export async function learnerMessage(deps: ReferralDeps, userId: string, request
 async function assignedReferrerContact(db: ReferralsDb, assignmentId: string | null): Promise<{ userId: string; email: string | null } | null> {
   if (!assignmentId) return null
   const rows = await db
-    .select({ userId: schema.referrerProfiles.userId, email: schema.users.email })
+    .select({ userId: schema.referrerProfiles.userId, email: schema.referrerProfiles.contactEmail })
     .from(schema.referralAssignments)
     .innerJoin(schema.referrerProfiles, eq(schema.referrerProfiles.id, schema.referralAssignments.referrerId))
     .leftJoin(schema.users, eq(schema.users.id, schema.referrerProfiles.userId))
@@ -701,6 +701,8 @@ export interface ReferrerSelfDto {
   companyName: string
   fullName: string
   corporateEmail: string | null
+  contactEmail: string | null
+  contactEmailVerifiedAt: string | null
   title: string | null
   roleFamilies: string[]
   department: string | null
@@ -729,7 +731,7 @@ function referrerActive(r: ReferrerRow, now: Date): boolean {
 
 async function referrerSelfDto(d: Deps, r: ReferrerRow): Promise<ReferrerSelfDto> {
   const company = (await d.db.select({ name: schema.companies.name }).from(schema.companies).where(eq(schema.companies.id, r.companyId)).limit(1))[0]
-  const pending = await d.db.select({ id: schema.referrerVerifications.id }).from(schema.referrerVerifications).where(and(eq(schema.referrerVerifications.referrerId, r.id), eq(schema.referrerVerifications.method, 'corporate_email'), eq(schema.referrerVerifications.status, 'pending'))).limit(1)
+  const pending = await d.db.select({ id: schema.referrerVerifications.id }).from(schema.referrerVerifications).where(and(eq(schema.referrerVerifications.referrerId, r.id), eq(schema.referrerVerifications.method, 'personal_email'), eq(schema.referrerVerifications.status, 'pending'), gte(schema.referrerVerifications.tokenExpiresAt, d.now()))).limit(1)
   return {
     id: r.id,
     publicId: r.publicId,
@@ -737,6 +739,8 @@ async function referrerSelfDto(d: Deps, r: ReferrerRow): Promise<ReferrerSelfDto
     companyName: company?.name ?? 'Company',
     fullName: r.fullName,
     corporateEmail: r.corporateEmail,
+    contactEmail: r.contactEmail,
+    contactEmailVerifiedAt: iso(r.contactEmailVerifiedAt),
     title: r.title,
     roleFamilies: r.roleFamilies ?? [],
     department: r.department,
@@ -767,12 +771,33 @@ export async function getReferrerByUser(deps: ReferralDeps, userId: string): Pro
 
 async function loadReferrerRow(db: ReferralsDb, userId: string): Promise<ReferrerRow> {
   const rows = await db.select().from(schema.referrerProfiles).where(eq(schema.referrerProfiles.userId, userId)).limit(1)
-  if (!rows[0]) throw new ValidationError('No referrer profile for this account', 'referrer')
+  if (!rows[0] || rows[0].deletedAt) throw new ValidationError('No referrer profile for this account', 'referrer')
   return rows[0]
 }
 
-export async function createInvite(deps: ReferralDeps, input: { email: string; companyId: string; invitedBy: string; note?: string | null }): Promise<{ id: string; token: string; expiresAt: Date }> {
+export interface AdminInviteDto {
+  id: string
+  email: string
+  companyName: string
+  createdAt: string
+  expiresAt: string
+  status: 'pending' | 'accepted' | 'expired'
+}
+
+/** Admin-only projection: never return token hashes or reusable invitation links. */
+export async function adminListInvites(deps: ReferralDeps): Promise<AdminInviteDto[]> {
   const d = withDefaults(deps)
+  const rows = await d.db.select({ invite: schema.referrerInvites, companyName: schema.companies.name })
+    .from(schema.referrerInvites).innerJoin(schema.companies, eq(schema.companies.id, schema.referrerInvites.companyId))
+    .orderBy(desc(schema.referrerInvites.createdAt)).limit(200)
+  return rows.map(({ invite, companyName }) => ({ id: invite.id, email: invite.email, companyName,
+    createdAt: invite.createdAt.toISOString(), expiresAt: invite.expiresAt.toISOString(),
+    status: invite.acceptedAt ? 'accepted' : invite.expiresAt <= d.now() ? 'expired' : 'pending' }))
+}
+
+export async function createInvite(deps: ReferralDeps, input: { email: string; companyId: string; invitedBy: string; note?: string | null }): Promise<{ id: string; token: string; expiresAt: Date; emailStatus: 'sent' | 'skipped' | 'failed' | 'unknown' }> {
+  const d = withDefaults(deps)
+  if (typeof input.email !== 'string' || input.email.length > 254) throw new ValidationError('Enter a valid email', 'email')
   const email = input.email.trim().toLowerCase()
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new ValidationError('Enter a valid email', 'email')
   const company = (await d.db.select({ id: schema.companies.id, name: schema.companies.name }).from(schema.companies).where(eq(schema.companies.id, input.companyId)).limit(1))[0]
@@ -782,31 +807,36 @@ export async function createInvite(deps: ReferralDeps, input: { email: string; c
   const id = randomUUID()
   await d.db.insert(schema.referrerInvites).values({ id, email, companyId: input.companyId, tokenHash: sha256(token), invitedBy: input.invitedBy, note: input.note?.slice(0, 300) ?? null, expiresAt, createdAt: d.now() })
   await d.audit({ actorId: input.invitedBy, action: 'referrer.invite', entityType: 'referrer_invite', entityId: id, after: { email, companyId: input.companyId } })
-  await d.notify(null, email, 'referrer.invite', { company: company.name, token, days: 14 })
-  return { id, token, expiresAt }
+  const delivery = await d.notify(null, email, 'referrer.invite', { company: company.name, token, days: 14 })
+  const emailStatus = delivery === 'sent' || delivery === 'skipped' || delivery === 'failed' ? delivery : 'unknown'
+  return { id, token, expiresAt, emailStatus }
 }
 
 /** A signed-in user accepts an invite: the referrer profile shell is created and the role granted. */
 export async function acceptInvite(deps: ReferralDeps, input: { token: string; userId: string; email: string }): Promise<ReferrerSelfDto> {
   const d = withDefaults(deps)
   const now = d.now()
-  const rows = await d.db.select().from(schema.referrerInvites).where(eq(schema.referrerInvites.tokenHash, sha256(input.token.trim()))).limit(1)
-  const invite = rows[0]
-  if (!invite || invite.acceptedAt || invite.expiresAt <= now) throw new ValidationError('This invitation link is invalid or has expired.', 'token')
-  const existing = await d.db.select().from(schema.referrerProfiles).where(eq(schema.referrerProfiles.userId, input.userId)).limit(1)
-  if (existing[0]) throw new ValidationError('This account already has a referrer profile.', 'referrer')
-  const id = randomUUID()
-  const domain = invite.email.split('@')[1] ?? null
-  await d.db.insert(schema.referrerProfiles).values({ id, userId: input.userId, publicId: newPublicId(), companyId: invite.companyId, fullName: '', corporateEmail: invite.email, corporateEmailDomain: domain, verificationStatus: 'PENDING', invitedBy: invite.invitedBy, createdAt: now, updatedAt: now })
-  await d.db.update(schema.referrerInvites).set({ acceptedAt: now, acceptedByUserId: input.userId }).where(eq(schema.referrerInvites.id, invite.id))
-  await d.db.insert(schema.userRoles).values({ userId: input.userId, role: 'referrer', grantedBy: invite.invitedBy ?? 'invite' }).onConflictDoNothing()
-  await d.audit({ actorId: input.userId, action: 'referrer.invite.accept', entityType: 'referrer', entityId: id, after: { inviteId: invite.id } })
-  return referrerSelfDto(d, (await d.db.select().from(schema.referrerProfiles).where(eq(schema.referrerProfiles.id, id)).limit(1))[0])
+  if (typeof input.token !== 'string' || input.token.length > 200) throw new ValidationError('Invalid invitation token', 'token')
+  const accepted = await d.db.transaction(async (tx) => {
+    // Serialize all invitation accepts for this account, including different links.
+    const account = (await tx.select().from(schema.users).where(eq(schema.users.id, input.userId)).for('update'))[0]
+    if (!account) throw new ValidationError('Sign in to accept your invitation', 'userId')
+    const invite = (await tx.select().from(schema.referrerInvites).where(eq(schema.referrerInvites.tokenHash, sha256(input.token.trim()))).for('update'))[0]
+    if (!invite || invite.acceptedAt || invite.expiresAt <= now) throw new ValidationError('This invitation link is invalid or has expired.', 'token')
+    if (account.email?.trim().toLowerCase() !== invite.email) throw new ValidationError('Sign in with the email address that received this invitation. Ask the admin for a new invitation if you want to use a different address.', 'email')
+    if ((await tx.select({ id: schema.referrerProfiles.id }).from(schema.referrerProfiles).where(eq(schema.referrerProfiles.userId, input.userId)))[0]) throw new ValidationError('This account already has a referrer profile.', 'referrer')
+    const id = randomUUID()
+    await tx.insert(schema.referrerProfiles).values({ id, userId: input.userId, publicId: newPublicId(), companyId: invite.companyId, fullName: '', contactEmail: invite.email, verificationStatus: 'PENDING', invitedBy: invite.invitedBy, createdAt: now, updatedAt: now })
+    await tx.update(schema.referrerInvites).set({ acceptedAt: now, acceptedByUserId: input.userId }).where(eq(schema.referrerInvites.id, invite.id))
+    await tx.insert(schema.userRoles).values({ userId: input.userId, role: 'referrer', grantedBy: invite.invitedBy ?? 'invite' }).onConflictDoNothing()
+    return { id, inviteId: invite.id }
+  })
+  await d.audit({ actorId: input.userId, action: 'referrer.invite.accept', entityType: 'referrer', entityId: accepted.id, after: { inviteId: accepted.inviteId } })
+  return referrerSelfDto(d, (await d.db.select().from(schema.referrerProfiles).where(eq(schema.referrerProfiles.id, accepted.id)))[0])
 }
 
 export interface OnboardingInput {
   fullName: string
-  corporateEmail?: string
   title: string
   roleFamilies: string[]
   department?: string
@@ -820,8 +850,6 @@ export interface OnboardingInput {
   policyAcknowledged: boolean
   privacyConsent: boolean
 }
-
-const FREE_MAIL = new Set(['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'live.com', 'icloud.com', 'proton.me', 'protonmail.com', 'rediffmail.com', 'yandex.com', 'aol.com'])
 
 export async function completeOnboarding(deps: ReferralDeps, userId: string, input: OnboardingInput): Promise<ReferrerSelfDto> {
   const d = withDefaults(deps)
@@ -840,23 +868,17 @@ export async function completeOnboarding(deps: ReferralDeps, userId: string, inp
   if (!input.privacyConsent) throw new ValidationError('Consent to the privacy terms to continue', 'privacyConsent')
   const profileUrl = input.profileUrl ? clean(input.profileUrl, 200) : null
   if (profileUrl && !/^https:\/\/[^\s]+$/.test(profileUrl)) throw new ValidationError('The profile link must start with https://', 'profileUrl')
-  let corporateEmail = r.corporateEmail
-  if (input.corporateEmail && input.corporateEmail.trim().toLowerCase() !== r.corporateEmail) {
-    const email = input.corporateEmail.trim().toLowerCase()
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new ValidationError('Enter a valid corporate email', 'corporateEmail')
-    if (FREE_MAIL.has(email.split('@')[1])) throw new ValidationError('Use your company mailbox, not a personal one', 'corporateEmail')
-    corporateEmail = email
-  }
   const band = ['junior', 'mid', 'senior', 'lead'].includes(String(input.experienceBand)) ? String(input.experienceBand) : null
   const capActive = Math.min(10, Math.max(1, Math.floor(Number(input.maxActiveRequests) || r.maxActiveRequests)))
   const capMonthly = Math.min(40, Math.max(1, Math.floor(Number(input.maxMonthlyRequests) || r.maxMonthlyRequests)))
-  const emailChanged = corporateEmail !== r.corporateEmail
-  await d.db
+  if (r.onboardingCompletedAt) throw new ValidationError('Your profile has already been submitted. Contact support to change employment details.', 'onboarding')
+  const saved = await d.db
     .update(schema.referrerProfiles)
-    .set({ fullName, corporateEmail, corporateEmailDomain: corporateEmail?.split('@')[1] ?? null, title, roleFamilies, department: input.department ? clean(input.department, 80) : null, location, supportedLocations, profileUrl, profileUrlShareable: Boolean(input.profileUrlShareable) && Boolean(profileUrl), experienceBand: band, maxActiveRequests: capActive, maxMonthlyRequests: capMonthly, policyAcknowledgedAt: r.policyAcknowledgedAt ?? now, privacyConsentAt: r.privacyConsentAt ?? now, onboardingCompletedAt: r.onboardingCompletedAt ?? now, verificationStatus: emailChanged && r.verificationStatus === 'VERIFIED' ? 'REQUIRES_REVERIFICATION' : r.verificationStatus, updatedAt: now })
-    .where(eq(schema.referrerProfiles.id, r.id))
-  await d.audit({ actorId: userId, action: 'referrer.onboarding', entityType: 'referrer', entityId: r.id, after: { roleFamilies, supportedLocations, emailChanged } })
-  return referrerSelfDto(d, (await d.db.select().from(schema.referrerProfiles).where(eq(schema.referrerProfiles.id, r.id)).limit(1))[0])
+    .set({ fullName, title, roleFamilies, department: input.department ? clean(input.department, 80) : null, location, supportedLocations, profileUrl, profileUrlShareable: Boolean(input.profileUrlShareable) && Boolean(profileUrl), experienceBand: band, maxActiveRequests: capActive, maxMonthlyRequests: capMonthly, policyAcknowledgedAt: r.policyAcknowledgedAt ?? now, privacyConsentAt: r.privacyConsentAt ?? now, onboardingCompletedAt: r.onboardingCompletedAt ?? now, updatedAt: now })
+    .where(and(eq(schema.referrerProfiles.id, r.id), isNull(schema.referrerProfiles.onboardingCompletedAt), isNull(schema.referrerProfiles.deletedAt))).returning()
+  if (!saved.length) throw new ValidationError('Your profile has already been submitted. Contact support to change employment details.', 'onboarding')
+  await d.audit({ actorId: userId, action: 'referrer.onboarding', entityType: 'referrer', entityId: r.id, after: { roleFamilies, supportedLocations } })
+  return referrerSelfDto(d, saved[0])
 }
 
 export async function setAvailability(deps: ReferralDeps, userId: string, input: { availability?: 'available' | 'paused'; maxActiveRequests?: number; maxMonthlyRequests?: number; profileUrlShareable?: boolean }): Promise<ReferrerSelfDto> {
@@ -871,46 +893,57 @@ export async function setAvailability(deps: ReferralDeps, userId: string, input:
   return referrerSelfDto(d, (await d.db.select().from(schema.referrerProfiles).where(eq(schema.referrerProfiles.id, r.id)).limit(1))[0])
 }
 
-/** Sends (through the notifier) a single-use link to the corporate mailbox; the token is stored hashed and never returned to the caller. */
-export async function startCorporateVerification(deps: ReferralDeps, userId: string): Promise<{ sentTo: string; expiresAt: Date }> {
+/** Confirm contact-mailbox ownership separately from admin-reviewed employment. */
+export async function startContactVerification(deps: ReferralDeps, userId: string): Promise<{ sentTo: string; expiresAt: Date; emailStatus: 'sent' | 'skipped' | 'failed' | 'unknown' }> {
   const d = withDefaults(deps)
   const now = d.now()
-  const r = await loadReferrerRow(d.db, userId)
-  if (!r.corporateEmail) throw new ValidationError('Add your corporate email first', 'corporateEmail')
-  const recent = await d.db.select().from(schema.referrerVerifications).where(and(eq(schema.referrerVerifications.referrerId, r.id), eq(schema.referrerVerifications.method, 'corporate_email'), gte(schema.referrerVerifications.createdAt, new Date(now.getTime() - 24 * 36e5))))
-  if (recent.length >= 3) throw new ValidationError('Three verification emails were sent in the last day; check the mailbox or contact support.', 'rate')
-  await d.db.update(schema.referrerVerifications).set({ status: 'expired' }).where(and(eq(schema.referrerVerifications.referrerId, r.id), eq(schema.referrerVerifications.status, 'pending')))
   const token = newToken()
   const expiresAt = new Date(now.getTime() + 60 * 60 * 1000)
-  await d.db.insert(schema.referrerVerifications).values({ id: randomUUID(), referrerId: r.id, method: 'corporate_email', status: 'pending', tokenHash: sha256(token), tokenExpiresAt: expiresAt, createdAt: now })
-  await d.notify(userId, r.corporateEmail, 'referrer.verify_email', { token, company: r.companyId })
-  const [local, domain] = r.corporateEmail.split('@')
-  return { sentTo: `${local.slice(0, 2)}…@${domain}`, expiresAt }
+  const target = await d.db.transaction(async (tx) => {
+    const r = (await tx.select().from(schema.referrerProfiles).where(eq(schema.referrerProfiles.userId, userId)).for('update'))[0]
+    if (!r || r.deletedAt || !r.contactEmail) throw new ValidationError('No contact email is available. Contact support.', 'email')
+    if (r.contactEmailVerifiedAt) throw new ValidationError('Your personal email is already confirmed.', 'email')
+    const recent = await tx.select().from(schema.referrerVerifications).where(and(eq(schema.referrerVerifications.referrerId, r.id), eq(schema.referrerVerifications.method, 'personal_email'), gte(schema.referrerVerifications.createdAt, new Date(now.getTime() - 24 * 36e5))))
+    if (recent.length >= 3) throw new ValidationError('Three verification emails were requested in the last day; check your inbox or contact support.', 'rate')
+    await tx.update(schema.referrerVerifications).set({ status: 'expired', tokenHash: null }).where(and(eq(schema.referrerVerifications.referrerId, r.id), eq(schema.referrerVerifications.method, 'personal_email'), eq(schema.referrerVerifications.status, 'pending')))
+    const id = randomUUID()
+    await tx.insert(schema.referrerVerifications).values({ id, referrerId: r.id, method: 'personal_email', evidenceRef: r.contactEmail, status: 'pending', tokenHash: sha256(token), tokenExpiresAt: expiresAt, createdAt: now })
+    return { email: r.contactEmail, id }
+  })
+  const delivery = await d.notify(userId, target.email, 'referrer.verify_email', { token })
+  const emailStatus = delivery === 'sent' || delivery === 'skipped' || delivery === 'failed' ? delivery : 'unknown'
+  // Failed delivery must not leave an apparently usable verification attempt.
+  if (emailStatus === 'failed' || emailStatus === 'skipped') await d.db.update(schema.referrerVerifications).set({ status: 'failed', tokenHash: null }).where(and(eq(schema.referrerVerifications.id, target.id), eq(schema.referrerVerifications.status, 'pending')))
+  const [local, domain] = target.email.split('@')
+  return { sentTo: `${local.slice(0, 2)}…@${domain}`, expiresAt, emailStatus }
 }
 
-export type CorporateVerifyResult = 'verified' | 'invalid' | 'expired' | 'already'
+export type ContactVerifyResult = 'verified' | 'invalid' | 'expired' | 'already'
 
-/** Confirms a corporate email link. Success proves control of the mailbox; an admin still reviews before VERIFIED unless the domain matches the company. */
-export async function confirmCorporateVerification(deps: ReferralDeps, token: string): Promise<CorporateVerifyResult> {
+/** Token possession confirms only its bound mailbox. Never promotes employment status. */
+export async function confirmContactVerification(deps: ReferralDeps, token: string): Promise<ContactVerifyResult> {
   const d = withDefaults(deps)
   const now = d.now()
-  const rows = await d.db.select().from(schema.referrerVerifications).where(eq(schema.referrerVerifications.tokenHash, sha256(token.trim()))).limit(1)
-  const v = rows[0]
-  if (!v) return 'invalid'
-  if (v.status === 'confirmed') return 'already'
-  if (v.status !== 'pending') return 'invalid'
-  if (!v.tokenExpiresAt || v.tokenExpiresAt <= now) {
-    await d.db.update(schema.referrerVerifications).set({ status: 'expired' }).where(eq(schema.referrerVerifications.id, v.id))
-    return 'expired'
-  }
-  await d.db.update(schema.referrerVerifications).set({ status: 'confirmed', confirmedAt: now, tokenHash: null }).where(eq(schema.referrerVerifications.id, v.id))
-  const r = (await d.db.select().from(schema.referrerProfiles).where(eq(schema.referrerProfiles.id, v.referrerId)).limit(1))[0]
-  if (r && (r.verificationStatus === 'PENDING' || r.verificationStatus === 'REQUIRES_REVERIFICATION')) {
-    // Mailbox control is one signal; VERIFIED is an admin decision, recorded as a review row.
-    await d.db.insert(schema.referrerVerifications).values({ id: randomUUID(), referrerId: r.id, method: 'admin_review', status: 'pending', note: 'Corporate mailbox confirmed; awaiting admin review.', createdAt: now })
-  }
-  await d.audit({ actorId: r?.userId ?? null, action: 'referrer.email_confirmed', entityType: 'referrer', entityId: v.referrerId })
-  return 'verified'
+  if (typeof token !== 'string' || token.length > 200) return 'invalid'
+  const result = await d.db.transaction(async (tx) => {
+    const candidate = (await tx.select({ referrerId: schema.referrerVerifications.referrerId }).from(schema.referrerVerifications).where(eq(schema.referrerVerifications.tokenHash, sha256(token.trim()))))[0]
+    if (!candidate) return { result: 'invalid' as const }
+    // Same lock order as resend: profile first, then verification attempt.
+    const r = (await tx.select().from(schema.referrerProfiles).where(eq(schema.referrerProfiles.id, candidate.referrerId)).for('update'))[0]
+    const v = (await tx.select().from(schema.referrerVerifications).where(eq(schema.referrerVerifications.tokenHash, sha256(token.trim()))).for('update'))[0]
+    if (!v || !['personal_email', 'corporate_email'].includes(v.method) || v.status !== 'pending') return { result: 'invalid' as const }
+    if (!v.tokenExpiresAt || v.tokenExpiresAt <= now) {
+      await tx.update(schema.referrerVerifications).set({ status: 'expired', tokenHash: null }).where(eq(schema.referrerVerifications.id, v.id))
+      return { result: 'expired' as const }
+    }
+    if (!r || r.deletedAt || (v.method === 'personal_email' && (!r.contactEmail || v.evidenceRef !== r.contactEmail))) return { result: 'invalid' as const }
+    await tx.update(schema.referrerVerifications).set({ status: 'confirmed', confirmedAt: now, tokenHash: null }).where(eq(schema.referrerVerifications.id, v.id))
+    if (v.method === 'personal_email') await tx.update(schema.referrerProfiles).set({ contactEmailVerifiedAt: now, updatedAt: now }).where(eq(schema.referrerProfiles.id, r.id))
+    // Preserve old corporate links without treating them as personal-email confirmation.
+    return { result: 'verified' as const, userId: r.userId, referrerId: r.id }
+  })
+  if (result.result === 'verified') await d.audit({ actorId: result.userId, action: 'referrer.email_confirmed', entityType: 'referrer', entityId: result.referrerId })
+  return result.result
 }
 
 // ---------------------------------------------------------------------------
@@ -1238,7 +1271,7 @@ export async function adminListReferrers(deps: ReferralDeps, filters: { status?:
   for (const { r, email } of rows) {
     if (filters.status && r.verificationStatus !== filters.status) continue
     if (filters.companyId && r.companyId !== filters.companyId) continue
-    if (filters.q && !`${r.fullName} ${r.corporateEmail ?? ''} ${email ?? ''}`.toLowerCase().includes(filters.q.toLowerCase())) continue
+    if (filters.q && !`${r.fullName} ${r.contactEmail ?? ''} ${r.corporateEmail ?? ''} ${email ?? ''}`.toLowerCase().includes(filters.q.toLowerCase())) continue
     out.push(await adminReferrerDto(d, r, email ?? null))
   }
   return out
@@ -1274,6 +1307,26 @@ export type AdminReferrerAction =
 export async function adminUpdateReferrer(deps: ReferralDeps, referrerId: string, action: AdminReferrerAction, actorId: string): Promise<AdminReferrerDto> {
   const d = withDefaults(deps)
   const now = d.now()
+  if (action.action === 'verify') {
+    const note = typeof action.note === 'string' ? clean(action.note, 300) : ''
+    if (note.length < 15) throw new ValidationError('Explain how you confirmed current employment (at least 15 characters).', 'note')
+    const approved = await d.db.transaction(async (tx) => {
+      const r = (await tx.select().from(schema.referrerProfiles).where(eq(schema.referrerProfiles.id, referrerId)).for('update'))[0]
+      if (!r || r.deletedAt || !r.userId) throw new ValidationError('This referrer account is no longer active.', 'referrer')
+      if (!r.onboardingCompletedAt) throw new ValidationError('The referrer has not completed onboarding yet', 'onboarding')
+      if (!r.contactEmail || !r.contactEmailVerifiedAt) throw new ValidationError('The referrer must confirm their personal email before employment approval.', 'email')
+      const months = Math.min(24, Math.max(1, Math.floor(Number(action.validMonths) || 12)))
+      const verificationExpiresAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + months, now.getUTCDate()))
+      await tx.update(schema.referrerVerifications).set({ status: 'confirmed', confirmedAt: now, reviewerId: actorId, note }).where(and(eq(schema.referrerVerifications.referrerId, r.id), eq(schema.referrerVerifications.method, 'admin_review'), eq(schema.referrerVerifications.status, 'pending')))
+      await tx.insert(schema.referrerVerifications).values({ id: randomUUID(), referrerId: r.id, method: 'admin_review', status: 'confirmed', confirmedAt: now, reviewerId: actorId, note, createdAt: now })
+      const fresh = (await tx.update(schema.referrerProfiles).set({ verificationStatus: 'VERIFIED', verifiedAt: now, verificationExpiresAt, updatedAt: now }).where(eq(schema.referrerProfiles.id, r.id)).returning())[0]
+      return { before: r.verificationStatus, fresh }
+    })
+    await d.audit({ actorId, action: 'referrer.verify', entityType: 'referrer', entityId: referrerId, before: { verificationStatus: approved.before }, after: { verificationStatus: 'VERIFIED', note, verificationExpiresAt: iso(approved.fresh.verificationExpiresAt) } })
+    await d.notify(approved.fresh.userId, approved.fresh.contactEmail, 'referrer.verified', { status: 'VERIFIED' })
+    const account = (await d.db.select({ email: schema.users.email }).from(schema.users).where(eq(schema.users.id, approved.fresh.userId!)))[0]
+    return adminReferrerDto(d, approved.fresh, account?.email ?? null)
+  }
   const rows = await d.db.select({ r: schema.referrerProfiles, email: schema.users.email }).from(schema.referrerProfiles).leftJoin(schema.users, eq(schema.users.id, schema.referrerProfiles.userId)).where(eq(schema.referrerProfiles.id, referrerId)).limit(1)
   if (!rows[0]) throw new ValidationError('Referrer not found', 'referrerId')
   const { r, email } = rows[0]
@@ -1281,17 +1334,6 @@ export async function adminUpdateReferrer(deps: ReferralDeps, referrerId: string
   const patch: Partial<ReferrerRow> = { updatedAt: now }
   let notifyKind: ReferralNotificationKind | null = null
   switch (action.action) {
-    case 'verify': {
-      if (!r.onboardingCompletedAt) throw new ValidationError('The referrer has not completed onboarding yet', 'onboarding')
-      const months = Math.min(24, Math.max(1, Math.floor(Number(action.validMonths) || 12)))
-      patch.verificationStatus = 'VERIFIED'
-      patch.verifiedAt = now
-      patch.verificationExpiresAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + months, now.getUTCDate()))
-      await d.db.update(schema.referrerVerifications).set({ status: 'confirmed', confirmedAt: now, reviewerId: actorId, note: action.note?.slice(0, 300) ?? 'Verified by admin' }).where(and(eq(schema.referrerVerifications.referrerId, r.id), eq(schema.referrerVerifications.method, 'admin_review'), eq(schema.referrerVerifications.status, 'pending')))
-      await d.db.insert(schema.referrerVerifications).values({ id: randomUUID(), referrerId: r.id, method: 'admin_review', status: 'confirmed', confirmedAt: now, reviewerId: actorId, note: action.note?.slice(0, 300) ?? 'Verified by admin', createdAt: now })
-      notifyKind = 'referrer.verified'
-      break
-    }
     case 'reject':
       patch.verificationStatus = 'REJECTED'
       await d.db.insert(schema.referrerVerifications).values({ id: randomUUID(), referrerId: r.id, method: 'admin_review', status: 'rejected', reviewerId: actorId, note: action.note?.slice(0, 300) ?? null, createdAt: now })
@@ -1326,7 +1368,7 @@ export async function adminUpdateReferrer(deps: ReferralDeps, referrerId: string
   await d.db.update(schema.referrerProfiles).set(patch).where(eq(schema.referrerProfiles.id, r.id))
   if (['reject', 'suspend', 'reverify'].includes(action.action)) await invalidateReferrerAssignments(d, r.id, action.action === 'suspend' ? 'referrer suspended' : action.action === 'reject' ? 'verification rejected' : 'reverification required')
   await d.audit({ actorId, action: `referrer.${action.action}`, entityType: 'referrer', entityId: r.id, before, after: { ...before, ...patch, updatedAt: undefined } })
-  if (notifyKind && r.userId) await d.notify(r.userId, email ?? null, notifyKind, { status: patch.verificationStatus ?? r.verificationStatus })
+  if (notifyKind && r.userId) await d.notify(r.userId, r.contactEmail ?? email ?? null, notifyKind, { status: patch.verificationStatus ?? r.verificationStatus })
   const fresh = (await d.db.select().from(schema.referrerProfiles).where(eq(schema.referrerProfiles.id, r.id)).limit(1))[0]
   return adminReferrerDto(d, fresh, email ?? null)
 }
@@ -1558,7 +1600,7 @@ export async function anonymizeReferrer(deps: ReferralDeps, userId: string, acto
   const r = rows[0]
   if (!r) return false
   await invalidateReferrerAssignments(d, r.id, 'referrer left')
-  await d.db.update(schema.referrerProfiles).set({ userId: null, fullName: 'Former referrer', corporateEmail: null, corporateEmailDomain: null, profileUrl: null, profileUrlShareable: false, title: null, location: null, internalNotes: null, availability: 'paused', verificationStatus: 'SUSPENDED', deletedAt: d.now(), updatedAt: d.now() }).where(eq(schema.referrerProfiles.id, r.id))
+  await d.db.update(schema.referrerProfiles).set({ userId: null, fullName: 'Former referrer', contactEmail: null, contactEmailVerifiedAt: null, corporateEmail: null, corporateEmailDomain: null, profileUrl: null, profileUrlShareable: false, title: null, location: null, internalNotes: null, availability: 'paused', verificationStatus: 'SUSPENDED', deletedAt: d.now(), updatedAt: d.now() }).where(eq(schema.referrerProfiles.id, r.id))
   await d.db.update(schema.referrerVerifications).set({ tokenHash: null, evidenceRef: null }).where(eq(schema.referrerVerifications.referrerId, r.id))
   await d.db.delete(schema.userRoles).where(and(eq(schema.userRoles.userId, userId), eq(schema.userRoles.role, 'referrer')))
   await d.audit({ actorId, action: 'referrer.anonymized', entityType: 'referrer', entityId: r.id })

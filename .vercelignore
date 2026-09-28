@@ -1,0 +1,15 @@
+.git/
+.claude/
+.codex/
+.vscode/
+.idea/
+.vercel/
+.next/
+node_modules/
+scratch/
+.env*
+*.local
+*.log
+*.tsbuildinfo
+e2e-*.json
+e2e-*.png

@@ -22,7 +22,7 @@ function bucketOf(r: LearnerRequestDto): Bucket {
 }
 
 /** /referrals: the learner's referral requests, credits and history. Identity of referrers never appears here. */
-export default function ReferralsWorkspace({ signedIn, applications, onSignIn, onUpgrade, onOpenJob, onAddToTracker }: { signedIn: boolean; applications: JobApplication[]; onSignIn: () => void; onUpgrade: () => void; onOpenJob: (jobId: string) => void; onAddToTracker: (job: LearnerJob, opts: { source: string; status: 'Applied' }) => string | null }) {
+export default function ReferralsWorkspace({ signedIn, applications, onSignIn, onUpgrade, onOpenJob, onBrowseJobs, onAddToTracker }: { signedIn: boolean; applications: JobApplication[]; onSignIn: () => void; onUpgrade: () => void; onOpenJob: (jobId: string) => void; onBrowseJobs: () => void; onAddToTracker: (job: LearnerJob, opts: { source: string; status: 'Applied' }) => string | null }) {
   const [data, setData] = useState<ReferralCenter | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [bucket, setBucket] = useState<Bucket>('active')
@@ -100,6 +100,20 @@ export default function ReferralsWorkspace({ signedIn, applications, onSignIn, o
         </p>
       )}
       {data?.networkMode === 'disabled' && <p className="job-section-sub">Referral assistance is switched off right now.</p>}
+      <section className="jobs-panel">
+        <h3 className="font-semibold">How to request a referral</h3>
+        <ol className="list-decimal pl-5 text-sm space-y-2 mt-3">
+          <li>Find a job and open its Referral tab to check verified employee availability.</li>
+          <li>Select your resume, check readiness, and add your introduction and relevant experience.</li>
+          <li>Submit with consent. When credits are required, one is reserved while we match your request.</li>
+          <li>Follow updates here and reply to questions. Acceptance uses the reserved credit; the employee then submits through their employer.</li>
+          <li>Once marked submitted, add the job to your application tracker and follow the employer’s next steps.</li>
+        </ol>
+        <div className="referral-actions">
+          <button type="button" className="btn btn-primary btn-sm" onClick={onBrowseJobs}>Find a job to request a referral</button>
+          <a className="btn btn-ghost btn-sm" href="/referrer">Join as a referrer</a>
+        </div>
+      </section>
       <div className="job-tabs" role="tablist" aria-label="Referral requests">
         {(
           [
@@ -157,6 +171,7 @@ export default function ReferralsWorkspace({ signedIn, applications, onSignIn, o
                       if (!window.confirm('Cancel this referral request? Any reserved credit is returned.')) return
                       const res = await referralAction(open.id, { action: 'cancel' })
                       update(res.request)
+                      load()
                     })
                   }
                   onTrack={() =>

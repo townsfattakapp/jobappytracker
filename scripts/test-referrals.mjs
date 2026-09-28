@@ -1,6 +1,6 @@
 // Verified referral network: state machine, readiness, credits, matching and
 // fair assignment (pure), then the whole lifecycle against PGlite with the real
-// migrations: invite → onboarding → corporate verification → admin verification
+// migrations: invite → onboarding → personal email confirmation → admin verification
 // → learner readiness → submit (credit reserved) → assignment → clarification
 // → accept (credit consumed) → referral submitted; decline → reassignment;
 // no referrer; job expiry; assignment timeout; verification expiry; privacy of
@@ -23,6 +23,7 @@ await build({
     credits: 'src/lib/referrals/credits.ts',
     privacy: 'src/lib/referrals/privacy.ts',
     features: 'src/lib/entitlements/features.ts',
+    notifications: 'src/lib/server/notifications.ts',
     schema: 'src/lib/db/schema.ts',
   },
   outdir: 'scratch/referral-tests',
@@ -43,6 +44,7 @@ const credits = await import('../scratch/referral-tests/credits.mjs')
 const privacy = await import('../scratch/referral-tests/privacy.mjs')
 const features = await import('../scratch/referral-tests/features.mjs')
 const schema = await import('../scratch/referral-tests/schema.mjs')
+const { buildNotification } = await import('../scratch/referral-tests/notifications.mjs')
 
 const NOW = new Date('2026-09-28T09:00:00.000Z')
 const PROFILE = {
@@ -112,20 +114,20 @@ async function enablePolicy(deps, companyId = 'c1', over = {}) {
   await svc.saveCompanyPolicy(deps, companyId, { referralsEnabled: true, policyStatus: 'VERIFIED_POLICY', policySource: 'Internal careers FAQ, read 2026-09-20', lastReviewedAt: NOW.toISOString(), ...over }, 'admin')
 }
 
-/** Invite → accept → onboarding → corporate email confirmed → admin verified → available. */
+/** Invite → accept → onboarding → personal email confirmed → admin verified → available. */
 async function verifiedReferrer(h, userId, over = {}) {
-  const invite = await svc.createInvite(h.deps, { email: `${userId}@microsoft.com`, companyId: 'c1', invitedBy: 'admin' })
+  const invite = await svc.createInvite(h.deps, { email: `${userId.toLowerCase()}@example.invalid`, companyId: 'c1', invitedBy: 'admin' })
   await svc.acceptInvite(h.deps, { token: invite.token, userId, email: `${userId}@example.invalid` })
   await svc.completeOnboarding(h.deps, userId, { fullName: `Referrer ${userId}`, title: 'Senior Engineer', roleFamilies: ['backend'], location: 'Bengaluru', supportedLocations: ['Bengaluru', 'India'], profileUrl: 'https://www.linkedin.com/in/example', profileUrlShareable: true, experienceBand: 'senior', policyAcknowledged: true, privacyConsent: true, ...over })
-  const sent = await svc.startCorporateVerification(h.deps, userId)
+  const sent = await svc.startContactVerification(h.deps, userId)
   const token = h.state.notifications.filter((n) => n.kind === 'referrer.verify_email').pop().data.token
-  assert.equal(await svc.confirmCorporateVerification(h.deps, token), 'verified')
-  assert.equal(await svc.confirmCorporateVerification(h.deps, token), 'invalid', 'a used token is dead (replay protection)')
+  assert.equal(await svc.confirmContactVerification(h.deps, token), 'verified')
+  assert.equal(await svc.confirmContactVerification(h.deps, token), 'invalid', 'a used token is dead (replay protection)')
   const me = await svc.getReferrerByUser(h.deps, userId)
-  const verified = await svc.adminUpdateReferrer(h.deps, me.id, { action: 'verify', note: 'Domain and mailbox checked' }, 'admin')
+  const verified = await svc.adminUpdateReferrer(h.deps, me.id, { action: 'verify', note: 'Personally known colleague; current employment confirmed on a call' }, 'admin')
   assert.equal(verified.verificationStatus, 'VERIFIED')
   await svc.setAvailability(h.deps, userId, { availability: 'available', ...('maxActiveRequests' in over ? { maxActiveRequests: over.maxActiveRequests } : {}) })
-  assert.match(sent.sentTo, /…@microsoft\.com$/)
+  assert.match(sent.sentTo, /…@example\.invalid$/)
   return svc.getReferrerByUser(h.deps, userId)
 }
 
@@ -141,6 +143,133 @@ async function ledger(db, userId) {
 }
 
 // ---------------------------------------------------------------------------
+
+test('admin invitation history tracks acceptance and expiry without exposing credentials', async () => {
+  const { client, db } = await freshDb()
+  const h = harness(db)
+  try {
+    const pending = await svc.createInvite({ ...h.deps, notify: async () => 'skipped' }, { email: 'pending@microsoft.com', companyId: 'c1', invitedBy: 'admin' })
+    assert.equal(pending.emailStatus, 'skipped')
+    const accepted = await svc.createInvite({ ...h.deps, notify: async () => 'sent' }, { email: 'refa@example.invalid', companyId: 'c1', invitedBy: 'admin' })
+    assert.equal(accepted.emailStatus, 'sent')
+    const failed = await svc.createInvite({ ...h.deps, notify: async () => 'failed' }, { email: 'failed@microsoft.com', companyId: 'c1', invitedBy: 'admin' })
+    assert.equal(failed.emailStatus, 'failed')
+    assert.ok(failed.token, 'email failure still allows manual sharing')
+    await svc.acceptInvite(h.deps, { token: accepted.token, userId: 'refA', email: 'refa@example.invalid' })
+    let rows = await svc.adminListInvites(h.deps)
+    assert.equal(rows.find((r) => r.id === pending.id).status, 'pending')
+    assert.equal(rows.find((r) => r.id === accepted.id).status, 'accepted')
+    assert.equal(rows[0].companyName, 'Microsoft')
+    assert.deepEqual(Object.keys(rows[0]).sort(), ['id', 'email', 'companyName', 'createdAt', 'expiresAt', 'status'].sort())
+    assert.ok(!JSON.stringify(rows).includes(pending.token))
+    h.advance(14 * 24 * 36e5)
+    rows = await svc.adminListInvites(h.deps)
+    assert.equal(rows.find((r) => r.id === pending.id).status, 'expired')
+    assert.equal(rows.find((r) => r.id === accepted.id).status, 'accepted')
+  } finally {
+    await client.close()
+  }
+})
+
+test('personal-only onboarding requires mailbox proof and a documented employment review', async () => {
+  const { client, db } = await freshDb()
+  const h = harness(db)
+  const profile = { fullName: 'Friend One', title: 'Engineer', roleFamilies: ['backend'], location: 'Bengaluru', supportedLocations: ['any'], policyAcknowledged: true, privacyConsent: true }
+  try {
+    await db.update(schema.users).set({ email: 'friend@gmail.com' }).where(eq(schema.users.id, 'refA'))
+    const invite = await svc.createInvite(h.deps, { email: ' Friend@Gmail.com ', companyId: 'c1', invitedBy: 'admin' })
+    // Supplying a forged email argument cannot bypass the real account identity.
+    await assert.rejects(() => svc.acceptInvite(h.deps, { token: invite.token, userId: 'refB', email: 'friend@gmail.com' }), /Sign in with the email/)
+    const accepts = await Promise.allSettled([1, 2].map(() => svc.acceptInvite(h.deps, { token: invite.token, userId: 'refA', email: 'friend@gmail.com' })))
+    assert.equal(accepts.filter((r) => r.status === 'fulfilled').length, 1, 'one profile per single-use invitation')
+    const me = await svc.completeOnboarding(h.deps, 'refA', profile)
+    assert.equal(me.contactEmail, 'friend@gmail.com')
+    assert.equal(me.corporateEmail, null)
+    assert.equal(me.contactEmailVerifiedAt, null)
+    const review = { action: 'verify', note: 'Personally known friend; confirmed current Microsoft role on a call.' }
+    await assert.rejects(() => svc.adminUpdateReferrer(h.deps, me.id, review, 'admin'), /confirm their personal email/)
+    await svc.setAvailability(h.deps, 'refA', { availability: 'available' })
+    assert.equal((await svc.companyCoverage(h.deps)).find((r) => r.companyId === 'c1').verifiedReferrers, 0)
+    await svc.startContactVerification(h.deps, 'refA')
+    const mail = h.state.notifications.filter((n) => n.kind === 'referrer.verify_email').at(-1)
+    assert.equal(mail.email, 'friend@gmail.com')
+    assert.equal(await svc.confirmContactVerification(h.deps, mail.data.token), 'verified')
+    assert.equal(await svc.confirmContactVerification(h.deps, mail.data.token), 'invalid')
+    assert.equal((await svc.getReferrerByUser(h.deps, 'refA')).verificationStatus, 'PENDING', 'email confirmation never approves employment')
+    await assert.rejects(() => svc.adminUpdateReferrer(h.deps, me.id, { action: 'verify' }, 'admin'), /Explain how/)
+    await assert.rejects(() => svc.adminUpdateReferrer(h.deps, me.id, review, 'nonexistent-admin'))
+    assert.equal((await svc.getReferrerByUser(h.deps, 'refA')).verificationStatus, 'PENDING', 'failed review is atomic')
+    const approved = await svc.adminUpdateReferrer(h.deps, me.id, review, 'admin')
+    assert.equal(approved.verificationStatus, 'VERIFIED')
+    assert.ok(approved.verifications.some((v) => v.method === 'admin_review' && v.note === review.note))
+    assert.ok(h.state.notifications.some((n) => n.kind === 'referrer.verified' && n.email === 'friend@gmail.com'))
+    await assert.rejects(() => svc.completeOnboarding(h.deps, 'refA', { ...profile, fullName: 'Another Person' }), /already been submitted/)
+    const publicProfile = privacy.toPublicProfile(approved, 'Microsoft', 3)
+    privacy.assertNoPrivateFields(publicProfile)
+    assert.ok(!JSON.stringify(publicProfile).includes('friend@gmail.com'))
+  } finally { await client.close() }
+})
+
+test('personal email tokens handle resend, expiry, delivery failure and address binding', async () => {
+  const { client, db } = await freshDb()
+  const h = harness(db)
+  try {
+    const invite = await svc.createInvite(h.deps, { email: 'refa@example.invalid', companyId: 'c1', invitedBy: 'admin' })
+    const me = await svc.acceptInvite(h.deps, { token: invite.token, userId: 'refA', email: 'refa@example.invalid' })
+    const lastToken = () => h.state.notifications.filter((n) => n.kind === 'referrer.verify_email').at(-1).data.token
+    await svc.startContactVerification(h.deps, 'refA')
+    const old = lastToken()
+    await svc.startContactVerification(h.deps, 'refA')
+    const current = lastToken()
+    assert.equal(await svc.confirmContactVerification(h.deps, old), 'invalid')
+    h.advance(60 * 60_000)
+    assert.equal(await svc.confirmContactVerification(h.deps, current), 'expired')
+    const failed = await svc.startContactVerification({ ...h.deps, notify: async () => 'failed' }, 'refA')
+    assert.equal(failed.emailStatus, 'failed')
+    assert.equal((await svc.getReferrerByUser(h.deps, 'refA')).emailVerificationPending, false)
+    await assert.rejects(() => svc.startContactVerification(h.deps, 'refA'), /Three verification emails/)
+    h.advance(25 * 36e5)
+    await svc.startContactVerification(h.deps, 'refA')
+    const bound = lastToken()
+    await db.update(schema.referrerProfiles).set({ contactEmail: 'changed@example.invalid' }).where(eq(schema.referrerProfiles.id, me.id))
+    assert.equal(await svc.confirmContactVerification(h.deps, bound), 'invalid')
+    assert.equal((await svc.getReferrerByUser(h.deps, 'refA')).contactEmailVerifiedAt, null)
+    const skipped = await svc.startContactVerification({ ...h.deps, notify: async () => 'skipped' }, 'refA')
+    assert.equal(skipped.emailStatus, 'skipped')
+    assert.equal((await svc.getReferrerByUser(h.deps, 'refA')).emailVerificationPending, false)
+  } finally { await client.close() }
+})
+
+test('personal email migration preserves legacy employment approvals without inventing mailbox proof', async () => {
+  const client = new PGlite()
+  try {
+    const db = drizzle(client)
+    const migrations = readMigrationFiles({ migrationsFolder: 'src/lib/db/migrations' })
+    for (const m of migrations) m.sql = m.sql.flatMap((s) => s.split(/(?=DO \$\$ BEGIN)/))
+    await db.dialect.migrate(migrations.slice(0, -1), db.session, { migrationsFolder: 'src/lib/db/migrations' })
+    await client.exec(`INSERT INTO users (id, email) VALUES ('legacy', 'friend@gmail.com');
+      INSERT INTO companies (id, name, slug) VALUES ('legacy-company', 'Legacy Company', 'legacy-company');
+      INSERT INTO referrer_profiles (id, "userId", "publicId", "companyId", "fullName", "corporateEmail", "verificationStatus") VALUES ('legacy-ref', 'legacy', 'ref_legacy', 'legacy-company', 'Legacy Friend', 'friend@company.example', 'VERIFIED');`)
+    await db.dialect.migrate(migrations, db.session, { migrationsFolder: 'src/lib/db/migrations' })
+    const row = (await client.query('SELECT * FROM referrer_profiles')).rows[0]
+    assert.equal(row.contactEmail, 'friend@gmail.com')
+    assert.equal(row.contactEmailVerifiedAt, null)
+    assert.equal(row.corporateEmail, 'friend@company.example')
+    assert.equal(row.verificationStatus, 'VERIFIED')
+  } finally { await client.close() }
+})
+
+test('invitation and confirmation emails explain personal email and separate employment review', () => {
+  const invite = buildNotification('referrer.invite', { company: 'Microsoft', token: 'test-token', days: 14 })
+  assert.match(invite.intro, /No work email is required/)
+  assert.match(invite.intro, /admin separately reviews your employment/)
+  assert.match(invite.outro, /does not imply employer endorsement/)
+  assert.match(invite.ctaUrl, /\/referrer\/invite\?token=test-token$/)
+  const verification = buildNotification('referrer.verify_email', { token: 'test-token' })
+  assert.match(verification.subject, /personal email/)
+  assert.match(verification.intro, /mailbox ownership only/)
+  assert.match(verification.ctaUrl, /\/referrer\/verify\?token=test-token$/)
+})
 
 test('state machine: only declared transitions, learner stages hide assignment mechanics', () => {
   assert.ok(states.canTransition('READY', 'SUBMITTED'))
@@ -259,7 +388,7 @@ test('lifecycle: invite, onboarding, verification, readiness, submit, review, cl
     await enablePolicy(h.deps)
     const refA = await verifiedReferrer(h, 'refA')
     assert.ok(refA.active && refA.publicId.startsWith('ref_'))
-    assert.ok(h.state.notifications.some((n) => n.kind === 'referrer.invite' && n.email === 'refa@microsoft.com'))
+    assert.ok(h.state.notifications.some((n) => n.kind === 'referrer.invite' && n.email === 'refa@example.invalid'))
     assert.ok(h.state.notifications.some((n) => n.kind === 'referrer.verified'))
     const availability = await svc.jobReferralAvailability(h.deps, jobRow())
     assert.equal(availability.state, 'available')
@@ -540,17 +669,20 @@ test('cross-account access: learners, referrers and suspended referrers only rea
     await svc.adminUpdateReferrer(h.deps, ref.id, { action: 'suspend' }, 'admin')
     await assert.rejects(() => svc.respondToAssignment(h.deps, holder, a.id, { action: 'accept' }), /not active/)
     // Tokens: invalid and expired verification links.
-    assert.equal(await svc.confirmCorporateVerification(h.deps, 'not-a-token'), 'invalid')
-    await svc.startCorporateVerification(h.deps, other)
+    assert.equal(await svc.confirmContactVerification(h.deps, 'not-a-token'), 'invalid')
+    await db.update(schema.referrerProfiles).set({ contactEmailVerifiedAt: null }).where(eq(schema.referrerProfiles.userId, other))
+    await svc.startContactVerification(h.deps, other)
     const token = h.state.notifications.filter((n) => n.kind === 'referrer.verify_email').pop().data.token
     h.advance(2 * 36e5)
-    assert.equal(await svc.confirmCorporateVerification(h.deps, token), 'expired')
+    assert.equal(await svc.confirmContactVerification(h.deps, token), 'expired')
     // Bad invite tokens and the corporate-mailbox rule.
     await assert.rejects(() => svc.acceptInvite(h.deps, { token: 'nope', userId: 'learner2', email: 'x' }), /invalid or has expired/)
-    const inv = await svc.createInvite(h.deps, { email: 'new@microsoft.com', companyId: 'c1', invitedBy: 'admin' })
+    const inv = await svc.createInvite(h.deps, { email: 'other@example.invalid', companyId: 'c1', invitedBy: 'admin' })
     await svc.acceptInvite(h.deps, { token: inv.token, userId: 'learner2', email: 'other@example.invalid' })
     await assert.rejects(() => svc.acceptInvite(h.deps, { token: inv.token, userId: 'learner2', email: 'x' }), /invalid or has expired/, 'invite tokens are single use')
-    await assert.rejects(() => svc.completeOnboarding(h.deps, 'learner2', { fullName: 'Nina Rao', title: 'Engineer', roleFamilies: ['backend'], location: 'Pune', supportedLocations: ['any'], corporateEmail: 'me@gmail.com', policyAcknowledged: true, privacyConsent: true }), /company mailbox/)
+    const personal = await svc.completeOnboarding(h.deps, 'learner2', { fullName: 'Nina Rao', title: 'Engineer', roleFamilies: ['backend'], location: 'Pune', supportedLocations: ['any'], policyAcknowledged: true, privacyConsent: true })
+    assert.equal(personal.corporateEmail, null)
+    assert.equal(personal.contactEmail, 'other@example.invalid')
   } finally {
     await client.close()
   }
@@ -661,7 +793,7 @@ test('admin operations: manual assignment when the policy needs review, reassign
     assert.ok(h.state.audits.some((e) => e.action === 'referrer.verify'))
     const list = await svc.adminListReferrers(h.deps, { status: 'VERIFIED' })
     assert.equal(list.length, 2)
-    assert.ok(list[0].userEmail && list[0].corporateEmail, 'admins see identity; learners never do')
+    assert.ok(list[0].userEmail && list[0].contactEmail, 'admins see identity; learners never do')
   } finally {
     await client.close()
   }

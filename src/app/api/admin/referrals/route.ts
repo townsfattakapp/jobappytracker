@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { errorResponse, readJson } from '../../../../lib/server/apiErrors'
 import { isResponse, requireRole } from '../../../../lib/server/rbac'
 import { referralDeps } from '../../../../lib/server/referralDeps'
-import { adminListDisclosures, adminListReferrers, adminListRequests, companyCoverage, createInvite, getReferralSettings, grantCredits, referralMetrics, saveCompanyPolicy, saveReferralSettings, sweepReferrals, type CompanyPolicyDto, type ReferralSettings } from '../../../../lib/server/referrals'
+import { adminListInvites, adminListDisclosures, adminListReferrers, adminListRequests, companyCoverage, createInvite, getReferralSettings, grantCredits, referralMetrics, saveCompanyPolicy, saveReferralSettings, sweepReferrals, type CompanyPolicyDto, type ReferralSettings } from '../../../../lib/server/referrals'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,15 +13,16 @@ export async function GET(req: Request) {
   try {
     const url = new URL(req.url)
     const deps = referralDeps()
-    const [metrics, requests, referrers, coverage, disclosures, settings] = await Promise.all([
+    const [metrics, requests, referrers, coverage, disclosures, settings, invites] = await Promise.all([
       referralMetrics(deps),
       adminListRequests(deps, { status: url.searchParams.get('status') || undefined, companyId: url.searchParams.get('companyId') || undefined, needsAttention: url.searchParams.get('attention') === '1' }),
       adminListReferrers(deps, { status: url.searchParams.get('referrerStatus') || undefined, q: url.searchParams.get('q') || undefined }),
       companyCoverage(deps),
       adminListDisclosures(deps),
       getReferralSettings(deps.db),
+      adminListInvites(deps),
     ])
-    return NextResponse.json({ metrics, requests, referrers, coverage, disclosures, settings })
+    return NextResponse.json({ metrics, requests, referrers, coverage, disclosures, settings, invites })
   } catch (error) {
     return errorResponse(error, 'GET /api/admin/referrals')
   }
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
         if (!body.email || !body.companyId) return NextResponse.json({ error: 'email and companyId are required', field: 'email' }, { status: 400 })
         const invite = await createInvite(deps, { email: body.email, companyId: body.companyId, invitedBy: actor.userId, note: body.note ?? null })
         // The token is returned once so the admin can hand it over when mail is not configured; it is stored hashed.
-        return NextResponse.json({ invite: { id: invite.id, expiresAt: invite.expiresAt.toISOString(), link: `/referrer/invite?token=${encodeURIComponent(invite.token)}` } })
+        return NextResponse.json({ invite: { id: invite.id, emailStatus: invite.emailStatus, expiresAt: invite.expiresAt.toISOString(), link: `/referrer/invite?token=${encodeURIComponent(invite.token)}` } })
       }
       case 'policy': {
         if (!body.companyId) return NextResponse.json({ error: 'companyId is required', field: 'companyId' }, { status: 400 })

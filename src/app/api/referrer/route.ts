@@ -3,7 +3,7 @@ import { auth } from '../../../lib/auth'
 import { errorResponse, readJson } from '../../../lib/server/apiErrors'
 import { rateLimited } from '../../../lib/server/rateLimit'
 import { referralDeps } from '../../../lib/server/referralDeps'
-import { acceptInvite, completeOnboarding, getReferralSettings, getReferrerByUser, listReferrerAssignments, setAvailability, startCorporateVerification, type OnboardingInput } from '../../../lib/server/referrals'
+import { acceptInvite, completeOnboarding, getReferralSettings, getReferrerByUser, listReferrerAssignments, setAvailability, startContactVerification, type OnboardingInput } from '../../../lib/server/referrals'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,13 +47,13 @@ export async function POST(req: Request) {
         return NextResponse.json({ referrer: await acceptInvite(deps, { token: body.token, userId: session.user.id, email: session.user.email ?? '' }) })
       }
       case 'onboarding': {
-        return NextResponse.json({ referrer: await completeOnboarding(deps, session.user.id, { fullName: body.fullName ?? '', corporateEmail: body.corporateEmail, title: body.title ?? '', roleFamilies: body.roleFamilies ?? [], department: body.department, location: body.location ?? '', supportedLocations: body.supportedLocations ?? [], profileUrl: body.profileUrl, profileUrlShareable: body.profileUrlShareable, experienceBand: body.experienceBand, maxActiveRequests: body.maxActiveRequests, maxMonthlyRequests: body.maxMonthlyRequests, policyAcknowledged: body.policyAcknowledged === true, privacyConsent: body.privacyConsent === true }) })
+        return NextResponse.json({ referrer: await completeOnboarding(deps, session.user.id, { fullName: body.fullName ?? '', title: body.title ?? '', roleFamilies: body.roleFamilies ?? [], department: body.department, location: body.location ?? '', supportedLocations: body.supportedLocations ?? [], profileUrl: body.profileUrl, profileUrlShareable: body.profileUrlShareable, experienceBand: body.experienceBand, maxActiveRequests: body.maxActiveRequests, maxMonthlyRequests: body.maxMonthlyRequests, policyAcknowledged: body.policyAcknowledged === true, privacyConsent: body.privacyConsent === true }) })
       }
       case 'availability':
         return NextResponse.json({ referrer: await setAvailability(deps, session.user.id, { availability: body.availability, maxActiveRequests: body.maxActiveRequests, maxMonthlyRequests: body.maxMonthlyRequests, profileUrlShareable: body.profileUrlShareable }) })
       case 'send_verification': {
-        const sent = await startCorporateVerification(deps, session.user.id)
-        return NextResponse.json({ sentTo: sent.sentTo, expiresAt: sent.expiresAt.toISOString() })
+        const sent = await startContactVerification(deps, session.user.id)
+        return NextResponse.json({ sentTo: sent.sentTo, expiresAt: sent.expiresAt.toISOString(), emailStatus: sent.emailStatus })
       }
       default:
         return NextResponse.json({ error: 'Unknown action', field: 'action' }, { status: 400 })

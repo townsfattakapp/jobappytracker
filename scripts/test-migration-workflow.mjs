@@ -45,7 +45,7 @@ test('preflight: reports pending additive migrations on a hosted-like database, 
   assert.deepEqual(hosted.pending.map((p) => p.tag).slice(0, 2), ['0005_career_os_phase1', '0006_career_os_phase2'])
   assert.equal(hosted.destructive.length, 0, 'Career OS migrations are additive')
   assert.equal(hosted.ok, true)
-  assert.match(formatPreflight(hosted, 'test'), /pending: 8/)
+  assert.match(formatPreflight(hosted, 'test'), new RegExp(`pending: ${hosted.journalCount - 5}\\b`))
   await db.dialect.migrate(all, db.session, { migrationsFolder: 'src/lib/db/migrations' })
   const done = await preflight(query)
   assert.equal(done.pending.length, 0)

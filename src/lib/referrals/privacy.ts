@@ -63,7 +63,7 @@ export function toPublicProfile(r: ReferrerPrivateLike, company: string, poolSiz
 }
 
 /** Keys that must never appear in any learner-facing payload; used by tests and the API projection guard. */
-export const PRIVATE_REFERRER_FIELDS = ['fullName', 'corporateEmail', 'corporateEmailDomain', 'userId', 'profileUrl', 'internalNotes', 'title', 'location', 'invitedBy', 'tokenHash', 'evidenceRef', 'email', 'phone'] as const
+export const PRIVATE_REFERRER_FIELDS = ['fullName', 'contactEmail', 'contactEmailVerifiedAt', 'corporateEmail', 'corporateEmailDomain', 'userId', 'profileUrl', 'internalNotes', 'title', 'location', 'invitedBy', 'tokenHash', 'evidenceRef', 'email', 'phone'] as const
 
 export function assertNoPrivateFields(payload: unknown, path = '$'): void {
   if (!payload || typeof payload !== 'object') return

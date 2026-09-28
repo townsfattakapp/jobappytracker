@@ -1432,6 +1432,7 @@ export default function App() {
               />
             ) : view === 'referrals' ? (
               <ReferralsWorkspace
+                onBrowseJobs={() => setView('jobs')}
                 signedIn={Boolean(user)}
                 applications={applications}
                 onSignIn={() => setAuthModalOpen(true)}

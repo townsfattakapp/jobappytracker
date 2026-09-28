@@ -52,13 +52,21 @@ function minimalPdf(lines) {
 }
 const RESUME_LINES = ['Asha Verma', 'Backend Developer', 'asha.verma@example.invalid', 'Summary', 'Backend developer building Java and Spring Boot services on PostgreSQL.', 'Skills', 'Java, Spring Boot, SQL, PostgreSQL, Kafka, Docker', 'Experience', 'Software Engineer at Nimbus Labs', 'Jun 2023 - Present', '- Built REST APIs in Spring Boot serving 40k daily requests', '- Wrote SQL migrations and tuned PostgreSQL queries', '- Owned Kafka consumers for payment events', 'Projects', 'Ledger Service - Java, Spring Boot, PostgreSQL, Docker', 'Education', 'B.Tech Computer Science, 2022']
 
-async function signUp(page, email) {
-  await page.goto(`${BASE}/app`, { waitUntil: 'networkidle' })
+async function signUp(page, email, inviteLink) {
+  if (inviteLink) {
+    await page.goto(`${BASE}${inviteLink}`, { waitUntil: 'networkidle' })
+    await page.getByRole('link', { name: 'Create account', exact: true }).click()
+  } else await page.goto(`${BASE}/app`, { waitUntil: 'networkidle' })
   await page.getByRole('tab', { name: 'Create account' }).click()
   await page.getByLabel('Email address').fill(email)
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: /Create account/ }).click()
   await waitForSession(page)
+  if (inviteLink) {
+    await page.waitForURL(/\/referrer\?token=/)
+    await page.getByRole('button', { name: 'Accept invitation' }).waitFor()
+    return
+  }
   await page.reload({ waitUntil: 'networkidle' })
   await waitForSession(page)
   const skip = page.getByRole('button', { name: 'Skip setup for now' })
@@ -87,7 +95,7 @@ async function uploadResume(page) {
   await page.locator('input[type="file"][aria-label="Resume file"]').setInputFiles({ name: 'asha-resume.pdf', mimeType: 'application/pdf', buffer: minimalPdf(RESUME_LINES) })
   await page.getByText(/asha-resume/).first().waitFor({ timeout: 30000 })
 }
-/** Onboards an invited referrer through the portal UI, confirms the corporate mailbox through the verify page, and lets the admin verify. */
+/** Onboards an invited referrer through the portal UI, confirms the personal mailbox through the verify page, and lets the admin verify. */
 async function onboardReferrer(page, admin, inviteLink, name, roleFamilies = ['Backend']) {
   await page.goto(`${BASE}${inviteLink}`, { waitUntil: 'networkidle' })
   await page.getByRole('button', { name: 'Accept invitation' }).click()
@@ -102,17 +110,24 @@ async function onboardReferrer(page, admin, inviteLink, name, roleFamilies = ['B
   await page.getByRole('button', { name: 'Save profile' }).click()
   await page.getByText('Profile saved').waitFor()
   await page.getByRole('button', { name: 'Send confirmation email' }).click()
-  await page.getByText(/Confirmation email sent to/).waitFor()
+  await page.getByText(/Email delivery is not configured/).waitFor()
   // No mailer locally: plant a known single-use token the way the mail would carry it, then open the confirmation page.
   const referrer = (await pool.query('SELECT id FROM referrer_profiles WHERE "fullName" = $1', [name])).rows[0]
   const token = randomBytes(24).toString('base64url')
-  await pool.query(`UPDATE referrer_verifications SET "tokenHash" = $1 WHERE "referrerId" = $2 AND status = 'pending' AND method = 'corporate_email'`, [createHash('sha256').update(token).digest('hex'), referrer.id])
+  await pool.query(`UPDATE referrer_verifications SET "tokenHash" = $1, status = 'pending' WHERE "referrerId" = $2 AND status = 'failed' AND method = 'personal_email'`, [createHash('sha256').update(token).digest('hex'), referrer.id])
   await page.goto(`${BASE}/referrer/verify?token=${token}`, { waitUntil: 'networkidle' })
-  await page.getByRole('heading', { name: 'Corporate email confirmed' }).waitFor()
+  await page.getByRole('button', { name: 'Confirm email', exact: true }).click()
+  await page.getByRole('heading', { name: 'Email confirmed' }).waitFor()
   await page.goto(`${BASE}/referrer/verify?token=${token}`, { waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: 'Confirm email', exact: true }).click()
   await page.getByRole('heading', { name: /Already confirmed|Link not valid/ }).waitFor()
-  const verified = await post(admin, `/api/admin/referrals/referrers/${referrer.id}`, { action: 'verify', note: 'e2e: mailbox confirmed, identity checked' })
-  assert.equal(verified.status, 200, JSON.stringify(verified.body))
+  await admin.goto(`${BASE}/admin/referrals`, { waitUntil: 'networkidle' })
+  await admin.getByRole('tab', { name: /Referrers/ }).click()
+  const row = admin.getByRole('row').filter({ hasText: name })
+  assert.equal(await row.getByRole('button', { name: 'Verify', exact: true }).isDisabled(), true, 'approval requires a review note')
+  await row.getByLabel('Employment review note').fill('e2e: personally known employee; current employment checked on a call')
+  await row.getByRole('button', { name: 'Verify', exact: true }).click()
+  await admin.getByText(/Employment approved for 12 months/).waitFor()
   await page.goto(`${BASE}/referrer`, { waitUntil: 'networkidle' })
   await page.getByText('Verification: Verified').waitFor()
   await page.getByRole('button', { name: 'Set available' }).click()
@@ -153,8 +168,8 @@ try {
   const jobC = await mkJob(orion, 'Backend Engineer')
   const policy = await post(admin, '/api/admin/referrals', { action: 'policy', companyId: nimbus.id, referralsEnabled: true, policyStatus: 'VERIFIED_POLICY', policySource: 'e2e: internal referral FAQ read 2026-09-28', lastReviewedAt: new Date().toISOString() })
   assert.equal(policy.status, 200, JSON.stringify(policy.body))
-  const inviteA = await post(admin, '/api/admin/referrals', { action: 'invite', email: `refa-${stamp}@nimbus-payments.example.com`, companyId: nimbus.id })
-  const inviteB = await post(admin, '/api/admin/referrals', { action: 'invite', email: `refb-${stamp}@nimbus-payments.example.com`, companyId: nimbus.id })
+  const inviteA = await post(admin, '/api/admin/referrals', { action: 'invite', email: emails.refA, companyId: nimbus.id })
+  const inviteB = await post(admin, '/api/admin/referrals', { action: 'invite', email: emails.refB, companyId: nimbus.id })
   assert.ok(inviteA.body?.invite?.link && inviteB.body?.invite?.link, JSON.stringify(inviteA.body))
   const coverage0 = (await json(admin, '/api/admin/referrals')).body.coverage.find((c) => c.companyId === nimbus.id)
   assert.equal(coverage0.networkAvailable, false, 'no coverage before a verified referrer exists')
@@ -164,7 +179,7 @@ try {
   const refACtx = await browser.newContext({ viewport: { width: 1280, height: 900 } })
   const refA = await refACtx.newPage()
   refA.on('pageerror', (e) => pageErrors.push(String(e)))
-  await signUp(refA, emails.refA)
+  await signUp(refA, emails.refA, inviteA.body.invite.link)
   const refAId = await onboardReferrer(refA, admin, inviteA.body.invite.link, `Referrer Alpha ${stamp}`)
   const refBCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } })
   const refB = await refBCtx.newPage()
@@ -178,7 +193,7 @@ try {
   await refA.goto(`${BASE}/admin`, { waitUntil: 'networkidle' })
   assert.ok(await refA.getByText(/404|not be found|not found/i).count(), 'the admin panel is hidden from referrers')
   await shot(refA, 'referrer-dashboard')
-  pass('two referrers accept invitations, complete onboarding, confirm the corporate mailbox (single-use link), get admin-verified and set themselves available; coverage becomes real')
+  pass('two referrers accept invitations, complete onboarding, confirm the personal mailbox (single-use link), get admin-verified and set themselves available; coverage becomes real')
 
   // ------------------------------------------------------------------ learner: pass, resume, analysis, readiness, request
   const learnerCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } })
@@ -487,7 +502,7 @@ try {
 
   // ------------------------------------------------------------------ admin console renders everything
   await admin.goto(`${BASE}/admin/referrals`, { waitUntil: 'networkidle' })
-  await admin.getByRole('heading', { name: 'Referral network' }).waitFor()
+  await admin.getByRole('heading', { name: 'Referral network', exact: true }).waitFor()
   await admin.getByRole('tab', { name: /Referrers/ }).click()
   await admin.getByText(`Referrer Alpha ${stamp}`).waitFor()
   await admin.getByRole('tab', { name: /Company coverage/ }).click()

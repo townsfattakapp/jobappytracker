@@ -7,7 +7,7 @@ import { DECLINE_REASON_LABELS, DECLINE_REASONS } from '../../lib/referrals/stat
 import BrandLogo from '../BrandLogo'
 
 /**
- * /referrer: a verified employee's own portal. Onboarding, corporate-email
+ * /referrer: a verified employee's own portal. Onboarding, personal-email
  * verification, availability and capacity, and the requests assigned to this
  * referrer only. There is no candidate browsing; the only candidates visible
  * are the ones explicitly assigned.
@@ -65,6 +65,21 @@ export default function ReferrerPortal({ email, inviteToken }: { email: string; 
           <p className="job-section-sub">Signed in as {email}. You decide on every request; JobAppy never submits a referral on your behalf.</p>
         </div>
       </header>
+      <section className="surface referrer-card">
+        <h2 className="font-semibold">Your next step</h2>
+        <p className="job-section-sub">{!data?.referrer
+          ? 'Accept your personal invitation below. If you have not received one, request an invitation from our team.'
+          : !data.referrer.onboardingCompletedAt
+            ? 'Complete your profile, supported roles and locations, and request limits below.'
+            : ['SUSPENDED', 'REJECTED'].includes(data.referrer.verificationStatus)
+              ? 'Your profile cannot receive requests. Contact hello@evolw.in to discuss your verification status.'
+            : data.referrer.verificationStatus !== 'VERIFIED'
+              ? (data.referrer.contactEmailVerifiedAt ? 'Your personal email is confirmed. Our team must review and approve your employment before you receive requests.' : 'Confirm your personal email below, then wait for our team to review your employment. No work email is needed.')
+              : data.referrer.availability === 'paused'
+                ? 'You are verified but paused. Set yourself available below when you are ready to receive requests.'
+                : 'Review assigned requests below. Ask questions, decline, or accept. After accepting, submit through your employer and mark the referral submitted here.'}</p>
+        <p className="job-section-sub">Invitation → Profile → Personal email → Employment review → Available → Review → Submit</p>
+      </section>
       {error && (
         <p className="admin-alert admin-alert-error" role="alert">
           {error}
@@ -81,8 +96,8 @@ export default function ReferrerPortal({ email, inviteToken }: { email: string; 
           {inviteToken ? (
             <>
               <h2 className="font-semibold text-lg">Accept your invitation</h2>
-              <p className="job-section-sub">This creates your referrer profile for the company that invited you. Your corporate email is used for verification only and is never shown to candidates.</p>
-              <button type="button" className="btn btn-primary mt-3" disabled={busy !== null} onClick={() => run('accept', async () => { await referrerSelfAction({ action: 'accept_invite', token: inviteToken }); setNotice('Invitation accepted. Complete your profile below.'); load() })}>
+              <p className="job-section-sub">This creates your referrer profile for the company selected in your JobAppy invitation. Use the personal email that received this invitation. Confirming it proves mailbox ownership; an admin separately reviews your employment. No work email is required.</p>
+              <button type="button" className="btn btn-primary mt-3" disabled={busy !== null} onClick={() => run('accept', async () => { await referrerSelfAction({ action: 'accept_invite', token: inviteToken }); window.history.replaceState(null, '', '/referrer'); setNotice('Invitation accepted. Complete your profile below.'); load() })}>
                 {busy === 'accept' ? 'Accepting…' : 'Accept invitation'}
               </button>
             </>
@@ -90,17 +105,18 @@ export default function ReferrerPortal({ email, inviteToken }: { email: string; 
             <>
               <h2 className="font-semibold text-lg">Invite-only beta</h2>
               <p className="job-section-sub">{data.mode === 'public' ? 'Referrer applications will open here soon.' : 'The verified referrer network is invite-only for now. If you received an invitation email, open its link; otherwise write to hello@evolw.in.'}</p>
+              <a className="btn btn-primary btn-sm" href="mailto:hello@evolw.in?subject=Join%20the%20JobAppy%20referrer%20network&body=Hi%20JobAppy%2C%0A%0AI%20would%20like%20to%20join%20as%20a%20referrer.%0ACompany%3A%20%0ARole%3A%20%0APersonal%20email%3A%20">Request an invitation</a>
             </>
           )}
           <p className="referral-trust">{TRUST_LINE}</p>
         </section>
       )}
 
-      {data?.referrer && !data.referrer.onboardingCompletedAt && <Onboarding referrer={data.referrer} busy={busy} onSave={(body) => run('onboarding', async () => { await referrerSelfAction({ action: 'onboarding', ...body }); setNotice('Profile saved. Next: confirm your corporate email.'); load() })} />}
+      {data?.referrer && !data.referrer.onboardingCompletedAt && <Onboarding referrer={data.referrer} busy={busy} onSave={(body) => run('onboarding', async () => { await referrerSelfAction({ action: 'onboarding', ...body }); setNotice('Profile saved. Next: confirm your personal email, then wait for admin employment review.'); load() })} />}
 
       {data?.referrer && data.referrer.onboardingCompletedAt && (
         <>
-          <Verification referrer={data.referrer} busy={busy} onSend={() => run('verify', async () => { const r = await referrerSelfAction({ action: 'send_verification' }); setNotice(`Confirmation email sent to ${r.sentTo}. Open it from that mailbox within an hour.`) })} />
+          <Verification referrer={data.referrer} busy={busy} onSend={() => run('verify', async () => { const r = await referrerSelfAction({ action: 'send_verification' }); if (r.emailStatus !== 'sent') throw new Error(r.emailStatus === 'skipped' ? 'Email delivery is not configured. Contact hello@evolw.in; your email has not been confirmed.' : 'The confirmation email could not be sent. Try again later or contact hello@evolw.in.'); setNotice(`Confirmation email sent to ${r.sentTo}. Open it from that mailbox within an hour.`); load() })} />
           <Dashboard data={data} busy={busy} onAvailability={(body) => run('availability', async () => { await referrerSelfAction({ action: 'availability', ...body }); load() })} openId={openId} setOpenId={setOpenId} />
           {assignment && (
             <AssignmentReview
@@ -128,7 +144,7 @@ export default function ReferrerPortal({ email, inviteToken }: { email: string; 
 }
 
 function Onboarding({ referrer, busy, onSave }: { referrer: ReferrerSelfDto; busy: string | null; onSave: (body: Record<string, unknown>) => void }) {
-  const [f, setF] = useState({ fullName: referrer.fullName, corporateEmail: referrer.corporateEmail ?? '', title: referrer.title ?? '', roleFamilies: referrer.roleFamilies, department: referrer.department ?? '', location: referrer.location ?? '', supportedLocations: referrer.supportedLocations.join(', '), profileUrl: referrer.profileUrl ?? '', profileUrlShareable: referrer.profileUrlShareable, experienceBand: referrer.experienceBand ?? '', maxActiveRequests: referrer.maxActiveRequests, maxMonthlyRequests: referrer.maxMonthlyRequests, policyAcknowledged: false, privacyConsent: false })
+  const [f, setF] = useState({ fullName: referrer.fullName, title: referrer.title ?? '', roleFamilies: referrer.roleFamilies, department: referrer.department ?? '', location: referrer.location ?? '', supportedLocations: referrer.supportedLocations.join(', '), profileUrl: referrer.profileUrl ?? '', profileUrlShareable: referrer.profileUrlShareable, experienceBand: referrer.experienceBand ?? '', maxActiveRequests: referrer.maxActiveRequests, maxMonthlyRequests: referrer.maxMonthlyRequests, policyAcknowledged: false, privacyConsent: false })
   const toggleFamily = (id: string) => setF({ ...f, roleFamilies: f.roleFamilies.includes(id) ? f.roleFamilies.filter((x) => x !== id) : [...f.roleFamilies, id] })
   return (
     <form
@@ -146,8 +162,9 @@ function Onboarding({ referrer, busy, onSave }: { referrer: ReferrerSelfDto; bus
           <input className="input-field" required value={f.fullName} onChange={(e) => setF({ ...f, fullName: e.target.value })} />
         </label>
         <label className="admin-field">
-          <span>Corporate email (verification only)</span>
-          <input className="input-field" type="email" required value={f.corporateEmail} onChange={(e) => setF({ ...f, corporateEmail: e.target.value })} />
+          <span>Personal email for invitations and updates</span>
+          <input className="input-field" type="email" readOnly value={referrer.contactEmail ?? ''} />
+          <span className="job-section-sub">No work email required. Contact support if this address is incorrect.</span>
         </label>
         <label className="admin-field">
           <span>Role or title</span>
@@ -207,7 +224,7 @@ function Onboarding({ referrer, busy, onSave }: { referrer: ReferrerSelfDto; bus
         <input type="checkbox" required checked={f.policyAcknowledged} onChange={(e) => setF({ ...f, policyAcknowledged: e.target.checked })} /> <span>I will follow my employer’s referral policy. I decide on every request and submit referrals only through my employer’s official process.</span>
       </label>
       <label className="admin-check">
-        <input type="checkbox" required checked={f.privacyConsent} onChange={(e) => setF({ ...f, privacyConsent: e.target.checked })} /> <span>I consent to JobAppy storing this profile and my corporate email for verification. Candidates see only my company, area and verified status.</span>
+        <input type="checkbox" required checked={f.privacyConsent} onChange={(e) => setF({ ...f, privacyConsent: e.target.checked })} /> <span>I consent to JobAppy storing this profile and my personal email for account confirmation and referral updates. Employment is reviewed separately by an admin. Candidates see only my company, area and verified status.</span>
       </label>
       <button type="submit" className="btn btn-primary" disabled={busy !== null}>
         {busy === 'onboarding' ? 'Saving…' : 'Save profile'}
@@ -220,18 +237,19 @@ function Verification({ referrer, busy, onSend }: { referrer: ReferrerSelfDto; b
   const label: Record<string, string> = { PENDING: 'Pending verification', VERIFIED: 'Verified', REJECTED: 'Not verified', SUSPENDED: 'Suspended', EXPIRED: 'Verification expired', REQUIRES_REVERIFICATION: 'Re-verification required' }
   return (
     <section className="surface referrer-card" aria-label="Verification">
+      <p className="job-section-sub">Personal email: {referrer.contactEmailVerifiedAt ? 'Confirmed' : 'Not confirmed'} · {referrer.contactEmail}</p>
       <div className="referrer-verify-row">
         <div>
           <h2 className="font-semibold text-lg">Verification: {label[referrer.verificationStatus] ?? referrer.verificationStatus}</h2>
           <p className="job-section-sub">
             {referrer.verificationStatus === 'VERIFIED'
-              ? `Verified${referrer.verificationExpiresAt ? ` until ${formatWhen(referrer.verificationExpiresAt)}` : ''}. Verification proves employment, not eligibility to refer every role; you still decide case by case.`
+              ? `Verified${referrer.verificationExpiresAt ? ` until ${formatWhen(referrer.verificationExpiresAt)}` : ''}. Employment reviewed by JobAppy. This does not imply employer endorsement or eligibility to refer every role; you still decide case by case.`
               : referrer.verificationStatus === 'SUSPENDED' || referrer.verificationStatus === 'REJECTED'
                 ? 'You cannot review requests. Contact hello@evolw.in if you think this is wrong.'
-                : 'Two steps: confirm your corporate mailbox (link sent by email), then an admin reviews and verifies you. Nothing is inferred from the email domain alone.'}
+                : 'Confirm your personal email, then an admin reviews your employment. No corporate mailbox is required. Email confirmation alone does not verify employment.'}
           </p>
         </div>
-        {['PENDING', 'EXPIRED', 'REQUIRES_REVERIFICATION'].includes(referrer.verificationStatus) && (
+        {!referrer.contactEmailVerifiedAt && !['SUSPENDED', 'REJECTED'].includes(referrer.verificationStatus) && (
           <button type="button" className="btn btn-primary btn-sm" onClick={onSend} disabled={busy !== null}>
             {busy === 'verify' ? 'Sending…' : referrer.emailVerificationPending ? 'Resend confirmation email' : 'Send confirmation email'}
           </button>

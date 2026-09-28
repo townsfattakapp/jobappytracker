@@ -41,7 +41,8 @@ export function migrationFailureMessage(error) {
     ECONNREFUSED: 'Check the database endpoint, port, and network access from Vercel.',
     ETIMEDOUT: 'Check database network access from Vercel and the direct connection endpoint.',
   };
-  error = original;
-  const message = typeof error?.message === 'string' && !/postgres(ql)?:\/\//i.test(error.message) ? ` ${error.message.slice(0, 160)}` : '';
-  return `Migration failed${code ? ` (${code})` : ''}.${message} ${hints[code] || (/does not support SSL/i.test(message) ? 'The target refuses TLS; for a loopback staging copy add ?sslmode=disable to the URL.' : 'Check the migration database configuration, connectivity, and database server logs.')}`;
+  // Driver/wrapper messages can contain SQL, personal data and credentials
+  // without containing a connection URL. Only expose validated codes and fixed hints.
+  const refusesTls = typeof original?.message === 'string' && /does not support SSL/i.test(original.message);
+  return `Migration failed${code ? ` (${code})` : ''}. ${hints[code] || (refusesTls ? 'The target refuses TLS; for a loopback staging copy add ?sslmode=disable to the URL.' : 'Check the migration database configuration, connectivity, and database server logs.')}`;
 }

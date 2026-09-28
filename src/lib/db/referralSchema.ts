@@ -23,6 +23,10 @@ export const referrerProfiles = pgTable('referrer_profiles', {
   publicId: text('publicId').notNull().unique(),
   companyId: text('companyId').notNull().references(() => companies.id, { onDelete: 'restrict' }),
   fullName: text('fullName').notNull(),
+  /** Private invitation/notification address. Personal mailboxes are supported. */
+  contactEmail: text('contactEmail'),
+  contactEmailVerifiedAt: timestamp('contactEmailVerifiedAt'),
+  /** Legacy employment evidence only; never required for personal-email onboarding. */
   corporateEmail: text('corporateEmail'),
   corporateEmailDomain: text('corporateEmailDomain'),
   title: text('title'),
@@ -54,7 +58,7 @@ export const referrerProfiles = pgTable('referrer_profiles', {
   index('referrer_profiles_company_idx').on(t.companyId, t.verificationStatus, t.availability),
 ])
 
-/** Invite-only beta: an admin invites a corporate address for one company. */
+/** An admin invites a personal/contact address for one company. */
 export const referrerInvites = pgTable('referrer_invites', {
   id: text('id').primaryKey(),
   email: text('email').notNull(),
@@ -72,7 +76,7 @@ export const referrerInvites = pgTable('referrer_invites', {
 export const referrerVerifications = pgTable('referrer_verifications', {
   id: text('id').primaryKey(),
   referrerId: text('referrerId').notNull().references(() => referrerProfiles.id, { onDelete: 'cascade' }),
-  method: text('method').notNull(), // corporate_email | admin_review | evidence
+  method: text('method').notNull(), // personal_email | corporate_email (legacy) | admin_review | evidence
   status: text('status').notNull().default('pending'), // pending | confirmed | failed | expired | rejected
   tokenHash: text('tokenHash'),
   tokenExpiresAt: timestamp('tokenExpiresAt'),

@@ -1,5 +1,5 @@
 import { api } from '../adminClient'
-import type { AdminReferrerDto, AdminRequestDto, CompanyCoverageRow, CompanyPolicyDto, CreditSummary, JobReferralAvailability, LearnerRequestDto, ReferralMetrics, ReferralSettings, ReferrerAssignmentDto, ReferrerSelfDto } from '../server/referrals'
+import type { AdminInviteDto, AdminReferrerDto, AdminRequestDto, CompanyCoverageRow, CompanyPolicyDto, CreditSummary, JobReferralAvailability, LearnerRequestDto, ReferralMetrics, ReferralSettings, ReferrerAssignmentDto, ReferrerSelfDto } from '../server/referrals'
 import type { ReadinessReport } from './readiness'
 
 export type { AdminReferrerDto, AdminRequestDto, CompanyCoverageRow, CompanyPolicyDto, CreditSummary, JobReferralAvailability, LearnerRequestDto, ReadinessReport, ReferralMetrics, ReferralSettings, ReferrerAssignmentDto, ReferrerSelfDto }
@@ -63,7 +63,7 @@ export function fetchReferrerPortal(): Promise<ReferrerPortalData> {
   return api<ReferrerPortalData>('/api/referrer')
 }
 
-export function referrerSelfAction(body: Record<string, unknown>): Promise<{ referrer?: ReferrerSelfDto; sentTo?: string; expiresAt?: string }> {
+export function referrerSelfAction(body: Record<string, unknown>): Promise<{ referrer?: ReferrerSelfDto; sentTo?: string; expiresAt?: string; emailStatus?: 'sent' | 'skipped' | 'failed' | 'unknown' }> {
   return api('/api/referrer', { method: 'POST', json: body })
 }
 
@@ -82,6 +82,7 @@ export function confirmReferrerEmail(token: string): Promise<{ result: 'verified
 // Admin -----------------------------------------------------------------------
 
 export interface AdminReferralConsole {
+  invites: AdminInviteDto[]
   metrics: ReferralMetrics
   requests: AdminRequestDto[]
   referrers: AdminReferrerDto[]

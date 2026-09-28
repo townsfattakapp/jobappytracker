@@ -16,10 +16,13 @@ export default async function ReferrerPage({ searchParams }: { searchParams: Pro
       <main className="referrer-shell">
         <div className="surface referrer-card">
           <h1 className="font-display text-2xl font-bold">Referrer portal</h1>
-          <p className="text-sm text-muted-foreground">Sign in with the account you use for JobAppy, then come back to this page. If you are accepting an invitation, keep this link.</p>
+          <p className="text-sm text-muted-foreground">Help candidates by reviewing referral requests for your company. You choose which requests to accept and set your own availability. Your name and personal email stay private unless you choose to share your identity.</p>
+          <p className="text-sm text-muted-foreground">Create an account or sign in using the personal email that received your invitation. No work email is required. Then accept your invitation, complete your profile, confirm your personal email and wait for our team to verify your employment.</p>
           <a href={`/app?mode=signin&next=${encodeURIComponent(next)}`} className="btn btn-primary mt-3">
             Sign in
           </a>
+          <a href={`/app?mode=signup&next=${encodeURIComponent(next)}`} className="btn btn-ghost">Create account</a>
+          {!token && <a href="mailto:hello@evolw.in?subject=Join%20the%20JobAppy%20referrer%20network" className="btn btn-link">Request an invitation</a>}
         </div>
       </main>
     )
