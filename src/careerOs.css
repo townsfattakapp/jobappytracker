@@ -1197,7 +1197,41 @@ body.iv-focus .trial-banner, body.iv-focus .app-footer { display: none; }
 .referrer-decline, .referrer-submit { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .referrer-decline select, .referrer-decline input, .referrer-submit input { flex: 1 1 200px; min-width: 0; }
 .referrals-admin { display: grid; gap: 1rem; }
+.referral-hero { padding: clamp(1rem, 3vw, 1.75rem); border: 1px solid hsl(var(--primary) / .18); border-radius: 1rem; background: linear-gradient(130deg, hsl(var(--primary) / .08), hsl(var(--card)) 70%); }
+.referral-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .75rem; padding: 0; margin: 1.1rem 0; list-style: none; }
+.referral-steps li { position: relative; display: flex; align-items: flex-start; gap: .65rem; padding: .85rem; border: 1px solid hsl(var(--border)); border-radius: .8rem; background: hsl(var(--card)); min-width: 0; }
+.referral-steps li[aria-current='step'] { border-color: hsl(var(--primary)); box-shadow: 0 0 0 1px hsl(var(--primary) / .15); }
+.referral-step-number { display: grid; place-items: center; flex: 0 0 1.6rem; height: 1.6rem; border-radius: 50%; background: hsl(var(--muted)); font-size: .75rem; font-weight: 700; }
+.referral-steps li[aria-current='step'] .referral-step-number, .referral-steps li[data-done='true'] .referral-step-number { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.referral-steps strong { display: block; font-size: .82rem; line-height: 1.5; }
+.referral-steps p { margin: .35rem 0 0; font-size: .76rem; line-height: 1.6; color: hsl(var(--muted-foreground)); }
+.referral-step-arrow { position: absolute; right: -.55rem; top: 1.1rem; z-index: 1; color: hsl(var(--muted-foreground)); background: hsl(var(--card)); border-radius: 50%; }
+.referral-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; margin: .75rem 0; }
+.referral-toolbar > input { flex: 1 1 220px; min-width: 0; }
+.referral-toolbar > select { flex: 0 1 250px; min-width: 0; }
+.referral-toolbar button[aria-pressed='true'] { background: hsl(var(--primary) / .1); color: hsl(var(--primary)); box-shadow: inset 0 0 0 1px hsl(var(--primary) / .4); }
+.referral-refresh { justify-self: end; }
+.referral-progress summary { cursor: pointer; font-size: .8rem; font-weight: 600; color: hsl(var(--muted-foreground)); }
+.referral-mail-help { border-left: 3px solid hsl(var(--primary) / .6); padding: .65rem .85rem; background: hsl(var(--primary) / .05); color: hsl(var(--muted-foreground)); font-size: .82rem; line-height: 1.6; }
+.referral-empty { padding: 1.5rem; text-align: center; border: 1px dashed hsl(var(--border)); border-radius: .8rem; color: hsl(var(--muted-foreground)); }
+.referral-card-main:hover { background: hsl(var(--primary) / .04); }
+.referral-card-main:focus-visible, .referral-toolbar button:focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 3px; }
+.referrer-portal, .referrals-admin, .referrals-workspace { min-width: 0; }
+.referrer-review { scroll-margin-top: 2rem; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .referral-steps { grid-template-columns: 1fr; }
+  .referral-step-arrow { display: none; }
+  .referral-steps li { padding: .7rem; }
+  .referral-steps p { margin-top: .1rem; }
+  .referral-card-main { flex-wrap: wrap; gap: .75rem; }
+  .referral-card-meta { text-align: left; }
+  .referral-toolbar > select { flex-grow: 1; }
+  .referrals-admin .admin-table-wrap { max-width: 100%; }
+}
 .referrals-admin-split { align-items: start; }
+@media (max-width: 1599px) {
+  .referrals-admin .referrals-admin-split { grid-template-columns: minmax(0, 1fr); }
+}
 .referrals-admin-detail { display: grid; gap: 0.5rem; }
 .referral-admin-list { list-style: none; padding: 0; margin: 0.3rem 0 0; display: grid; gap: 0.25rem; font-size: 0.82rem; }
 .referral-admin-actions { display: grid; gap: 0.5rem; }

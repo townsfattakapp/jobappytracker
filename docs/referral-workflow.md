@@ -12,6 +12,10 @@
 
 ## Referrer: review and submit
 
+The portal shows onboarding progress and the next required action. Use **Refresh status** after confirming your email or after an employment review. Confirmation messages may appear in Promotions or Spam; search for `hello@evolw.in` and use the latest link. Provider acceptance is not a delivery receipt.
+
+The request queue defaults to active work. Use **Needs your review**, **Ready to submit**, or **All requests** to focus on the next action or see completed history. Failed message sends preserve the draft for retry.
+
 All invitations, confirmation messages and referral notifications go to the invited personal address. Your account and work-email evidence are separate. JobAppy does not imply employer endorsement.
 
 Use `/referrer` to review assigned candidates, ask questions, accept or decline. After accepting, submit through your employer's official referral process, then mark the referral submitted in JobAppy. Acceptance alone is not a submitted referral. Pause availability whenever needed. Candidates do not receive your email or private review evidence.
@@ -25,6 +29,8 @@ Open **Referral Center > Find a job to request a referral**, choose a job and us
 Submission reserves a credit when required. Reply to questions in **Needs action**. Acceptance consumes the reserved credit. Once the employee marks the referral submitted, add it to your tracker. A request does not guarantee a referral, interview or job.
 
 ## Admin: exceptions
+
+Search **Requests** by company, role or candidate email and filter by status. Request details can be opened with the keyboard. In **Referrers**, search names, personal emails and companies; **Ready for employment review** shows pending profiles with completed onboarding and confirmed email. Profile-status filters apply to profiles; the search also filters invitation history. Lists reflect the records returned by the console (invitation history is capped at the latest 200). Refresh the network to pick up new activity.
 
 Use **Requests** for messages, status history, assignment and matching retries. Declines and timeouts can trigger another match within configured limits. Unused reservations are released on closure; refunds after acceptance depend on the close reason. Use **Beta settings** for timeouts, credit requirements and expiry sweeps. A visitor without an invitation can draft an invitation request to the team; public self-service applications remain unavailable.
 

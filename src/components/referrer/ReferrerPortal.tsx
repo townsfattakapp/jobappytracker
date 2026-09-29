@@ -5,6 +5,7 @@ import { ApiError } from '../../lib/adminClient'
 import { assignmentAction, fetchAssignment, fetchReferrerPortal, formatWhen, referrerSelfAction, ROLE_FAMILY_OPTIONS, TRUST_LINE, type ReferrerAssignmentDto, type ReferrerPortalData, type ReferrerSelfDto } from '../../lib/referrals/client'
 import { DECLINE_REASON_LABELS, DECLINE_REASONS } from '../../lib/referrals/states'
 import BrandLogo from '../BrandLogo'
+import ReferralSteps from './ReferralSteps'
 
 /**
  * /referrer: a verified employee's own portal. Onboarding, personal-email
@@ -21,6 +22,7 @@ export default function ReferrerPortal({ email, inviteToken }: { email: string; 
   const [busy, setBusy] = useState<string | null>(null)
 
   const load = useCallback(() => {
+    setError(null)
     fetchReferrerPortal()
       .then(setData)
       .catch((err) => setError(err instanceof Error ? err.message : 'Could not load the portal.'))
@@ -35,21 +37,26 @@ export default function ReferrerPortal({ email, inviteToken }: { email: string; 
     setNotice(null)
     try {
       await fn()
+      return true
     } catch (err) {
       setError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'Something went wrong.')
+      return false
     } finally {
       setBusy(null)
     }
   }
 
   useEffect(() => {
+    let active = true
+    setAssignment(null)
     if (!openId) {
       setAssignment(null)
       return
     }
     fetchAssignment(openId)
-      .then((r) => setAssignment(r.assignment))
-      .catch((err) => setError(err instanceof Error ? err.message : 'Could not open the request.'))
+      .then((r) => { if (active) setAssignment(r.assignment) })
+      .catch((err) => { if (active) setError(err instanceof Error ? err.message : 'Could not open the request.') })
+    return () => { active = false }
   }, [openId])
 
   if (!data && !error) return <p className="job-section-sub">Loading…</p>
@@ -65,7 +72,8 @@ export default function ReferrerPortal({ email, inviteToken }: { email: string; 
           <p className="job-section-sub">Signed in as {email}. You decide on every request; JobAppy never submits a referral on your behalf.</p>
         </div>
       </header>
-      <section className="surface referrer-card">
+      <button type="button" className="btn btn-ghost btn-sm referral-refresh" disabled={busy !== null} onClick={load}>Refresh status</button>
+      <section className="surface referrer-card referral-hero">
         <h2 className="font-semibold">Your next step</h2>
         <p className="job-section-sub">{!data?.referrer
           ? 'Accept your personal invitation below. If you have not received one, request an invitation from our team.'
@@ -78,7 +86,13 @@ export default function ReferrerPortal({ email, inviteToken }: { email: string; 
               : data.referrer.availability === 'paused'
                 ? 'You are verified but paused. Set yourself available below when you are ready to receive requests.'
                 : 'Review assigned requests below. Ask questions, decline, or accept. After accepting, submit through your employer and mark the referral submitted here.'}</p>
-        <p className="job-section-sub">Invitation → Profile → Personal email → Employment review → Available → Review → Submit</p>
+        <details key={data?.referrer?.active ? 'ready' : 'setup'} open={data?.referrer?.active ? undefined : true} className="referral-progress"><summary>{data?.referrer?.active ? 'Setup complete · View onboarding steps' : 'Your onboarding progress'}</summary><ReferralSteps current={!data?.referrer ? 0 : !data.referrer.onboardingCompletedAt ? 1 : !data.referrer.contactEmailVerifiedAt ? 2 : !data.referrer.active ? 3 : 4} steps={[
+          { title: 'Accept invitation', detail: 'Use your invited personal email.' },
+          { title: 'Your profile', detail: 'Choose roles, locations and capacity.' },
+          { title: 'Confirm email', detail: 'No work mailbox needed.' },
+          { title: 'Employment review', detail: 'Our team checks your employment.' },
+          { title: 'Review requests', detail: 'Go available when you are ready.' },
+        ]} /></details>
       </section>
       {error && (
         <p className="admin-alert admin-alert-error" role="alert">
@@ -118,8 +132,10 @@ export default function ReferrerPortal({ email, inviteToken }: { email: string; 
         <>
           <Verification referrer={data.referrer} busy={busy} onSend={() => run('verify', async () => { const r = await referrerSelfAction({ action: 'send_verification' }); if (r.emailStatus !== 'sent') throw new Error(r.emailStatus === 'skipped' ? 'Email delivery is not configured. Contact hello@evolw.in; your email has not been confirmed.' : 'The confirmation email could not be sent. Try again later or contact hello@evolw.in.'); setNotice(`Confirmation email sent to ${r.sentTo}. Open it from that mailbox within an hour.`); load() })} />
           <Dashboard data={data} busy={busy} onAvailability={(body) => run('availability', async () => { await referrerSelfAction({ action: 'availability', ...body }); load() })} openId={openId} setOpenId={setOpenId} />
-          {assignment && (
+          {openId && !assignment && !error && <p role="status" className="referral-empty">Loading candidate review…</p>}
+          {assignment && assignment.id === openId && (
             <AssignmentReview
+              key={assignment.id}
               assignment={assignment}
               referrer={data.referrer}
               busy={busy}
@@ -238,6 +254,7 @@ function Verification({ referrer, busy, onSend }: { referrer: ReferrerSelfDto; b
   return (
     <section className="surface referrer-card" aria-label="Verification">
       <p className="job-section-sub">Personal email: {referrer.contactEmailVerifiedAt ? 'Confirmed' : 'Not confirmed'} · {referrer.contactEmail}</p>
+      {!referrer.contactEmailVerifiedAt && <p className="referral-mail-help">Look for an email from hello@evolw.in in your inbox, Promotions or Spam. Use the latest confirmation link, then refresh this page. Links expire after one hour.</p>}
       <div className="referrer-verify-row">
         <div>
           <h2 className="font-semibold text-lg">Verification: {label[referrer.verificationStatus] ?? referrer.verificationStatus}</h2>
@@ -263,6 +280,8 @@ function Dashboard({ data, busy, onAvailability, openId, setOpenId }: { data: Re
   const r = data.referrer!
   const counts = data.counts!
   const [caps, setCaps] = useState({ maxActiveRequests: r.maxActiveRequests, maxMonthlyRequests: r.maxMonthlyRequests })
+  const [filter, setFilter] = useState('active')
+  const assignments = (data.assignments ?? []).filter((a) => filter === 'all' || (filter === 'active' ? ['PENDING', 'CLARIFICATION', 'ACCEPTED'].includes(a.status) : a.status === filter))
   const statusLabel: Record<string, string> = { PENDING: 'Awaiting your review', CLARIFICATION: 'Waiting for the candidate', ACCEPTED: 'Accepted · submit and mark done', SUBMITTED: 'Referral submitted', DECLINED: 'Declined', EXPIRED: 'Timed out', CANCELLED: 'Cancelled' }
   return (
     <>
@@ -328,11 +347,15 @@ function Dashboard({ data, busy, onAvailability, openId, setOpenId }: { data: Re
       </details>
       <section aria-label="Assigned requests">
         <h2 className="font-semibold text-lg mt-4">Requests assigned to you</h2>
+        <div className="referral-toolbar" role="group" aria-label="Filter assignments">
+          {[['active', 'Active'], ['PENDING', 'Needs your review'], ['ACCEPTED', 'Ready to submit'], ['all', 'All requests']].map(([value, label]) => <button key={value} type="button" className="btn btn-ghost btn-sm" aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}
+        </div>
         {data.assignments!.length === 0 && <p className="job-section-sub">Nothing assigned yet. Requests arrive when a prepared candidate asks for a referral at {r.companyName} in a role family and location you support.</p>}
         <ul className="referral-cards">
-          {data.assignments!.map((a) => (
+          {assignments.length === 0 && data.assignments!.length > 0 && <li className="referral-empty">No requests in this view. Choose All requests to see your history.</li>}
+          {assignments.map((a) => (
             <li key={a.id} className={`referral-card ${openId === a.id ? 'is-open' : ''}`}>
-              <button type="button" className="referral-card-main" onClick={() => setOpenId(openId === a.id ? null : a.id)} aria-expanded={openId === a.id}>
+              <button type="button" disabled={busy !== null} className="referral-card-main" onClick={() => setOpenId(openId === a.id ? null : a.id)} aria-expanded={openId === a.id}>
                 <div>
                   <div className="font-semibold">{a.job.title}</div>
                   <div className="text-sm">{a.job.location ?? ''}</div>
@@ -353,7 +376,7 @@ function Dashboard({ data, busy, onAvailability, openId, setOpenId }: { data: Re
   )
 }
 
-function AssignmentReview({ assignment: a, referrer, busy, onAction, onClose }: { assignment: ReferrerAssignmentDto; referrer: ReferrerSelfDto; busy: string | null; onAction: (body: Record<string, unknown>) => void; onClose: () => void }) {
+function AssignmentReview({ assignment: a, referrer, busy, onAction, onClose }: { assignment: ReferrerAssignmentDto; referrer: ReferrerSelfDto; busy: string | null; onAction: (body: Record<string, unknown>) => Promise<boolean>; onClose: () => void }) {
   const [message, setMessage] = useState('')
   const [declineReason, setDeclineReason] = useState<string>('')
   const [declineNote, setDeclineNote] = useState('')
@@ -368,7 +391,7 @@ function AssignmentReview({ assignment: a, referrer, busy, onAction, onClose }: 
         <h2 className="font-semibold text-lg">
           {a.job.title} · {a.job.company}
         </h2>
-        <button type="button" className="btn btn-link btn-sm" onClick={onClose}>
+        <button type="button" className="btn btn-link btn-sm" disabled={busy !== null} onClick={onClose}>
           Close
         </button>
       </div>
@@ -482,7 +505,7 @@ function AssignmentReview({ assignment: a, referrer, busy, onAction, onClose }: 
           </div>
           <div className="referral-reply">
             <textarea className="input-field" rows={2} maxLength={1500} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Ask the candidate for clarification (through JobAppy)" aria-label="Clarification" />
-            <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || message.trim().length < 2} onClick={() => { onAction({ action: 'clarify', message }); setMessage('') }}>
+            <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || message.trim().length < 2} onClick={async () => { if (await onAction({ action: 'clarify', message })) setMessage('') }}>
               Request clarification
             </button>
           </div>
@@ -515,7 +538,7 @@ function AssignmentReview({ assignment: a, referrer, busy, onAction, onClose }: 
           </div>
           <div className="referral-reply">
             <textarea className="input-field" rows={2} maxLength={1500} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Message the candidate (through JobAppy)" aria-label="Message" />
-            <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || message.trim().length < 2} onClick={() => { onAction({ action: 'message', message }); setMessage('') }}>
+            <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || message.trim().length < 2} onClick={async () => { if (await onAction({ action: 'message', message })) setMessage('') }}>
               Send
             </button>
           </div>

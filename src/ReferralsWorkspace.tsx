@@ -7,6 +7,7 @@ import { fetchReferralCenter, formatWhen, PRICING_LINE, referralAction, TRUST_LI
 import { LEARNER_STAGE_LABELS } from './lib/referrals/states'
 import { RequestStatus } from './components/jobs/ReferralTab'
 import type { JobApplication } from './types'
+import ReferralSteps from './components/referrer/ReferralSteps'
 
 type Bucket = 'active' | 'needs_action' | 'completed' | 'history'
 
@@ -32,6 +33,7 @@ export default function ReferralsWorkspace({ signedIn, applications, onSignIn, o
 
   const load = useCallback(() => {
     if (!signedIn) return
+    setError(null)
     fetchReferralCenter()
       .then(setData)
       .catch((err) => setError(err instanceof ApiError && err.code === 'sign_in' ? 'Sign in to see your referral requests.' : err instanceof Error ? err.message : 'Could not load referrals.'))
@@ -76,10 +78,11 @@ export default function ReferralsWorkspace({ signedIn, applications, onSignIn, o
 
   return (
     <div className="referrals-workspace">
-      <div className="referrals-head">
+      <div className="referrals-head referral-hero">
         <div>
           <h2 className="jobs-panel-title">Referral Center</h2>
-          <p className="jobs-panel-sub">Verified employees review your requests. {TRUST_LINE}</p>
+          <p className="jobs-panel-sub">A thoughtful introduction. A real employee review. Your next step, all in one place.</p>
+          <div className="referral-actions"><button type="button" className="btn btn-primary btn-sm" onClick={onBrowseJobs}>Find a job to request a referral</button><a className="btn btn-ghost btn-sm" href="/referrer">Join as a referrer</a></div>
         </div>
         {data && (
           <div className="referral-credit-card" aria-label="Referral credits">
@@ -102,18 +105,15 @@ export default function ReferralsWorkspace({ signedIn, applications, onSignIn, o
       {data?.networkMode === 'disabled' && <p className="job-section-sub">Referral assistance is switched off right now.</p>}
       <section className="jobs-panel">
         <h3 className="font-semibold">How to request a referral</h3>
-        <ol className="list-decimal pl-5 text-sm space-y-2 mt-3">
-          <li>Find a job and open its Referral tab to check verified employee availability.</li>
-          <li>Select your resume, check readiness, and add your introduction and relevant experience.</li>
-          <li>Submit with consent. When credits are required, one is reserved while we match your request.</li>
-          <li>Follow updates here and reply to questions. Acceptance uses the reserved credit; the employee then submits through their employer.</li>
-          <li>Once marked submitted, add the job to your application tracker and follow the employer’s next steps.</li>
-        </ol>
-        <div className="referral-actions">
-          <button type="button" className="btn btn-primary btn-sm" onClick={onBrowseJobs}>Find a job to request a referral</button>
-          <a className="btn btn-ghost btn-sm" href="/referrer">Join as a referrer</a>
-        </div>
+        <ReferralSteps steps={[
+          { title: 'Find your role', detail: 'Open a job’s Referral tab to check availability.' },
+          { title: 'Make your introduction', detail: 'Choose a resume, check readiness and give consent.' },
+          { title: 'Employee review', detail: 'Follow updates and reply to any questions here.' },
+          { title: 'Track the outcome', detail: 'After submission, add the job to your tracker.' },
+        ]} />
+        <p className="referral-trust">When required, a credit is reserved on submission and used on acceptance. {TRUST_LINE}</p>
       </section>
+      <div className="referral-toolbar"><h3 className="font-semibold">Your requests</h3><button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null} onClick={load}>Refresh requests</button></div>
       <div className="job-tabs" role="tablist" aria-label="Referral requests">
         {(
           [
@@ -123,7 +123,7 @@ export default function ReferralsWorkspace({ signedIn, applications, onSignIn, o
             ['history', 'History'],
           ] as [Bucket, string][]
         ).map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={bucket === id} className={`job-tab ${bucket === id ? 'is-active' : ''}`} onClick={() => setBucket(id)}>
+          <button key={id} type="button" role="tab" aria-selected={bucket === id} className={`job-tab ${bucket === id ? 'is-active' : ''}`} onClick={() => { setBucket(id); setOpenId(null); setReply('') }}>
             {label}
             {counts[id] > 0 && <span className="job-tab-badge">{counts[id]}</span>}
           </button>
@@ -140,7 +140,7 @@ export default function ReferralsWorkspace({ signedIn, applications, onSignIn, o
       <ul className="referral-cards">
         {visible.map((r) => (
           <li key={r.id} className={`referral-card ${openId === r.id ? 'is-open' : ''}`}>
-            <button type="button" className="referral-card-main" onClick={() => setOpenId(openId === r.id ? null : r.id)} aria-expanded={openId === r.id}>
+            <button type="button" disabled={busy !== null} className="referral-card-main" onClick={() => { setOpenId(openId === r.id ? null : r.id); setReply('') }} aria-expanded={openId === r.id}>
               <div>
                 <div className="font-semibold">{r.companyName}</div>
                 <div className="text-sm">{r.jobTitle}</div>
