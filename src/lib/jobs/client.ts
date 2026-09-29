@@ -58,6 +58,7 @@ export interface HiringCompanyDto {
   careersUrl: string | null
   logoUrl: string | null
   headquarters: string | null
+  industry?: string | null
   indiaRelevance: string | null
   jobCount: number
 }
@@ -70,6 +71,8 @@ export interface CompanyWithoutOpeningsDto {
   careersUrl: string | null
   logoUrl: string | null
   headquarters: string | null
+  industry?: string | null
+  indiaRelevance?: string | null
   reason: 'no_feed' | 'no_matching_openings'
 }
 

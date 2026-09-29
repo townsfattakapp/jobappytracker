@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   ArrowRight,
+  Briefcase,
+  Building2,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
+  ChevronsUpDown,
   ChevronUp,
+  ExternalLink,
+  Globe,
   Lock,
   MapPin,
   RotateCcw,
   Search,
+  SlidersHorizontal,
+  Sparkles,
   X,
 } from 'lucide-react'
 import LockedFeature from './components/LockedFeature'
@@ -62,6 +70,7 @@ interface JobsPersistedState {
   query: string
   page: number
   isCompaniesExpanded: boolean
+  isFiltersExpanded?: boolean
 }
 
 let inMemoryJobsState: JobsPersistedState | null = null
@@ -87,6 +96,7 @@ function loadPersistedJobsState(): JobsPersistedState {
     query: '',
     page: 1,
     isCompaniesExpanded: false,
+    isFiltersExpanded: true,
   }
 }
 
@@ -172,6 +182,12 @@ export default function JobsWorkspace({
   const [query, setQuery] = useState(initial.query)
   const [page, setPage] = useState(initial.page)
   const [isCompaniesExpanded, setIsCompaniesExpanded] = useState(initial.isCompaniesExpanded)
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(initial.isFiltersExpanded ?? true)
+
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({})
+  const [expandedJobIds, setExpandedJobIds] = useState<Set<string>>(new Set())
+  const [isSidebarPrefsExpanded, setIsSidebarPrefsExpanded] = useState(true)
+  const [isSidebarAboutExpanded, setIsSidebarAboutExpanded] = useState(true)
 
   const [result, setResult] = useState<JobListResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -198,8 +214,9 @@ export default function JobsWorkspace({
       query,
       page,
       isCompaniesExpanded,
+      isFiltersExpanded,
     })
-  }, [filters, query, page, isCompaniesExpanded])
+  }, [filters, query, page, isCompaniesExpanded, isFiltersExpanded])
 
   // Debounced search query
   useEffect(() => {
@@ -324,6 +341,7 @@ export default function JobsWorkspace({
       query: '',
       page: 1,
       isCompaniesExpanded,
+      isFiltersExpanded,
     })
   }
 
@@ -332,9 +350,183 @@ export default function JobsWorkspace({
     return companies.find((c) => c.id === filters.companyId)?.name ?? null
   }, [filters.companyId, companies])
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (filters.roleCategory) count++
+    if (filters.city) count++
+    if (filters.region) count++
+    if (filters.workMode) count++
+    if (filters.level) count++
+    if (filters.employmentType) count++
+    if (filters.companyId) count++
+    return count
+  }, [filters])
+
+  const activeFilterPills = useMemo(() => {
+    const pills: { key: string; label: string; onRemove: () => void }[] = []
+    if (filters.roleCategory) {
+      pills.push({
+        key: 'roleCategory',
+        label: `Role: ${labelOf(ROLE_CATEGORIES, filters.roleCategory)}`,
+        onRemove: () => setFilter('roleCategory', ''),
+      })
+    }
+    if (filters.city) {
+      pills.push({
+        key: 'city',
+        label: `City: ${labelOf(INDIA_CITY_GROUPS, filters.city)}`,
+        onRemove: () => setFilters((f) => ({ ...f, city: undefined })),
+      })
+    }
+    if (filters.region) {
+      pills.push({
+        key: 'region',
+        label: `Region: ${labelOf(REGIONS, filters.region)}`,
+        onRemove: () => setFilter('region', ''),
+      })
+    }
+    if (filters.workMode) {
+      pills.push({
+        key: 'workMode',
+        label: `Mode: ${labelOf(WORK_MODES, filters.workMode)}`,
+        onRemove: () => setFilter('workMode', ''),
+      })
+    }
+    if (filters.level) {
+      pills.push({
+        key: 'level',
+        label: `Level: ${labelOf(JOB_LEVELS, filters.level)}`,
+        onRemove: () => setFilter('level', ''),
+      })
+    }
+    if (filters.employmentType) {
+      pills.push({
+        key: 'employmentType',
+        label: `Type: ${labelOf(EMPLOYMENT_TYPES, filters.employmentType)}`,
+        onRemove: () => setFilter('employmentType', ''),
+      })
+    }
+    if (filters.companyId && activeCompanyName) {
+      pills.push({
+        key: 'companyId',
+        label: `Company: ${activeCompanyName}`,
+        onRemove: () => setFilter('companyId', ''),
+      })
+    }
+    return pills
+  }, [filters, activeCompanyName, setFilter])
+
+  const toggleSection = useCallback((id: string) => {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }))
+  }, [])
+
+  const toggleJobPreview = useCallback((id: string) => {
+    setExpandedJobIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }, [])
+
+  const totalHiringCompanies = companies?.length ?? 0
+  const totalOpeningsCount = companies?.reduce((s, c) => s + c.jobCount, 0) ?? (result?.total ?? 0)
+  const totalCatalogCompanies = totalHiringCompanies + others.length
+
+  const isAllExpanded = useMemo(() => {
+    return (
+      isCompaniesExpanded &&
+      isFiltersExpanded &&
+      !collapsedSections['top'] &&
+      !collapsedSections['remote'] &&
+      !collapsedSections['all'] &&
+      isSidebarPrefsExpanded &&
+      isSidebarAboutExpanded
+    )
+  }, [
+    isCompaniesExpanded,
+    isFiltersExpanded,
+    collapsedSections,
+    isSidebarPrefsExpanded,
+    isSidebarAboutExpanded,
+  ])
+
+  const toggleAll = useCallback(() => {
+    if (isAllExpanded) {
+      setIsCompaniesExpanded(false)
+      setIsFiltersExpanded(false)
+      setCollapsedSections({ top: true, remote: true, all: true })
+      setIsSidebarPrefsExpanded(false)
+      setIsSidebarAboutExpanded(false)
+      setExpandedJobIds(new Set())
+    } else {
+      setIsCompaniesExpanded(true)
+      setIsFiltersExpanded(true)
+      setCollapsedSections({})
+      setIsSidebarPrefsExpanded(true)
+      setIsSidebarAboutExpanded(true)
+    }
+  }, [isAllExpanded])
+
   return (
     <div className="jobs-layout">
       <div className="min-w-0">
+        {/* Hero Header with Discovery Stats and Global Expand/Collapse */}
+        <header className="jobs-hero-header" aria-label="Job discovery overview">
+          <div className="jobs-hero-title-group">
+            <div className="jobs-hero-title-row">
+              <h1 className="jobs-hero-title">Job Discovery</h1>
+              <span className="jobs-hero-badge">
+                <Sparkles size={12} />
+                <span>300+ Enterprise Hubs & Portals</span>
+              </span>
+            </div>
+            <p className="jobs-hero-subtitle">
+              Explore verified openings across top IT services, global product giants, GCCs, and direct corporate career portals.
+            </p>
+          </div>
+          <div className="jobs-hero-actions">
+            <span className="jobs-pill-stat" title="Total companies cataloged">
+              <Building2 size={13} className="text-primary" />
+              <span>{totalCatalogCompanies > 0 ? totalCatalogCompanies : 304} Companies</span>
+            </span>
+            {companies && (
+              <span className="jobs-pill-stat" title="Companies with live openings in JobAppy">
+                <Briefcase size={13} className="text-emerald-500" />
+                <span>{totalHiringCompanies} Hiring Now</span>
+              </span>
+            )}
+            {totalOpeningsCount > 0 && (
+              <span className="jobs-pill-stat" title="Total active openings">
+                <Briefcase size={13} className="text-emerald-500" />
+                <span>{totalOpeningsCount.toLocaleString()} Openings</span>
+              </span>
+            )}
+            {others.length > 0 && (
+              <span className="jobs-pill-stat" title="Direct enterprise career portals">
+                <Globe size={13} className="text-blue-500" />
+                <span>{others.length} Direct Portals</span>
+              </span>
+            )}
+            <button
+              type="button"
+              className="jobs-hero-toggle-all"
+              onClick={toggleAll}
+              aria-label={isAllExpanded ? 'Collapse all sections' : 'Expand all sections'}
+            >
+              <ChevronsUpDown size={14} />
+              <span>{isAllExpanded ? 'Collapse All' : 'Expand All'}</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Company Directory Hub: hiring companies + 100+ direct enterprise portals */}
         <CompanyStrip
           companies={companies}
           activeId={filters.companyId ?? null}
@@ -347,130 +539,167 @@ export default function JobsWorkspace({
           onUpgrade={onUpgrade}
         />
 
+        {/* Search & Collapsible Filters Toolbar */}
         <div className="jobs-toolbar" role="search" aria-label="Filter jobs">
-          <div className="jobs-search-wrap">
-            <Search size={16} className="jobs-search-icon" aria-hidden="true" />
-            <input
-              className="input-field jobs-search-input"
-              type="search"
-              placeholder="Search by job title, company, skill or city..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search jobs"
-            />
-            {query && (
-              <button
-                type="button"
-                className="jobs-search-clear"
-                onClick={() => {
-                  setQuery('')
-                  setFilters((f) => ({ ...f, q: '' }))
-                  setPage(1)
-                }}
-                aria-label="Clear search input"
-              >
-                <X size={15} />
-              </button>
-            )}
+          <div className="jobs-toolbar-top-row">
+            <div className="jobs-search-wrap">
+              <Search size={16} className="jobs-search-icon" aria-hidden="true" />
+              <input
+                className="input-field jobs-search-input"
+                type="search"
+                placeholder="Search by job title, company, skill or city..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Search jobs"
+              />
+              {query && (
+                <button
+                  type="button"
+                  className="jobs-search-clear"
+                  onClick={() => {
+                    setQuery('')
+                    setFilters((f) => ({ ...f, q: '' }))
+                    setPage(1)
+                  }}
+                  aria-label="Clear search input"
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className={`jobs-filter-toggle-btn ${activeFilterCount > 0 ? 'has-active' : ''}`}
+              onClick={() => setIsFiltersExpanded((v) => !v)}
+              aria-expanded={isFiltersExpanded}
+              title={isFiltersExpanded ? 'Collapse filter options' : 'Expand filter options'}
+            >
+              <SlidersHorizontal size={14} />
+              <span>Filters</span>
+              {activeFilterCount > 0 && <span className="jobs-filter-active-count">{activeFilterCount}</span>}
+              {isFiltersExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
           </div>
 
-          <div className="jobs-toolbar-row">
-            <select
-              className={`input-field ${filters.roleCategory ? 'is-active-filter' : ''}`}
-              value={filters.roleCategory || ''}
-              onChange={(e) => setFilter('roleCategory', e.target.value)}
-              aria-label="Role"
-            >
-              <option value="">All roles</option>
-              {roleOptions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-            <select
-              className={`input-field ${filters.city ? 'is-active-filter' : ''}`}
-              value={filters.city || ''}
-              onChange={(e) => {
-                const city = e.target.value
-                setFilters((f) => ({ ...f, city: city || undefined, region: city ? 'india' : f.region }))
-                setPage(1)
-              }}
-              aria-label="City in India"
-            >
-              <option value="">Any city in India</option>
-              {INDIA_CITY_GROUPS.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-            <select
-              className={`input-field ${filters.region ? 'is-active-filter' : ''}`}
-              value={filters.region || ''}
-              onChange={(e) => setFilter('region', e.target.value)}
-              aria-label="Region"
-            >
-              <option value="">India and abroad</option>
-              {REGIONS.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-            <select
-              className={`input-field ${filters.workMode ? 'is-active-filter' : ''}`}
-              value={filters.workMode || ''}
-              onChange={(e) => setFilter('workMode', e.target.value)}
-              aria-label="Work mode"
-            >
-              <option value="">Any work mode</option>
-              {WORK_MODES.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.label}
-                </option>
-              ))}
-            </select>
-            {advanced ? (
-              <>
-                <select
-                  className={`input-field ${filters.level ? 'is-active-filter' : ''}`}
-                  value={filters.level || ''}
-                  onChange={(e) => setFilter('level', e.target.value)}
-                  aria-label="Level"
-                >
-                  <option value="">Any level</option>
-                  {JOB_LEVELS.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.label}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  className={`input-field ${filters.employmentType ? 'is-active-filter' : ''}`}
-                  value={filters.employmentType || ''}
-                  onChange={(e) => setFilter('employmentType', e.target.value)}
-                  aria-label="Employment type"
-                >
-                  <option value="">Any type</option>
-                  {EMPLOYMENT_TYPES.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              </>
-            ) : (
-              <button
-                type="button"
-                className="jobs-locked-filter"
-                onClick={user ? onUpgrade : onSignIn}
-                aria-label="Level and employment type filters are part of Prep Pro"
+          <div className={`jobs-toolbar-collapsible ${isFiltersExpanded ? '' : 'is-collapsed'}`}>
+            <div className="jobs-toolbar-row">
+              <select
+                className={`input-field ${filters.roleCategory ? 'is-active-filter' : ''}`}
+                value={filters.roleCategory || ''}
+                onChange={(e) => setFilter('roleCategory', e.target.value)}
+                aria-label="Role"
               >
-                <span className="locked-feature-badge">Pro</span> Level and type filters
-              </button>
-            )}
+                <option value="">All roles</option>
+                {roleOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                className={`input-field ${filters.city ? 'is-active-filter' : ''}`}
+                value={filters.city || ''}
+                onChange={(e) => {
+                  const city = e.target.value
+                  setFilters((f) => ({ ...f, city: city || undefined, region: city ? 'india' : f.region }))
+                  setPage(1)
+                }}
+                aria-label="City in India"
+              >
+                <option value="">Any city in India</option>
+                {INDIA_CITY_GROUPS.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                className={`input-field ${filters.region ? 'is-active-filter' : ''}`}
+                value={filters.region || ''}
+                onChange={(e) => setFilter('region', e.target.value)}
+                aria-label="Region"
+              >
+                <option value="">India and abroad</option>
+                {REGIONS.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                className={`input-field ${filters.workMode ? 'is-active-filter' : ''}`}
+                value={filters.workMode || ''}
+                onChange={(e) => setFilter('workMode', e.target.value)}
+                aria-label="Work mode"
+              >
+                <option value="">Any work mode</option>
+                {WORK_MODES.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.label}
+                  </option>
+                ))}
+              </select>
+              {advanced ? (
+                <>
+                  <select
+                    className={`input-field ${filters.level ? 'is-active-filter' : ''}`}
+                    value={filters.level || ''}
+                    onChange={(e) => setFilter('level', e.target.value)}
+                    aria-label="Level"
+                  >
+                    <option value="">Any level</option>
+                    {JOB_LEVELS.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className={`input-field ${filters.employmentType ? 'is-active-filter' : ''}`}
+                    value={filters.employmentType || ''}
+                    onChange={(e) => setFilter('employmentType', e.target.value)}
+                    aria-label="Employment type"
+                  >
+                    <option value="">Any type</option>
+                    {EMPLOYMENT_TYPES.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="jobs-locked-filter"
+                  onClick={user ? onUpgrade : onSignIn}
+                  aria-label="Level and employment type filters are part of Prep Pro"
+                >
+                  <span className="locked-feature-badge">Pro</span> Level and type filters
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* Active filter pills row when filter options are collapsed */}
+          {!isFiltersExpanded && activeFilterCount > 0 && (
+            <div className="jobs-active-filters-row">
+              <span className="text-xs text-muted-foreground font-semibold">Active filters:</span>
+              {activeFilterPills.map((p) => (
+                <span key={p.key} className="jobs-active-pill">
+                  {p.label}
+                  <button type="button" onClick={p.onRemove} aria-label={`Remove filter ${p.label}`}>
+                    ×
+                  </button>
+                </span>
+              ))}
+              <button type="button" className="jobs-clear-btn ml-auto" onClick={clearFilters}>
+                <RotateCcw size={11} />
+                Reset all
+              </button>
+            </div>
+          )}
 
           <div className="jobs-summary">
             <div className="jobs-summary-left">
@@ -522,40 +751,121 @@ export default function JobsWorkspace({
           <div className="jobs-empty">
             <div className="jobs-empty-title">{anyFilter ? 'No openings match these filters' : 'No openings published yet'}</div>
             <p className="jobs-empty-text">
-              {anyFilter ? 'Try widening the role, region or work mode.' : 'Prep only lists openings that fit its career paths. New listings appear here as they are verified.'}
+              {anyFilter ? 'Try widening the role, region or work mode.' : 'JobAppy only lists openings that fit its career paths. New listings appear here as they are verified.'}
             </p>
           </div>
         ) : sections.length > 0 ? (
           <div className={`jobs-feed${loading ? ' opacity-60' : ''}`} aria-busy={loading}>
-            {sections.map((section) => (
-              <section key={section.id} className="jobs-feed-section" aria-labelledby={`feed-${section.id}`}>
-                <h2 id={`feed-${section.id}`} className="jobs-feed-title">
-                  {section.title}
-                </h2>
-                <p className="jobs-feed-sub">{section.description}</p>
+            {sections.map((section) => {
+              const isSectionCollapsed = Boolean(collapsedSections[section.id])
+              return (
+                <section key={section.id} className="jobs-feed-section" aria-labelledby={`feed-${section.id}`}>
+                  <button
+                    type="button"
+                    className="jobs-feed-header-btn"
+                    onClick={() => toggleSection(section.id)}
+                    aria-expanded={!isSectionCollapsed}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 id={`feed-${section.id}`} className="jobs-feed-title mb-0">
+                          {section.title}
+                        </h2>
+                        <span className="jobs-stat-pill text-xs">
+                          {section.jobs.length} opening{section.jobs.length === 1 ? '' : 's'}
+                        </span>
+                      </div>
+                      <p className="jobs-feed-sub">{section.description}</p>
+                    </div>
+                    <div className="text-muted-foreground p-1">
+                      {isSectionCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+                    </div>
+                  </button>
+
+                  {isSectionCollapsed ? (
+                    <div className="jobs-feed-collapsed-note">
+                      Section collapsed ({section.jobs.length} opening{section.jobs.length === 1 ? '' : 's'}). Click header to expand.
+                    </div>
+                  ) : (
+                    <div className="jobs-list">
+                      {section.jobs.map((job) => (
+                        <JobCard
+                          key={`${section.id}-${job.id}`}
+                          job={job}
+                          onOpen={() => onOpenJob(job.id)}
+                          isExpanded={expandedJobIds.has(job.id)}
+                          onToggleExpand={(e) => {
+                            e.stopPropagation()
+                            toggleJobPreview(job.id)
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )
+            })}
+
+            <section className="jobs-feed-section" aria-labelledby="feed-all">
+              <button
+                type="button"
+                className="jobs-feed-header-btn"
+                onClick={() => toggleSection('all')}
+                aria-expanded={!collapsedSections['all']}
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 id="feed-all" className="jobs-feed-title mb-0">
+                      All openings for you
+                    </h2>
+                    {result && (
+                      <span className="jobs-stat-pill text-xs">
+                        {result.items.length} opening{result.items.length === 1 ? '' : 's'}
+                      </span>
+                    )}
+                  </div>
+                  <p className="jobs-feed-sub">Every relevant listing, ranked by your preferences.</p>
+                </div>
+                <div className="text-muted-foreground p-1">
+                  {collapsedSections['all'] ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+                </div>
+              </button>
+
+              {collapsedSections['all'] ? (
+                <div className="jobs-feed-collapsed-note">
+                  Section collapsed ({result?.items.length ?? 0} opening{(result?.items.length ?? 0) === 1 ? '' : 's'}). Click header to expand.
+                </div>
+              ) : (
                 <div className="jobs-list">
-                  {section.jobs.map((job) => (
-                    <JobCard key={`${section.id}-${job.id}`} job={job} onOpen={() => onOpenJob(job.id)} />
+                  {result?.items.map((job) => (
+                    <JobCard
+                      key={job.id}
+                      job={job}
+                      onOpen={() => onOpenJob(job.id)}
+                      isExpanded={expandedJobIds.has(job.id)}
+                      onToggleExpand={(e) => {
+                        e.stopPropagation()
+                        toggleJobPreview(job.id)
+                      }}
+                    />
                   ))}
                 </div>
-              </section>
-            ))}
-            <section className="jobs-feed-section" aria-labelledby="feed-all">
-              <h2 id="feed-all" className="jobs-feed-title">
-                All openings for you
-              </h2>
-              <p className="jobs-feed-sub">Every relevant listing, ranked by your preferences.</p>
-              <div className="jobs-list">
-                {result?.items.map((job) => (
-                  <JobCard key={job.id} job={job} onOpen={() => onOpenJob(job.id)} />
-                ))}
-              </div>
+              )}
             </section>
           </div>
         ) : (
           <div className={`jobs-list${loading ? ' opacity-60' : ''}`} aria-busy={loading}>
             {result?.items.map((job) => (
-              <JobCard key={job.id} job={job} onOpen={() => onOpenJob(job.id)} />
+              <JobCard
+                key={job.id}
+                job={job}
+                onOpen={() => onOpenJob(job.id)}
+                isExpanded={expandedJobIds.has(job.id)}
+                onToggleExpand={(e) => {
+                  e.stopPropagation()
+                  toggleJobPreview(job.id)
+                }}
+              />
             ))}
           </div>
         )}
@@ -589,42 +899,76 @@ export default function JobsWorkspace({
       </div>
 
       <aside className="jobs-side" aria-label="Job preferences">
+        {/* Collapsible Panel: Your Job Preferences */}
         <div className="jobs-panel">
-          <div className="jobs-panel-title">
-            <span>Your job preferences</span>
-            {user && prefsLoaded && (
-              <button type="button" className="btn btn-link btn-sm" onClick={() => setPrefsOpen((o) => !o)} aria-expanded={prefsOpen}>
-                {prefsOpen ? 'Close' : hasPreferences(prefs) ? 'Edit' : 'Set up'}
-              </button>
-            )}
+          <div
+            className="jobs-panel-collapsible-head"
+            onClick={() => setIsSidebarPrefsExpanded((v) => !v)}
+            role="button"
+            tabIndex={0}
+            aria-expanded={isSidebarPrefsExpanded}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setIsSidebarPrefsExpanded((v) => !v)
+              }
+            }}
+          >
+            <div className="jobs-panel-title mb-0">
+              <span>Your job preferences</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {user && prefsLoaded && isSidebarPrefsExpanded && (
+                <button
+                  type="button"
+                  className="btn btn-link btn-sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setPrefsOpen((o) => !o)
+                  }}
+                  aria-expanded={prefsOpen}
+                >
+                  {prefsOpen ? 'Close' : hasPreferences(prefs) ? 'Edit' : 'Set up'}
+                </button>
+              )}
+              <span className="text-muted-foreground">
+                {isSidebarPrefsExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </span>
+            </div>
           </div>
-          {!user ? (
-            <>
-              <p className="jobs-panel-sub">Sign in to save target roles, skills, locations and experience.</p>
-              <button type="button" className="btn btn-primary btn-sm mt-3" onClick={onSignIn}>
-                Sign in
-              </button>
-            </>
-          ) : !prefsLoaded ? (
-            <p className="jobs-panel-sub">Loading…</p>
-          ) : prefsOpen ? (
-            <PreferencesForm initial={prefs ?? emptyPreferences()} roleOptions={roleOptions} onSaved={onSaved} onCancel={() => setPrefsOpen(false)} />
-          ) : hasPreferences(prefs) ? (
-            <>
-              <PreferencesSummary prefs={prefs!} />
-              {!personalFeed && <p className="job-source-note">Saved. Ranking and reasons switch on with Prep Pro.</p>}
-            </>
-          ) : (
-            <>
-              <p className="jobs-panel-sub">
-                {personalFeed ? 'Tell Prep what you are looking for and openings are ranked by fit, with the reasons shown on each card.' : 'Save what you are looking for now; Prep Pro ranks openings by fit and explains why.'}
-              </p>
-              <button type="button" className="btn btn-primary btn-sm mt-3" onClick={() => setPrefsOpen(true)}>
-                Set preferences
-              </button>
-            </>
+
+          {isSidebarPrefsExpanded && (
+            <div className="mt-3">
+              {!user ? (
+                <>
+                  <p className="jobs-panel-sub">Sign in to save target roles, skills, locations and experience.</p>
+                  <button type="button" className="btn btn-primary btn-sm mt-3" onClick={onSignIn}>
+                    Sign in
+                  </button>
+                </>
+              ) : !prefsLoaded ? (
+                <p className="jobs-panel-sub">Loading…</p>
+              ) : prefsOpen ? (
+                <PreferencesForm initial={prefs ?? emptyPreferences()} roleOptions={roleOptions} onSaved={onSaved} onCancel={() => setPrefsOpen(false)} />
+              ) : hasPreferences(prefs) ? (
+                <>
+                  <PreferencesSummary prefs={prefs!} />
+                  {!personalFeed && <p className="job-source-note">Saved. Ranking and reasons switch on with Prep Pro.</p>}
+                </>
+              ) : (
+                <>
+                  <p className="jobs-panel-sub">
+                    {personalFeed ? 'Tell JobAppy what you are looking for and openings are ranked by fit, with the reasons shown on each card.' : 'Save what you are looking for now; Prep Pro ranks openings by fit and explains why.'}
+                  </p>
+                  <button type="button" className="btn btn-primary btn-sm mt-3" onClick={() => setPrefsOpen(true)}>
+                    Set preferences
+                  </button>
+                </>
+              )}
+            </div>
           )}
         </div>
+
         {!features.includes('jobs.personalizedFeed') && user && (
           <LockedFeature
             title="What Prep Pro adds here"
@@ -634,16 +978,39 @@ export default function JobsWorkspace({
             compact
           />
         )}
+
+        {/* Collapsible Panel: How listings get here */}
         <div className="jobs-panel">
-          <div className="jobs-panel-title">How listings get here</div>
-          <p className="jobs-panel-sub">Every opening shows its company, original source and the official application link. Listings that expire or stop appearing at their source are marked and then removed automatically.</p>
+          <div
+            className="jobs-panel-collapsible-head"
+            onClick={() => setIsSidebarAboutExpanded((v) => !v)}
+            role="button"
+            tabIndex={0}
+            aria-expanded={isSidebarAboutExpanded}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setIsSidebarAboutExpanded((v) => !v)
+              }
+            }}
+          >
+            <div className="jobs-panel-title mb-0">How listings get here</div>
+            <span className="text-muted-foreground">
+              {isSidebarAboutExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </span>
+          </div>
+          {isSidebarAboutExpanded && (
+            <p className="jobs-panel-sub mt-2">
+              Every opening shows its company, original source and the official application link. Listings that expire or stop appearing at their source are marked and then removed automatically. Over 300 verified corporate career sites and enterprise portals are curated in this directory.
+            </p>
+          )}
         </div>
       </aside>
     </div>
   )
 }
 
-/** Horizontal strip of companies with live openings; picking one filters the list to that company. */
+/** Horizontal strip and expandable directory hub of 300+ companies and direct career portals. */
 function CompanyStrip({
   companies,
   activeId,
@@ -663,164 +1030,445 @@ function CompanyStrip({
   onToggleExpand: () => void
   onPick: (id: string | null) => void
   onUpgrade: () => void
-  /** Catalog companies with no opening in Prep at all; shown (unfiltered view only) as links to their careers pages. */
+  /** Catalog companies with no opening in JobAppy right now; shown as direct links to their official careers pages. */
   others: CompanyWithoutOpeningsDto[]
 }) {
-  const totalOpenings = companies?.reduce((s, c) => s + c.jobCount, 0) ?? 0
-  const totalCompanies = companies?.length ?? 0
-  const noFeed = others.filter((c) => c.reason === 'no_feed')
-  const noMatch = others.filter((c) => c.reason === 'no_matching_openings')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [categoryTab, setCategoryTab] = useState<'all' | 'hiring' | 'direct' | 'india'>('all')
+  const [hiringExpanded, setHiringExpanded] = useState(true)
+  const [directExpanded, setDirectExpanded] = useState(true)
+  const [directLimit, setDirectLimit] = useState(36)
 
-  // Filter companies visible based on subscription and expand state
-  const visibleCompanies = useMemo(() => {
+  const totalOpenings = companies?.reduce((s, c) => s + c.jobCount, 0) ?? 0
+  const totalHiringCompanies = companies?.length ?? 0
+  const totalDirectPortals = others.length
+  const totalCatalog = totalHiringCompanies + totalDirectPortals
+
+  const isIndiaCompany = (c: { headquarters?: string | null; indiaRelevance?: string | null }) => {
+    return Boolean(
+      c.indiaRelevance ||
+      (c.headquarters && /india|bengaluru|bangalore|hyderabad|mumbai|pune|gurgaon|gurugram|chennai|noida/i.test(c.headquarters))
+    )
+  }
+
+  // Filtered hiring companies based on search and tab
+  const filteredHiring = useMemo(() => {
     if (!companies) return []
-    if (isSubscribed && isExpanded) return companies
+    if (categoryTab === 'direct') return []
+    let list = companies
+    if (categoryTab === 'india') {
+      list = list.filter(isIndiaCompany)
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim()
+      list = list.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          (c.industry && c.industry.toLowerCase().includes(q)) ||
+          (c.headquarters && c.headquarters.toLowerCase().includes(q))
+      )
+    }
+    return list
+  }, [companies, categoryTab, searchQuery])
+
+  // Filtered direct portals based on search and tab
+  const filteredDirect = useMemo(() => {
+    if (categoryTab === 'hiring') return []
+    let list = others
+    if (categoryTab === 'india') {
+      list = list.filter(isIndiaCompany)
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim()
+      list = list.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          (c.industry && c.industry.toLowerCase().includes(q)) ||
+          (c.headquarters && c.headquarters.toLowerCase().includes(q))
+      )
+    }
+    return list
+  }, [others, categoryTab, searchQuery])
+
+  const indiaCount = useMemo(() => {
+    const hiringIndia = (companies ?? []).filter(isIndiaCompany).length
+    const directIndia = others.filter(isIndiaCompany).length
+    return hiringIndia + directIndia
+  }, [companies, others])
+
+  // Visible compact companies when collapsed
+  const compactVisibleCompanies = useMemo(() => {
+    if (!companies) return []
     const limit = 8
     const top = companies.slice(0, limit)
-    // Make sure currently selected company chip is always visible even if beyond the top list
     if (activeId && !top.some((c) => c.id === activeId)) {
       const activeComp = companies.find((c) => c.id === activeId)
       if (activeComp) top.push(activeComp)
     }
     return top
-  }, [companies, isSubscribed, isExpanded, activeId])
+  }, [companies, activeId])
+
+  const displayedDirect = directLimit >= filteredDirect.length ? filteredDirect : filteredDirect.slice(0, directLimit)
 
   return (
-    <section className="jobs-companies" aria-label="Companies hiring">
-      <div className="jobs-companies-head">
-        <div className="jobs-companies-title-row">
-          <span className="jobs-companies-title">Companies hiring</span>
+    <section className="jobs-directory-hub" aria-label="Companies hiring and career portals">
+      <div
+        className="jobs-directory-hub-head"
+        onClick={onToggleExpand}
+        role="button"
+        tabIndex={0}
+        aria-expanded={isExpanded}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onToggleExpand()
+          }
+        }}
+      >
+        <div className="jobs-directory-hub-title-wrap">
+          <div className="flex items-center gap-2">
+            <Building2 size={18} className="text-primary" />
+            <span className="jobs-directory-hub-title">Company Hub & Career Portals</span>
+          </div>
           {companies ? (
             <div className="jobs-companies-stat-pills">
               <span className="jobs-stat-pill">
-                <span className="jobs-stat-num">{totalCompanies}</span> companies
+                <span className="jobs-stat-num">{totalHiringCompanies}</span> hiring
               </span>
               <span className="jobs-stat-dot" aria-hidden="true">·</span>
               <span className="jobs-stat-pill">
-                <span className="jobs-stat-num">{totalOpenings.toLocaleString()}</span> openings
+                <span className="jobs-stat-num">{totalOpenings.toLocaleString()}</span> live jobs
+              </span>
+              <span className="jobs-stat-dot" aria-hidden="true">·</span>
+              <span className="jobs-stat-pill">
+                <span className="jobs-stat-num">{totalDirectPortals}</span> direct portals
               </span>
               {filtered && <span className="jobs-stat-filtered-tag">filtered</span>}
             </div>
           ) : (
-            <span className="jobs-stat-pill animate-pulse">Loading counts…</span>
+            <span className="jobs-stat-pill animate-pulse">Loading directory…</span>
           )}
         </div>
 
-        <div className="jobs-companies-actions">
-          {companies && companies.length > 8 && (
-            isSubscribed ? (
-              <button
-                type="button"
-                className="company-toggle-btn"
-                onClick={onToggleExpand}
-                aria-expanded={isExpanded}
-              >
-                <span>{isExpanded ? 'Collapse' : `Show all (${totalCompanies})`}</span>
-                {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="company-toggle-btn company-toggle-locked"
-                onClick={onUpgrade}
-                title="Unlock all hiring companies with Prep Pro"
-              >
-                <Lock size={12} className="text-primary" />
-                <span>Show all ({totalCompanies})</span>
-                <span className="company-badge-pro">Pro</span>
-              </button>
-            )
-          )}
-        </div>
-      </div>
-
-      {companies && companies.length === 0 && (
-        <p className="jobs-companies-sub">No company has an opening for these filters. Widen a filter to see more.</p>
-      )}
-
-      <div
-        className={`jobs-companies-track ${isExpanded && isSubscribed ? 'is-expanded' : ''}`}
-        role="listbox"
-        aria-label="Filter by company"
-      >
-        <button
-          type="button"
-          className={`company-chip ${!activeId ? 'is-active' : ''}`}
-          role="option"
-          aria-selected={!activeId}
-          onClick={() => onPick(null)}
-        >
-          <span className="company-logo company-logo-fallback" style={{ width: 28, height: 28, fontSize: 11 }} aria-hidden="true">
-            All
-          </span>
-          <span className="company-chip-name">All companies</span>
-        </button>
-
-        {visibleCompanies.map((c) => {
-          const active = c.id === activeId
-          return (
-            <button
-              key={c.id}
-              type="button"
-              className={`company-chip ${active ? 'is-active' : ''}`}
-              role="option"
-              aria-selected={active}
-              onClick={() => onPick(active ? null : c.id)}
-              title={`${c.name}: ${c.jobCount.toLocaleString()} opening${c.jobCount === 1 ? '' : 's'}`}
-            >
-              <CompanyLogo company={c} size={28} />
-              <span className="company-chip-name">{c.name}</span>
-              <span className="company-chip-count">{c.jobCount.toLocaleString()}</span>
-            </button>
-          )
-        })}
-
-        {!isSubscribed && totalCompanies > 8 && (
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
-            className="company-chip company-chip-locked"
-            onClick={onUpgrade}
-            title="Unlock all companies hiring with Prep Pro"
+            className="company-toggle-btn"
+            onClick={onToggleExpand}
+            aria-expanded={isExpanded}
+            title={isExpanded ? 'Collapse company hub' : 'Expand full 300+ company hub'}
           >
-            <Lock size={13} className="text-primary" />
-            <span className="company-chip-name">+{totalCompanies - 8} more companies</span>
-            <span className="company-chip-pro-pill">Pro</span>
+            <span>{isExpanded ? 'Collapse Hub' : `Expand Hub (${totalCatalog})`}</span>
+            {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
-        )}
+        </div>
       </div>
 
-      {!filtered && others.length > 0 && (
-        <div className="jobs-companies-others">
-          <span className="jobs-companies-sub">
-            Also in the catalog, no opening in Prep right now: {noFeed.length > 0 && `${noFeed.length} ${noFeed.length === 1 ? 'company publishes' : 'companies publish'} only on a careers portal we cannot read`}
-            {noFeed.length > 0 && noMatch.length > 0 && '; '}
-            {noMatch.length > 0 && `${noMatch.length} ${noMatch.length === 1 ? 'has' : 'have'} a working feed with no relevant opening today`}. The links open their careers pages.
-          </span>
-          <div className="jobs-companies-track" aria-label="Companies without openings in Prep">
-            {others.map((c) => (
-              <a key={c.id} className="company-chip is-muted" href={c.careersUrl || c.website || '#'} target="_blank" rel="noopener noreferrer" title={c.reason === 'no_feed' ? `${c.name}: openings are listed only on its careers site` : `${c.name}: feed connected, no relevant opening right now`}>
+      {/* When COLLAPSED: quick access chip track */}
+      {!isExpanded && (
+        <div className="jobs-companies-track mt-3" role="listbox" aria-label="Filter by company">
+          <button
+            type="button"
+            className={`company-chip ${!activeId ? 'is-active' : ''}`}
+            role="option"
+            aria-selected={!activeId}
+            onClick={() => onPick(null)}
+          >
+            <span className="company-logo company-logo-fallback" style={{ width: 28, height: 28, fontSize: 11 }} aria-hidden="true">
+              All
+            </span>
+            <span className="company-chip-name">All companies</span>
+          </button>
+
+          {compactVisibleCompanies.map((c) => {
+            const active = c.id === activeId
+            return (
+              <button
+                key={c.id}
+                type="button"
+                className={`company-chip ${active ? 'is-active' : ''}`}
+                role="option"
+                aria-selected={active}
+                onClick={() => onPick(active ? null : c.id)}
+                title={`${c.name}: ${c.jobCount.toLocaleString()} opening${c.jobCount === 1 ? '' : 's'}`}
+              >
                 <CompanyLogo company={c} size={28} />
                 <span className="company-chip-name">{c.name}</span>
-                <span className="company-chip-ext" aria-hidden="true">
-                  ↗
-                </span>
-              </a>
-            ))}
+                <span className="company-chip-count">{c.jobCount.toLocaleString()}</span>
+              </button>
+            )
+          })}
+
+          <button
+            type="button"
+            className="company-chip company-chip-more"
+            onClick={onToggleExpand}
+            title="Expand full 300+ companies directory"
+          >
+            <Building2 size={13} className="text-primary" />
+            <span className="company-chip-name">+{totalCatalog - compactVisibleCompanies.length} more portals & companies</span>
+            <ChevronRight size={13} />
+          </button>
+        </div>
+      )}
+
+      {/* When EXPANDED: Full interactive Hub */}
+      {isExpanded && (
+        <div className="jobs-directory-controls">
+          <div className="jobs-directory-search-row">
+            <div className="jobs-directory-search-wrap">
+              <Search size={15} className="jobs-directory-search-icon" aria-hidden="true" />
+              <input
+                className="input-field jobs-directory-search-input"
+                type="search"
+                placeholder="Search 300+ companies by name, industry (e.g. IT, FinTech) or city..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Search companies and portals"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="jobs-directory-search-clear"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear company search"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            <div className="jobs-directory-tabs" role="tablist" aria-label="Company categories">
+              <button
+                type="button"
+                className={`jobs-dir-tab ${categoryTab === 'all' ? 'is-active' : ''}`}
+                onClick={() => setCategoryTab('all')}
+                role="tab"
+                aria-selected={categoryTab === 'all'}
+              >
+                All ({filteredHiring.length + filteredDirect.length})
+              </button>
+              <button
+                type="button"
+                className={`jobs-dir-tab ${categoryTab === 'hiring' ? 'is-active' : ''}`}
+                onClick={() => setCategoryTab('hiring')}
+                role="tab"
+                aria-selected={categoryTab === 'hiring'}
+              >
+                Actively Hiring ({filteredHiring.length})
+              </button>
+              <button
+                type="button"
+                className={`jobs-dir-tab ${categoryTab === 'direct' ? 'is-active' : ''}`}
+                onClick={() => setCategoryTab('direct')}
+                role="tab"
+                aria-selected={categoryTab === 'direct'}
+              >
+                Direct Enterprise Portals ({filteredDirect.length})
+              </button>
+              <button
+                type="button"
+                className={`jobs-dir-tab ${categoryTab === 'india' ? 'is-active' : ''}`}
+                onClick={() => setCategoryTab('india')}
+                role="tab"
+                aria-selected={categoryTab === 'india'}
+              >
+                India Hubs ({indiaCount})
+              </button>
+            </div>
           </div>
+
+          {/* Collapsible Section 1: Actively Hiring */}
+          {categoryTab !== 'direct' && (
+            <div className="jobs-dir-section">
+              <div
+                className="jobs-dir-section-header"
+                onClick={() => setHiringExpanded((v) => !v)}
+                role="button"
+                tabIndex={0}
+                aria-expanded={hiringExpanded}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setHiringExpanded((v) => !v)
+                  }
+                }}
+              >
+                <div className="jobs-dir-section-title">
+                  <Briefcase size={15} className="text-emerald-500" />
+                  <span>Actively Hiring on JobAppy ({filteredHiring.length})</span>
+                  {activeId && <span className="jobs-active-pill text-xs">Filtered to 1 company</span>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground font-normal">Click company to filter jobs</span>
+                  {hiringExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                </div>
+              </div>
+
+              {hiringExpanded && (
+                <div className="jobs-dir-grid" role="listbox" aria-label="Hiring companies">
+                  <button
+                    type="button"
+                    className={`company-chip ${!activeId ? 'is-active' : ''}`}
+                    role="option"
+                    aria-selected={!activeId}
+                    onClick={() => onPick(null)}
+                  >
+                    <span className="company-logo company-logo-fallback" style={{ width: 28, height: 28, fontSize: 11 }} aria-hidden="true">
+                      All
+                    </span>
+                    <span className="company-chip-name">All companies</span>
+                  </button>
+
+                  {filteredHiring.map((c) => {
+                    const active = c.id === activeId
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className={`company-chip ${active ? 'is-active' : ''}`}
+                        role="option"
+                        aria-selected={active}
+                        onClick={() => onPick(active ? null : c.id)}
+                        title={`${c.name} (${c.industry || 'Technology'}): ${c.jobCount.toLocaleString()} opening${c.jobCount === 1 ? '' : 's'}`}
+                      >
+                        <CompanyLogo company={c} size={28} />
+                        <span className="company-chip-name">{c.name}</span>
+                        <span className="company-chip-count">{c.jobCount.toLocaleString()}</span>
+                      </button>
+                    )
+                  })}
+
+                  {!isSubscribed && totalHiringCompanies > 8 && !searchQuery && (
+                    <button
+                      type="button"
+                      className="company-chip company-chip-locked"
+                      onClick={onUpgrade}
+                      title="Unlock all companies hiring with Prep Pro"
+                    >
+                      <Lock size={13} className="text-primary" />
+                      <span className="company-chip-name">+{totalHiringCompanies - 8} more companies</span>
+                      <span className="company-chip-pro-pill">Pro</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Collapsible Section 2: Direct Enterprise Portals */}
+          {categoryTab !== 'hiring' && (
+            <div className="jobs-dir-section">
+              <div
+                className="jobs-dir-section-header"
+                onClick={() => setDirectExpanded((v) => !v)}
+                role="button"
+                tabIndex={0}
+                aria-expanded={directExpanded}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setDirectExpanded((v) => !v)
+                  }
+                }}
+              >
+                <div className="jobs-dir-section-title">
+                  <Globe size={15} className="text-blue-500" />
+                  <span>Direct Enterprise Career Portals ({filteredDirect.length})</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground font-normal">Official career sites</span>
+                  {directExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                </div>
+              </div>
+
+              {directExpanded && (
+                <>
+                  <p className="jobs-companies-sub mt-2 mb-2">
+                    Verified official career portals for top IT leaders, product companies, consulting firms and global capability centers (GCCs). Links open directly to their hiring portals.
+                  </p>
+                  <div className="jobs-dir-grid" aria-label="Direct corporate career portals">
+                    {displayedDirect.map((c) => (
+                      <a
+                        key={c.id}
+                        className="company-chip is-direct-portal"
+                        href={c.careersUrl || c.website || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`${c.name} · ${c.industry || 'Technology & Services'}${c.headquarters ? ` · ${c.headquarters}` : ''}`}
+                      >
+                        <CompanyLogo company={c} size={28} />
+                        <span className="company-chip-name">{c.name}</span>
+                        {c.industry && <span className="company-chip-portal-badge">{c.industry}</span>}
+                        <span className="company-chip-ext" aria-hidden="true">
+                          ↗
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+
+                  {filteredDirect.length > 36 && (
+                    <div className="flex justify-center mt-3">
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm text-xs font-semibold"
+                        onClick={() => setDirectLimit((lim) => (lim >= filteredDirect.length ? 36 : filteredDirect.length))}
+                      >
+                        {directLimit >= filteredDirect.length ? (
+                          <>Show fewer portals (36)</>
+                        ) : (
+                          <>Show all {filteredDirect.length} portals <ChevronDown size={13} className="inline ml-1" /></>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {filteredHiring.length === 0 && filteredDirect.length === 0 && (
+            <div className="p-4 text-center text-sm text-muted-foreground">
+              No companies match &ldquo;{searchQuery}&rdquo;. Try another search term or switch category tabs.
+            </div>
+          )}
         </div>
       )}
     </section>
   )
 }
 
-function JobCard({ job, onOpen }: { job: LearnerJob; onOpen: () => void }) {
+function JobCard({
+  job,
+  onOpen,
+  isExpanded,
+  onToggleExpand,
+}: {
+  job: LearnerJob
+  onOpen: () => void
+  isExpanded: boolean
+  onToggleExpand: (e: React.MouseEvent) => void
+}) {
   const fresh = freshnessLabel(job.freshness, job.lifecycle)
   const salary = salaryLabel(job)
   const eligibility = eligibilityLabel(job)
   const reasons = (job.relevance?.reasons ?? []).filter((r) => r.weight > 0).slice(0, 2)
   const skills = job.requiredSkills.slice(0, 4)
+
   return (
-    <button type="button" className="job-card" onClick={onOpen} aria-label={`${job.title} at ${job.company.name}`}>
+    <div
+      className={`job-card ${isExpanded ? 'is-preview-expanded' : ''}`}
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      aria-label={`${job.title} at ${job.company.name}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onOpen()
+        }
+      }}
+    >
       <div className="job-card-top">
         <div className="job-card-head min-w-0">
           <CompanyLogo company={job.company} size={42} />
@@ -837,11 +1485,22 @@ function JobCard({ job, onOpen }: { job: LearnerJob; onOpen: () => void }) {
             {fresh.tone === 'fresh' && <CheckCircle2 size={12} className="inline mr-0.5" />}
             {fresh.text}
           </span>
+          <button
+            type="button"
+            className="job-card-expand-btn"
+            onClick={onToggleExpand}
+            aria-expanded={isExpanded}
+            title={isExpanded ? 'Collapse quick preview' : 'Expand quick preview'}
+          >
+            {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            <span>{isExpanded ? 'Less' : 'Preview'}</span>
+          </button>
           <span className="job-card-arrow" aria-hidden="true">
             <ArrowRight size={16} />
           </span>
         </div>
       </div>
+
       <div className="job-card-meta">
         <span className="job-chip job-chip-accent">{labelOf(ROLE_CATEGORIES, job.roleCategory)}</span>
         <span className="job-chip">
@@ -854,6 +1513,7 @@ function JobCard({ job, onOpen }: { job: LearnerJob; onOpen: () => void }) {
         <span className="job-chip">{labelOf(EMPLOYMENT_TYPES, job.employmentType)}</span>
         {salary && <span className="job-chip job-chip-salary">{salary}</span>}
       </div>
+
       {skills.length > 0 && (
         <div className="job-card-skills" aria-label="Key skills">
           {skills.map((s) => (
@@ -861,9 +1521,12 @@ function JobCard({ job, onOpen }: { job: LearnerJob; onOpen: () => void }) {
               {s}
             </span>
           ))}
-          {job.requiredSkills.length > skills.length && <span className="job-skill is-more">+{job.requiredSkills.length - skills.length}</span>}
+          {job.requiredSkills.length > skills.length && (
+            <span className="job-skill is-more">+{job.requiredSkills.length - skills.length}</span>
+          )}
         </div>
       )}
+
       {reasons.length > 0 && (
         <ul className="job-card-reasons" aria-label="Why this is ranked for you">
           {reasons.map((r) => (
@@ -871,7 +1534,76 @@ function JobCard({ job, onOpen }: { job: LearnerJob; onOpen: () => void }) {
           ))}
         </ul>
       )}
-    </button>
+
+      {isExpanded && (
+        <div className="job-card-preview-drawer" onClick={(e) => e.stopPropagation()}>
+          <div className="flex flex-col gap-1.5">
+            <div className="font-semibold text-foreground text-sm flex items-center gap-2">
+              <span>Quick Role & Company Profile</span>
+              {job.company.headquarters && (
+                <span className="text-xs text-muted-foreground font-normal">· {job.company.headquarters}</span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {job.roleCategory ? `Classified under ${labelOf(ROLE_CATEGORIES, job.roleCategory)}.` : ''}{' '}
+              {job.workMode === 'remote' ? 'Offers remote flexibility.' : 'Located at office/hybrid center.'}{' '}
+              {eligibility ? `Eligibility: ${eligibility}.` : ''}
+            </p>
+          </div>
+
+          {job.requiredSkills.length > 0 && (
+            <div>
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                All Required Skills ({job.requiredSkills.length})
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {job.requiredSkills.map((s) => (
+                  <span key={s} className="job-skill" style={{ background: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary))' }}>
+                    {s}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {job.relevance?.reasons && job.relevance.reasons.length > 0 && (
+            <div>
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                Preference Matching Insights
+              </div>
+              <ul className="job-card-reasons">
+                {job.relevance.reasons.map((r) => (
+                  <li key={r.text}>{r.text}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="job-card-preview-actions">
+            <button
+              type="button"
+              className="btn btn-primary btn-sm inline-flex items-center gap-1.5"
+              onClick={onOpen}
+            >
+              <span>View Full Details & Prep</span>
+              <ArrowRight size={13} />
+            </button>
+            {job.applyUrl && (
+              <a
+                href={job.applyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-ghost btn-sm inline-flex items-center gap-1.5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span>Apply on {job.company.name}</span>
+                <ExternalLink size={13} />
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 

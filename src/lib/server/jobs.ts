@@ -5,6 +5,7 @@ import { jobFingerprint, normalizeTitle, ValidationError, type CompanyInput, typ
 import type { CompanyDto, JobDto, JobInput, JobListFilters, JobSourceDto, LearnerJobPreferences, Paged } from '../jobs/types'
 import { recordAudit } from './audit'
 import { cityGroup } from '../jobs/cities'
+import { COMPANY_CATALOG } from '../../data/companyCatalog'
 
 /**
  * Data access for the Jobs module. Route handlers stay thin and every write
@@ -93,6 +94,7 @@ export interface HiringCompany {
   careersUrl: string | null
   logoUrl: string | null
   headquarters: string | null
+  industry?: string | null
   indiaRelevance: string | null
   jobCount: number
 }
@@ -103,7 +105,18 @@ export interface HiringCompany {
  */
 export async function hiringCompanies(limit = 60, f: JobListFilters = {}): Promise<HiringCompany[]> {
   const rows = await db
-    .select({ id: companies.id, name: companies.name, slug: companies.slug, website: companies.website, careersUrl: companies.careersUrl, logoUrl: companies.logoUrl, headquarters: companies.headquarters, indiaRelevance: companies.indiaRelevance, jobCount: sql<number>`count(${jobs.id})::int` })
+    .select({
+      id: companies.id,
+      name: companies.name,
+      slug: companies.slug,
+      website: companies.website,
+      careersUrl: companies.careersUrl,
+      logoUrl: companies.logoUrl,
+      headquarters: companies.headquarters,
+      industry: companies.industry,
+      indiaRelevance: companies.indiaRelevance,
+      jobCount: sql<number>`count(${jobs.id})::int`,
+    })
     .from(companies)
     .innerJoin(jobs, eq(jobs.companyId, companies.id))
     .where(jobConditions({ ...f, companyId: undefined, page: undefined, pageSize: undefined }, true))
@@ -121,6 +134,8 @@ export interface CompanyWithoutOpenings {
   careersUrl: string | null
   logoUrl: string | null
   headquarters: string | null
+  industry?: string | null
+  indiaRelevance?: string | null
   /** `no_feed`: the company publishes on a portal JobAppy cannot read; `no_matching_openings`: the feed works but nothing relevant is open. */
   reason: 'no_feed' | 'no_matching_openings'
 }
@@ -135,13 +150,48 @@ export async function companiesWithoutOpenings(): Promise<CompanyWithoutOpenings
     .from(jobs)
     .where(and(eq(jobs.status, 'published'), or(isNull(jobs.expiresAt), gt(jobs.expiresAt, new Date()))!))
   const rows = await db
-    .select({ id: companies.id, name: companies.name, slug: companies.slug, website: companies.website, careersUrl: companies.careersUrl, logoUrl: companies.logoUrl, headquarters: companies.headquarters, providers: sql<string>`coalesce(string_agg(${jobSources.provider}, ','), '')` })
+    .select({
+      id: companies.id,
+      name: companies.name,
+      slug: companies.slug,
+      website: companies.website,
+      careersUrl: companies.careersUrl,
+      logoUrl: companies.logoUrl,
+      headquarters: companies.headquarters,
+      industry: companies.industry,
+      indiaRelevance: companies.indiaRelevance,
+      providers: sql<string>`coalesce(string_agg(${jobSources.provider}, ','), '')`,
+    })
     .from(companies)
     .leftJoin(jobSources, eq(jobSources.companyId, companies.id))
     .where(and(eq(companies.status, 'active'), notInArray(companies.id, hiring)))
     .groupBy(companies.id)
     .orderBy(asc(companies.name))
-  return rows.map(({ providers, ...r }) => ({ ...r, reason: providers.split(',').some((p) => p && p !== 'manual') ? 'no_matching_openings' : 'no_feed' }))
+  const dbCompanies: CompanyWithoutOpenings[] = rows.map(({ providers, ...r }) => ({
+    ...r,
+    reason: (providers.split(',').some((p) => p && p !== 'manual') ? 'no_matching_openings' : 'no_feed') as 'no_feed' | 'no_matching_openings',
+  }))
+
+  const dbSlugs = new Set(dbCompanies.map((c) => c.slug))
+  const catalogFallback: CompanyWithoutOpenings[] = []
+  for (const item of COMPANY_CATALOG) {
+    if (!dbSlugs.has(item.slug)) {
+      catalogFallback.push({
+        id: `catalog-${item.slug}`,
+        name: item.name,
+        slug: item.slug,
+        website: item.website,
+        careersUrl: item.careersUrl,
+        logoUrl: null,
+        headquarters: item.headquarters,
+        industry: item.industry,
+        indiaRelevance: item.indiaRelevance,
+        reason: item.feed ? 'no_matching_openings' : 'no_feed',
+      })
+    }
+  }
+
+  return [...dbCompanies, ...catalogFallback].sort((a, b) => a.name.localeCompare(b.name))
 }
 
 export async function allActiveCompanies(): Promise<Pick<CompanyDto, 'id' | 'name' | 'slug'>[]> {
