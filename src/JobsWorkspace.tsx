@@ -458,6 +458,13 @@ export default function JobsWorkspace({
   ])
 
   const toggleAll = useCallback(() => {
+    if (!userSubscribed) {
+      if (user) onUpgrade()
+      else onSignIn()
+      onToast('Expand All and full 300+ company directory access requires Prep Pro.')
+      return
+    }
+
     if (isAllExpanded) {
       setIsCompaniesExpanded(false)
       setIsFiltersExpanded(false)
@@ -472,7 +479,7 @@ export default function JobsWorkspace({
       setIsSidebarPrefsExpanded(true)
       setIsSidebarAboutExpanded(true)
     }
-  }, [isAllExpanded])
+  }, [userSubscribed, user, onUpgrade, onSignIn, onToast, isAllExpanded])
 
   return (
     <div className="jobs-layout">
@@ -514,15 +521,29 @@ export default function JobsWorkspace({
                 <span>{others.length} Direct Portals</span>
               </span>
             )}
-            <button
-              type="button"
-              className="jobs-hero-toggle-all"
-              onClick={toggleAll}
-              aria-label={isAllExpanded ? 'Collapse all sections' : 'Expand all sections'}
-            >
-              <ChevronsUpDown size={14} />
-              <span>{isAllExpanded ? 'Collapse All' : 'Expand All'}</span>
-            </button>
+            {userSubscribed ? (
+              <button
+                type="button"
+                className="jobs-hero-toggle-all"
+                onClick={toggleAll}
+                aria-label={isAllExpanded ? 'Collapse all sections' : 'Expand all sections'}
+              >
+                <ChevronsUpDown size={14} />
+                <span>{isAllExpanded ? 'Collapse All' : 'Expand All'}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="jobs-hero-toggle-all jobs-hero-toggle-locked"
+                onClick={toggleAll}
+                title="Expand All and full directory access requires Prep Pro"
+                aria-label="Expand All requires Prep Pro"
+              >
+                <Lock size={13} className="text-primary" />
+                <span>Expand All</span>
+                <span className="company-badge-pro">Pro</span>
+              </button>
+            )}
           </div>
         </header>
 
@@ -533,10 +554,22 @@ export default function JobsWorkspace({
           filtered={filtersActive}
           others={others}
           isSubscribed={userSubscribed}
-          isExpanded={isCompaniesExpanded}
-          onToggleExpand={() => setIsCompaniesExpanded((v) => !v)}
+          isExpanded={isCompaniesExpanded && userSubscribed}
+          onToggleExpand={() => {
+            if (!userSubscribed) {
+              if (user) onUpgrade()
+              else onSignIn()
+              onToast('Full 300+ enterprise company directory is unlocked with Prep Pro.')
+              return
+            }
+            setIsCompaniesExpanded((v) => !v)
+          }}
           onPick={(id) => setFilter('companyId', id ?? '')}
-          onUpgrade={onUpgrade}
+          onUpgrade={() => {
+            if (user) onUpgrade()
+            else onSignIn()
+            onToast('Full 300+ enterprise company directory is unlocked with Prep Pro.')
+          }}
         />
 
         {/* Search & Collapsible Filters Toolbar */}
@@ -1114,14 +1147,21 @@ function CompanyStrip({
     <section className="jobs-directory-hub" aria-label="Companies hiring and career portals">
       <div
         className="jobs-directory-hub-head"
-        onClick={onToggleExpand}
+        onClick={() => {
+          if (!isSubscribed) {
+            onUpgrade()
+          } else {
+            onToggleExpand()
+          }
+        }}
         role="button"
         tabIndex={0}
         aria-expanded={isExpanded}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
-            onToggleExpand()
+            if (!isSubscribed) onUpgrade()
+            else onToggleExpand()
           }
         }}
       >
@@ -1151,16 +1191,29 @@ function CompanyStrip({
         </div>
 
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            className="company-toggle-btn"
-            onClick={onToggleExpand}
-            aria-expanded={isExpanded}
-            title={isExpanded ? 'Collapse company hub' : 'Expand full 300+ company hub'}
-          >
-            <span>{isExpanded ? 'Collapse Hub' : `Expand Hub (${totalCatalog})`}</span>
-            {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
+          {isSubscribed ? (
+            <button
+              type="button"
+              className="company-toggle-btn"
+              onClick={onToggleExpand}
+              aria-expanded={isExpanded}
+              title={isExpanded ? 'Collapse company hub' : 'Expand full 300+ company hub'}
+            >
+              <span>{isExpanded ? 'Collapse Hub' : `Expand Hub (${totalCatalog})`}</span>
+              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="company-toggle-btn company-toggle-locked"
+              onClick={onUpgrade}
+              title="Unlock full 300+ company directory with Prep Pro"
+            >
+              <Lock size={12} className="text-primary" />
+              <span>Expand Hub ({totalCatalog})</span>
+              <span className="company-badge-pro">Pro</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1199,16 +1252,29 @@ function CompanyStrip({
             )
           })}
 
-          <button
-            type="button"
-            className="company-chip company-chip-more"
-            onClick={onToggleExpand}
-            title="Expand full 300+ companies directory"
-          >
-            <Building2 size={13} className="text-primary" />
-            <span className="company-chip-name">+{totalCatalog - compactVisibleCompanies.length} more portals & companies</span>
-            <ChevronRight size={13} />
-          </button>
+          {isSubscribed ? (
+            <button
+              type="button"
+              className="company-chip company-chip-more"
+              onClick={onToggleExpand}
+              title="Expand full 300+ companies directory"
+            >
+              <Building2 size={13} className="text-primary" />
+              <span className="company-chip-name">+{totalCatalog - compactVisibleCompanies.length} more portals & companies</span>
+              <ChevronRight size={13} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="company-chip company-chip-locked"
+              onClick={onUpgrade}
+              title="Unlock full 300+ company directory with Prep Pro"
+            >
+              <Lock size={13} className="text-primary" />
+              <span className="company-chip-name">+{totalCatalog - compactVisibleCompanies.length} more portals & companies</span>
+              <span className="company-chip-pro-pill">Pro</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -1387,24 +1453,62 @@ function CompanyStrip({
                   <p className="jobs-companies-sub mt-2 mb-2">
                     Verified official career portals for top IT leaders, product companies, consulting firms and global capability centers (GCCs). Links open directly to their hiring portals.
                   </p>
-                  <div className="jobs-dir-grid" aria-label="Direct corporate career portals">
-                    {displayedDirect.map((c) => (
-                      <a
-                        key={c.id}
-                        className="company-chip is-direct-portal"
-                        href={c.careersUrl || c.website || '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={`${c.name} · ${c.industry || 'Technology & Services'}${c.headquarters ? ` · ${c.headquarters}` : ''}`}
-                      >
-                        <CompanyLogo company={c} size={28} />
-                        <span className="company-chip-name">{c.name}</span>
-                        {c.industry && <span className="company-chip-portal-badge">{c.industry}</span>}
-                        <span className="company-chip-ext" aria-hidden="true">
-                          ↗
-                        </span>
-                      </a>
-                    ))}
+                  <div className="enterprise-portals-grid" aria-label="Direct corporate career portals">
+                    {displayedDirect.map((c) => {
+                      let displayDomain = ''
+                      try {
+                        const targetUrl = c.careersUrl || c.website || ''
+                        if (targetUrl) {
+                          displayDomain = new URL(targetUrl.startsWith('http') ? targetUrl : `https://${targetUrl}`).hostname.replace(/^www\./, '')
+                        }
+                      } catch {
+                        displayDomain = 'Official Portal'
+                      }
+
+                      return (
+                        <a
+                          key={c.id}
+                          className="enterprise-portal-card"
+                          href={c.careersUrl || c.website || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={`Visit ${c.name} official careers portal (${displayDomain})`}
+                        >
+                          <div className="enterprise-portal-header">
+                            <CompanyLogo company={c} size={38} className="rounded-lg shadow-xs" />
+                            <div className="enterprise-portal-info">
+                              <span className="enterprise-portal-name">{c.name}</span>
+                              <span className="enterprise-portal-domain">
+                                <Globe size={11} className="opacity-70" />
+                                <span>{displayDomain}</span>
+                              </span>
+                            </div>
+                            <span className="enterprise-portal-link-arrow" aria-hidden="true" title="Open official careers portal">
+                              ↗
+                            </span>
+                          </div>
+
+                          <div className="enterprise-portal-meta">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {c.industry && (
+                                <span className="enterprise-portal-badge is-primary">
+                                  {c.industry}
+                                </span>
+                              )}
+                              {c.headquarters && (
+                                <span className="enterprise-portal-hq">
+                                  <MapPin size={11} className="opacity-70" />
+                                  <span>{c.headquarters}</span>
+                                </span>
+                              )}
+                            </div>
+                            <span className="enterprise-portal-action">
+                              <span>Open Portal ↗</span>
+                            </span>
+                          </div>
+                        </a>
+                      )
+                    })}
                   </div>
 
                   {filteredDirect.length > 36 && (

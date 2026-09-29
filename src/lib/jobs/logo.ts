@@ -8,17 +8,33 @@
 export function companyDomain(website: string | null | undefined): string | null {
   if (!website) return null
   try {
-    const host = new URL(website.startsWith('http') ? website : `https://${website}`).hostname.toLowerCase()
+    const raw = website.trim()
+    const host = new URL(raw.startsWith('http') ? raw : `https://${raw}`).hostname.toLowerCase()
     return host.replace(/^www\./, '') || null
   } catch {
     return null
   }
 }
 
-export function companyLogoUrl(company: { logoUrl?: string | null; website?: string | null }, size = 64): string | null {
+export function companyLogoUrl(company: { logoUrl?: string | null; website?: string | null; careersUrl?: string | null }, size = 64): string | null {
   if (company.logoUrl && /^https?:\/\//.test(company.logoUrl)) return company.logoUrl
-  const domain = companyDomain(company.website)
-  return domain ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}` : null
+  const rawDomain = companyDomain(company.website) || companyDomain(company.careersUrl)
+  if (!rawDomain) return null
+
+  let domain = rawDomain
+  // If subdomain is jobs.*, careers.*, etc. on the company's own site, extract main domain for higher favicon match
+  if (!/(greenhouse\.io|lever\.co|ashbyhq\.com|workday\.com|myworkdayjobs\.com|smartrecruiters\.com|brassring\.com|ttcportals\.com|ripplehire\.com|klimb\.io|oraclecloud\.com)/i.test(rawDomain)) {
+    domain = rawDomain.replace(/^(jobs|careers|jobsearch|apply|employment|indcareers|earlycareers|experiencedcareers)\./i, '')
+  } else {
+    // If it's a known hosted ATS, try to extract company name prefix
+    const match = rawDomain.match(/^([a-z0-9-]+)\.(?:wd\d+\.myworkdayjobs\.com|icims\.com|klimb\.io|ttcportals\.com)$/i)
+    if (match && match[1]) {
+      const clean = match[1].replace(/^(indcareers-|jobs-|careers-)/, '')
+      domain = `${clean}.com`
+    }
+  }
+
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}`
 }
 
 /** Two-letter fallback shown when no logo can be loaded. */
