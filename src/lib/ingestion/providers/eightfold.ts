@@ -1,5 +1,5 @@
 import type { JobProvider, RawJob } from '../types'
-import { epochSecondsToIso, fetchJson, hostToken, mapConcurrent, positiveInt, workLocationOption } from './shared'
+import { epochSecondsToIso, fetchJson, hostToken, mapConcurrent, positiveInt, sleep, workLocationOption } from './shared'
 
 /**
  * Eightfold-hosted careers sites (Microsoft, Netflix and others). Two API
@@ -12,7 +12,7 @@ import { epochSecondsToIso, fetchJson, hostToken, mapConcurrent, positiveInt, wo
  * Pages hold at most 10 positions and the description only comes from the
  * detail call, so runs are capped per search (config.maxPerSearch) and the
  * sites answer bursts with 429, so requests go a few at a time with retries.
- * Config: { host, domain, api: 'pcsx' | 'apply-v2', searches?: [{ query, location }], maxPerSearch?, concurrency? }.
+ * Config: { host, domain, api: 'pcsx' | 'apply-v2', searches?: [{ query, location }], maxPerSearch?, concurrency?, requestIntervalMs? }.
  */
 interface EightfoldPosition {
   id: number | string
@@ -85,8 +85,32 @@ function unwrapDetail(api: 'pcsx' | 'apply-v2', body: unknown): EightfoldPositio
 export const eightfoldProvider: JobProvider = {
   id: 'eightfold',
   label: 'Eightfold careers site (unofficial JSON)',
-  configHelp: 'config.host = the careers site host (apply.careers.microsoft.com), config.domain = the Eightfold domain parameter (microsoft.com), config.api = pcsx or apply-v2; optional config.searches [{ query, location }], config.maxPerSearch, config.concurrency.',
+  configHelp: 'config.host = the careers site host (apply.careers.microsoft.com), config.domain = the Eightfold domain parameter (microsoft.com), config.api = pcsx or apply-v2; optional config.searches [{ query, location }], config.maxPerSearch, config.concurrency, config.requestIntervalMs (minimum time between requests, including retries).',
   async fetchJobs(source, ctx) {
+    const intervalMs = Math.max(0, Math.min(30_000, Number(source.config.requestIntervalMs) || 0))
+    const originalFetch = ctx.fetch
+    let nextRequest = Promise.resolve()
+    let lastStarted = 0
+    let accessDenied = false
+    // Serialize request starts, not responses; retry attempts use the same limiter.
+    ctx = { ...ctx, fetch: async (input, init) => {
+      const slot = nextRequest.then(async () => {
+        if (accessDenied) throw new Error('Eightfold scan stopped after HTTP 403; remaining requests deferred')
+        const wait = lastStarted + intervalMs - Date.now()
+        if (wait > 0) await sleep(wait)
+        if (accessDenied) throw new Error('Eightfold scan stopped after HTTP 403; remaining requests deferred')
+        lastStarted = Date.now()
+      })
+      nextRequest = slot.catch(() => {})
+      await slot
+      const response = await originalFetch(input, init)
+      if (response.status === 403) accessDenied = true
+      return response
+    } }
+    const incomplete = (reason: string) => {
+      ctx.log(reason)
+      ctx.reportIncomplete?.(reason)
+    }
     const cfg = { host: hostToken(source.config.host), domain: hostToken(source.config.domain), api: source.config.api === 'apply-v2' ? ('apply-v2' as const) : ('pcsx' as const) }
     const searches: EightfoldSearch[] = (Array.isArray(source.config.searches) && source.config.searches.length ? source.config.searches : EIGHTFOLD_DEFAULT_SEARCHES).map((s: unknown) => ({ query: String((s as EightfoldSearch)?.query ?? ''), location: String((s as EightfoldSearch)?.location ?? '') }))
     const maxPerSearch = positiveInt(source.config.maxPerSearch, 200, 3000)
@@ -94,13 +118,24 @@ export const eightfoldProvider: JobProvider = {
     const concurrency = positiveInt(source.config.concurrency, 3, 8)
     const seen = new Map<string, EightfoldPosition>()
     for (const search of searches) {
+      if (accessDenied) {
+        incomplete('Eightfold search deferred after HTTP 403')
+        break
+      }
       const first = unwrapSearch(cfg.api, await fetchJson(ctx, eightfoldSearchUrl(cfg, search, 0), {}, `Eightfold search ${cfg.host}`))
       const total = Math.min(first.count, maxPerSearch)
+      if (first.count > maxPerSearch) incomplete(`Eightfold search "${search.query}" location "${search.location}" capped at ${maxPerSearch} of ${first.count} positions`)
       const starts: number[] = []
       for (let start = PAGE; start < total; start += PAGE) starts.push(start)
-      const pages = await mapConcurrent(starts, concurrency, async (start) => unwrapSearch(cfg.api, await fetchJson(ctx, eightfoldSearchUrl(cfg, search, start), {}, `Eightfold search ${cfg.host} (start ${start})`)).positions)
+      const pages = await mapConcurrent(starts, concurrency, async (start) => {
+        if (accessDenied) throw new Error('Eightfold search page deferred after HTTP 403')
+        return unwrapSearch(cfg.api, await fetchJson(ctx, eightfoldSearchUrl(cfg, search, start), {}, `Eightfold search ${cfg.host} (start ${start})`)).positions
+      })
+      if (pages.failures.length) incomplete(`${pages.failures.length} search page(s) failed: ${pages.failures.slice(0, 3).map((f) => f.error).join(' · ')}`)
+      const positions = [first.positions, ...pages.results].flat().slice(0, total)
+      if (!pages.failures.length && positions.length < total) incomplete(`Eightfold search returned ${positions.length} of ${total} expected positions`)
       let taken = 0
-      for (const p of [first.positions, ...pages.results].flat()) {
+      for (const p of positions) {
         const id = String(p.id ?? '').trim()
         if (!id || !p.name || seen.has(id)) continue
         seen.set(id, p)
@@ -108,14 +143,22 @@ export const eightfoldProvider: JobProvider = {
       }
       ctx.log(`Eightfold ${cfg.host} query "${search.query}" location "${search.location}": ${first.count} position(s), ${taken} new (cap ${maxPerSearch})${pages.failures.length ? `, ${pages.failures.length} page(s) failed` : ''}`)
     }
-    const details = await mapConcurrent(Array.from(seen.values()), concurrency, async (p) => unwrapDetail(cfg.api, await fetchJson(ctx, eightfoldDetailUrl(cfg, p.id), {}, `Eightfold detail ${p.id}`)))
-    if (details.failures.length) ctx.log(`${details.failures.length} detail call(s) failed: ${details.failures.slice(0, 3).map((f) => f.error).join(' · ')}`)
+    const details = await mapConcurrent(Array.from(seen.values()), concurrency, async (p) => {
+      if (accessDenied) throw new Error('Eightfold detail deferred after HTTP 403')
+      const detail = unwrapDetail(cfg.api, await fetchJson(ctx, eightfoldDetailUrl(cfg, p.id), {}, `Eightfold detail ${p.id}`))
+      if (String(detail.id) !== String(p.id)) throw new Error(`Eightfold detail ${p.id} returned a missing or mismatched id`)
+      return detail
+    })
+    if (details.failures.length) incomplete(`${details.failures.length} detail call(s) failed: ${details.failures.slice(0, 3).map((f) => f.error).join(' · ')}`)
     const byId = new Map(details.results.map((d) => [String(d.id), d]))
     const out: RawJob[] = []
     for (const p of seen.values()) {
       const d = byId.get(String(p.id)) ?? p
       const description = d.jobDescription || d.job_description || ''
-      if (!description) continue
+      if (!description) {
+        if (byId.has(String(p.id))) incomplete(`Eightfold detail ${p.id} returned no description`)
+        continue
+      }
       const locations = Array.from(new Set([...(p.locations || []), ...(d.locations || []), ...(p.standardizedLocations || [])].filter(Boolean)))
       const primary = d.location || p.location || locations[0] || null
       const publicUrl = d.publicUrl || d.canonicalPositionUrl || p.canonicalPositionUrl || null

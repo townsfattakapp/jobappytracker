@@ -77,7 +77,8 @@ export async function ingestSource(db: IngestionDb, source: SourceRow, opts: Ing
     const timeoutMs = Math.max(1000, Number(process.env.INGESTION_FETCH_TIMEOUT_MS) || 20_000)
     const baseFetch = opts.fetchImpl ?? fetch
     const fetchWithTimeout: typeof fetch = (input, init) => baseFetch(input, { ...(init || {}), signal: (init && init.signal) || AbortSignal.timeout(timeoutMs) })
-    const ctx: FetchContext = { fetch: fetchWithTimeout, log: (line) => log.push(line) }
+    const incomplete: string[] = []
+    const ctx: FetchContext = { fetch: fetchWithTimeout, log: (line) => log.push(line), reportIncomplete: (reason) => incomplete.push(reason) }
     const providerSource: ProviderSource = { id: source.id, name: source.name, provider: source.provider, baseUrl: source.baseUrl, config: source.config || {} }
     const rawJobs = await provider.fetchJobs(providerSource, ctx)
     counters.fetched = rawJobs.length
@@ -182,6 +183,11 @@ export async function ingestSource(db: IngestionDb, source: SourceRow, opts: Ing
         ...values,
       })
       counters.created += 1
+    }
+
+    if (incomplete.length) {
+      log.push('Partial results saved; unseen listings were left unchanged.')
+      return finish('failed', `Incomplete import: ${incomplete.join('; ')}`)
     }
 
     // Listings this source no longer returns are no longer verifiable: mark stale now; the sweep expires them later.

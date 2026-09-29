@@ -43,6 +43,8 @@ export interface FetchContext {
   fetch: typeof fetch
   /** Log lines end up in the ingestion run record. */
   log: (line: string) => void
+  /** Keep fetched jobs, but fail the run and do not mark unseen jobs stale. */
+  reportIncomplete?: (reason: string) => void
 }
 
 export interface JobProvider {

@@ -264,6 +264,111 @@ test('Eightfold adapter reads both API flavours, pages by 10, fetches details an
   await assert.rejects(() => eightfold.fetchJobs({ id: 's', name: 'x', provider: 'eightfold', baseUrl: null, config: { host: 'a.example.com', domain: 'x.com', api: 'pcsx' } }, { fetch: async () => ({ ok: true, status: 200, text: async () => JSON.stringify({ data: {} }) }), log: () => {} }), /no positions array/)
 })
 
+test('Eightfold reports truncation, failed pages, failed details and malformed details', async () => {
+  const eightfold = providers.providerById('eightfold')
+  const issues = []
+  const calls = []
+  const source = { id: 's', name: 'Qualcomm', provider: 'eightfold', baseUrl: null, config: { host: 'qualcomm.eightfold.ai', domain: 'qualcomm.com', searches: [{ query: '', location: '' }], maxPerSearch: 20 } }
+  const raw = await eightfold.fetchJobs(source, { log: () => {}, reportIncomplete: (s) => issues.push(s), fetch: async (url) => {
+    calls.push(url)
+    const u = new URL(url)
+    if (u.pathname.endsWith('/search')) {
+      if (u.searchParams.get('start') === '10') return new Response('', { status: 400 })
+      return Response.json({ data: { count: 30, positions: [1, 2, 3, 4].map((id) => ({ id, name: 'Engineer' })) } })
+    }
+    const id = Number(u.searchParams.get('position_id'))
+    if (id === 2) return new Response('', { status: 400 })
+    return Response.json({ data: { id: id === 3 ? 999 : id, jobDescription: id === 4 ? '' : '<p>Software engineering with Java.</p>' } })
+  } })
+  assert.deepEqual(raw.map((r) => r.externalId), ['1'])
+  assert.ok(issues.some((s) => /capped at 20 of 30/.test(s)))
+  assert.ok(issues.some((s) => /1 search page\(s\) failed/.test(s)))
+  assert.ok(issues.some((s) => /2 detail call\(s\) failed/.test(s)))
+  assert.ok(issues.some((s) => /mismatched id/.test(s)))
+  assert.ok(issues.some((s) => /returned no description/.test(s)))
+  assert.equal(calls.filter((u) => u.includes('position_id=2')).length, 1, 'permanent client errors are not retried')
+})
+
+test('Eightfold stops further detail requests after access is denied and retains fetched results', async () => {
+  const issues = []
+  let details = 0
+  const raw = await providers.providerById('eightfold').fetchJobs({ id: 's', name: 'x', provider: 'eightfold', baseUrl: null, config: { host: 'a.example.com', domain: 'x.com', searches: [{ query: '', location: '' }], concurrency: 1 } }, {
+    log: () => {}, reportIncomplete: (s) => issues.push(s), fetch: async (url) => {
+      if (url.includes('/search')) return Response.json({ data: { count: 4, positions: [1, 2, 3, 4].map((id) => ({ id, name: 'Engineer' })) } })
+      details++
+      if (details === 2) return new Response('', { status: 403 })
+      return Response.json({ data: { id: 1, jobDescription: '<p>Software engineering.</p>' } })
+    },
+  })
+  assert.equal(details, 2, 'no retry or additional network calls after HTTP 403')
+  assert.deepEqual(raw.map((r) => r.externalId), ['1'])
+  assert.ok(issues.some((s) => /3 detail call\(s\) failed/.test(s) && /403/.test(s)))
+})
+
+test('Eightfold full-board search discovers generic Engineer roles beyond the old 200-result cap', async () => {
+  const issues = []
+  const raw = await providers.providerById('eightfold').fetchJobs({ id: 's', name: 'Qualcomm', provider: 'eightfold', baseUrl: null, config: { host: 'qualcomm.eightfold.ai', domain: 'qualcomm.com', searches: [{ query: '', location: '' }], maxPerSearch: 3000 } }, {
+    log: () => {}, reportIncomplete: (s) => issues.push(s), fetch: async (url) => {
+      const u = new URL(url)
+      if (u.pathname.endsWith('/search')) {
+        assert.equal(u.searchParams.get('query'), '')
+        const start = Number(u.searchParams.get('start'))
+        return Response.json({ data: { count: 201, positions: Array.from({ length: Math.min(10, 201 - start) }, (_, i) => ({ id: start + i === 200 ? '446720892993' : String(start + i), name: 'Engineer' })) } })
+      }
+      return Response.json({ data: { id: u.searchParams.get('position_id'), name: 'Engineer', department: 'Software Engineering', location: 'Hyderabad, India', jobDescription: '<p>Develop software using Java, Python and C++.</p>' } })
+    },
+  })
+  assert.equal(raw.length, 201)
+  assert.deepEqual(issues, [])
+  const target = normalize.normalizeRawJob(raw.find((r) => r.externalId === '446720892993'))
+  assert.equal(target.relevance.relevant, true)
+  assert.equal(target.locationCity, 'Hyderabad')
+})
+
+test('Eightfold retries rate limits through the request limiter', async () => {
+  const issues = []
+  const starts = []
+  let searches = 0
+  const raw = await providers.providerById('eightfold').fetchJobs({ id: 's', name: 'x', provider: 'eightfold', baseUrl: null, config: { host: 'a.example.com', domain: 'x.com', searches: [{ query: '', location: '' }], requestIntervalMs: 25 } }, {
+    log: () => {}, reportIncomplete: (s) => issues.push(s), fetch: async (url) => {
+      starts.push(Date.now())
+      if (url.includes('/search')) {
+        if (++searches === 1) return new Response('', { status: 429, headers: { 'retry-after': '0.001' } })
+        return Response.json({ data: { count: 1, positions: [{ id: 1, name: 'Engineer' }] } })
+      }
+      return Response.json({ data: { id: 1, jobDescription: '<p>Software engineering.</p>' } })
+    },
+  })
+  assert.equal(raw.length, 1)
+  assert.equal(searches, 2)
+  assert.deepEqual(issues, [])
+  assert.ok(starts.every((t, i) => i === 0 || t - starts[i - 1] >= 20), 'all attempts, including retries, are paced')
+})
+
+test('incomplete imports save new jobs and retain unseen jobs without claiming success', async () => {
+  const { client, db } = await freshDb()
+  try {
+    const source = await seedSource(db, { config: { jobs: [listing({})] } })
+    await engine.ingestSource(db, source)
+    const before = await db.query.jobs.findFirst()
+    const partial = { id: 'partial', label: 'partial', configHelp: '', fetchJobs: async (_source, ctx) => {
+      ctx.reportIncomplete('one detail responded 503')
+      return [listing({ externalId: 'new', sourceUrl: 'https://jobs.example.com/new' })]
+    } }
+    const result = await engine.ingestSource(db, source, { provider: partial })
+    assert.equal(result.status, 'failed')
+    assert.equal(result.created, 1)
+    assert.match(result.error, /Incomplete import.*503/)
+    const retained = await db.query.jobs.findFirst({ where: (t, { eq }) => eq(t.id, before.id) })
+    assert.equal(retained.lifecycle, before.lifecycle)
+    assert.equal(retained.lastSeenAt.toISOString(), before.lastSeenAt.toISOString())
+    const saved = await db.query.jobs.findFirst({ where: (t, { eq }) => eq(t.externalId, 'new') })
+    assert.equal(saved.status, 'published')
+    assert.equal((await db.query.jobSources.findFirst()).lastRunStatus, 'failed')
+    assert.equal((await db.query.jobIngestionRuns.findFirst({ where: (t, { eq }) => eq(t.id, result.runId) })).status, 'failed')
+  } finally { await client.close() }
+})
+
 test('Workday adapter posts paged searches, deduplicates, fetches jobPostingInfo and maps the country', async () => {
   const workday = providers.providerById('workday')
   const calls = []
