@@ -21,6 +21,16 @@ export default function ReferralTab({ job, signedIn, tracked, preparationStarted
   const [form, setForm] = useState({ introduction: '', whyRole: '', relevantExperience: '', consent: false })
   const [confirming, setConfirming] = useState(false)
   const [reply, setReply] = useState('')
+  const referralHeading = (
+    <>
+      <h3 id="job-referral" className="job-section-title">
+        Referral for {job.company.name}
+      </h3>
+      <p className="job-section-sub" style={{ marginBottom: '0.75rem', overflowWrap: 'anywhere' }}>
+        Role: <strong>{job.title}</strong>
+      </p>
+    </>
+  )
 
   const load = useCallback(() => {
     fetchJobReferral(job.id)
@@ -96,9 +106,7 @@ export default function ReferralTab({ job, signedIn, tracked, preparationStarted
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem', padding: '0.15rem 0.55rem', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 600, background: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary))' }}>
           🛡️ Verified Employee Endorsements
         </div>
-        <h3 id="job-referral" className="job-section-title">
-          Vetted Employee Referral & Screening
-        </h3>
+        {referralHeading}
         <p className="job-section-sub">Sign in to connect with verified employees at {job.company.name}. Before referring, referrers conduct an end-to-end technical screening to test your domain qualifications so you enter the hiring pipeline as a qualified, endorsed candidate.</p>
         <button type="button" className="btn btn-primary btn-sm mt-3" onClick={onSignIn}>
           Sign in to request referral
@@ -108,7 +116,12 @@ export default function ReferralTab({ job, signedIn, tracked, preparationStarted
     )
   }
 
-  if (!state && !error) return <p className="job-section-sub">Loading referral information…</p>
+  if (!state && !error) return (
+    <section className="job-section referral-tab" aria-labelledby="job-referral">
+      {referralHeading}
+      <p className="job-section-sub" role="status">Loading referral information…</p>
+    </section>
+  )
   const request = state?.request ?? null
   const live = request && !['DRAFT', 'READINESS_REQUIRED', 'READY', 'CLOSED', 'CANCELLED', 'EXPIRED'].includes(request.status)
   const availability = state?.availability
@@ -118,9 +131,7 @@ export default function ReferralTab({ job, signedIn, tracked, preparationStarted
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem', padding: '0.15rem 0.55rem', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 600, background: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary))' }}>
         🛡️ Verified Employee Endorsements
       </div>
-      <h3 id="job-referral" className="job-section-title">
-        Vetted Employee Referral & Screening
-      </h3>
+      {referralHeading}
       <p className="job-section-sub" style={{ marginBottom: '0.75rem' }}>
         Requests are reviewed by verified employees at {job.company.name}. Your matched referrer reviews your resume and conducts a technical screening check to test your qualifications end-to-end before submitting an internal referral.
       </p>

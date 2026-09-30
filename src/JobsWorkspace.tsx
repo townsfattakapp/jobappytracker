@@ -1546,7 +1546,8 @@ function CompanyStrip({
                               )}
                             </div>
                             <span className="enterprise-portal-action">
-                              <span>Open Portal ↗</span>
+                              <span>Open portal</span>
+                              <ExternalLink size={13} aria-hidden="true" />
                             </span>
                           </div>
                         </a>

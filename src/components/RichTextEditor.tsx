@@ -97,7 +97,7 @@ export default function RichTextEditor({
       Placeholder.configure({
         placeholder,
       }),
-      Table.configure({ resizable: true }),
+      Table.configure({ resizable: true, renderWrapper: true }),
       TableRow,
       TableHeader,
       TableCell,

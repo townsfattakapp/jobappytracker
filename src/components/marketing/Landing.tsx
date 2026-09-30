@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowRight, Check } from 'lucide-react'
+import { ArrowRight, Check, Moon, Sun } from 'lucide-react'
 import WorkspacePreview from './WorkspacePreview'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import BrandLogo, { BrandMark } from '../BrandLogo'
@@ -383,6 +383,13 @@ export default function Landing() {
             <a href="#faq">FAQ</a>
           </nav>
           <div className="lp-nav-actions">
+            <button type="button" className="lp-theme-toggle" aria-label="Toggle light and dark mode" title="Toggle light and dark mode" onClick={() => {
+              const dark = document.documentElement.classList.toggle('dark')
+              try { localStorage.setItem('job-app-theme', dark ? 'dark' : 'light') } catch { /* Keep the theme usable when storage is unavailable. */ }
+            }}>
+              <Sun size={18} className="lp-theme-sun" aria-hidden="true" />
+              <Moon size={18} className="lp-theme-moon" aria-hidden="true" />
+            </button>
             <a href="/app?mode=signin" className="lp-link">
               Sign in
             </a>

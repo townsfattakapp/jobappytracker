@@ -26,6 +26,7 @@
     "test:verification": "node scripts/test-verification.mjs",
     "test:curriculum": "node scripts/test-curriculum-engine.mjs",
     "test:data-tracks": "node scripts/test-data-tracks.mjs",
+    "test:tables": "node --experimental-strip-types scripts/test-tables.mjs",
     "test:e2e:billing": "node scripts/e2e-billing.mjs",
     "screens": "node scripts/capture-screens.mjs",
     "test:learning:domain": "node scripts/test-learning-domain.mjs",

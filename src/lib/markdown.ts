@@ -51,9 +51,42 @@ function makeRenderer(codeCards: boolean): InstanceType<typeof MarkdownIt> {
 const plain = makeRenderer(false)
 const cards = makeRenderer(true)
 
+/**
+ * Ensures pipe tables without an explicit delimiter row (|---|---|) are normalized
+ * so Markdown-It parses them into structured <table> HTML instead of flat text.
+ */
+export function normalizeMarkdownTables(mdText: string): string {
+  if (!mdText || !mdText.includes('|')) return mdText
+  const lines = mdText.split('\n')
+  const result: string[] = []
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    result.push(lines[i])
+    if (line.startsWith('|') && line.endsWith('|') && line.length > 2) {
+      const nextLine = lines[i + 1]?.trim()
+      const prevLine = lines[i - 1]?.trim()
+      if (
+        nextLine &&
+        nextLine.startsWith('|') &&
+        nextLine.endsWith('|') &&
+        !/^\|(\s*:?-+:?\s*\|)+$/.test(nextLine) &&
+        (!prevLine || !prevLine.startsWith('|'))
+      ) {
+        const colCount = line.split('|').length - 2
+        if (colCount > 0) {
+          result.push('|' + Array(colCount).fill('---').join('|') + '|')
+        }
+      }
+    }
+  }
+  return result.join('\n')
+}
+
 /** Markdown → HTML for content that goes into the note editor (no interactive chrome). */
 export function renderMarkdown(markdown: string): string {
-  return plain.render(markdown.trim())
+  const normalized = normalizeMarkdownTables(markdown.trim())
+  const html = plain.render(normalized)
+  return html.replace(/<table>([\s\S]*?)<\/table>/g, (_m, inner) => `<div class="tableWrapper"><table>${inner}</table></div>`)
 }
 
 /**
@@ -80,7 +113,8 @@ function labelTables(html: string): string {
 
 /** Markdown → HTML for read-only chat bubbles, with a language label and Copy button on each code block. */
 export function renderMarkdownRich(markdown: string): string {
-  return labelTables(cards.render(markdown.trim()))
+  const normalized = normalizeMarkdownTables(markdown.trim())
+  return labelTables(cards.render(normalized))
 }
 
 /**

@@ -64,6 +64,7 @@ const MERMAID_RULES = [
 
 const COMMON = [
   'Write GitHub-flavoured Markdown with real line breaks. Short paragraphs, bullets on their own lines. No preamble or closing remarks.',
+  'Table formatting rules: When presenting tables or datasets, ALWAYS use valid GitHub-Flavoured Markdown with explicit header delimiter rows (`|---|---|`) and space-padded cells (`| Col 1 | Col 2 |`). Provide clear, distinct column headers. Never output borderless plaintext or tab-separated pseudo-tables.',
   'Accuracy rules: state only what you are sure is true; when a detail depends on the runtime, version or implementation, say so instead of guessing. Language semantics follow the official documentation. Do not repeat folk simplifications: for example in C#, Java and Go a value type is stored wherever its variable lives (a local may be on the stack, a field of a class instance or an array element is on the heap), so never write that "value types live on the stack" or that a field is "on the stack inside the object".',
   'Never invent companies, teams, products, incidents, statistics, dates or quotations. If you give a scenario, call it illustrative ("Imagine a photo-sharing service…") and do not attribute it to a real organisation unless the fact is well documented and you name the source.',
   'Finish every section you start; if the budget is tight, shorten the code and the recap rather than stopping mid-sentence.',
@@ -264,11 +265,14 @@ export function buildExplainPrompt(input: ExplainInput): { system: string; user:
     },
     tool: {
       persona: 'You are a senior analyst teaching business intelligence and analytics tools with hands-on, click-by-click guidance.',
-      code: ['## Hands-on walkthrough', '(Numbered steps in the tool: where to click, what to type. Formulas, DAX, M, or SQL go in fenced blocks with the matching tag. Show a small sample table before and after.)'],
+      code: ['## Hands-on walkthrough', '(Numbered steps in the tool: where to click, what to type. Formulas, DAX, M, or SQL go in fenced blocks with the matching tag. Show a small sample table before and after using standard GitHub-Flavoured Markdown tables with column headers and delimiter rows.)'],
       extras: [
         { after: '## Hands-on walkthrough', sections: ['## Reading the result', '(What the output means for the business question, and one common misreading.)', '## Gotchas', '(Tool-specific traps: data types, relationships, filter context, refresh, performance. Bullets.)'] },
       ],
-      rules: ['Tables are allowed for sample data. Name menu items and dialogs exactly as the tool does.'],
+      rules: [
+        'All sample tables must use strict GitHub-Flavoured Markdown with header row and separator delimiter (`| Column A | Column B |` followed by `|---|---|`). Always include space padding in cells and clear column headers.',
+        'Name menu items and dialogs exactly as the tool does.',
+      ],
       suffix: 'hands-on',
     },
     math: {

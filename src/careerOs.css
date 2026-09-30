@@ -1458,8 +1458,8 @@ body.iv-focus .trial-banner, body.iv-focus .app-footer { display: none; }
   transition: all 160ms ease;
 }
 .enterprise-portal-card:hover .enterprise-portal-link-arrow {
-  background: hsl(var(--primary));
-  color: #fff;
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
   transform: translate(2px, -2px);
 }
 .enterprise-portal-meta {
@@ -1500,10 +1500,27 @@ body.iv-focus .trial-banner, body.iv-focus .app-footer { display: none; }
 .enterprise-portal-action {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.7rem;
+  min-height: 34px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--muted) / 0.45);
   font-size: 0.75rem;
-  font-weight: 700;
-  color: hsl(var(--primary));
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  white-space: nowrap;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.enterprise-portal-card:hover .enterprise-portal-action,
+.enterprise-portal-card:focus-visible .enterprise-portal-action {
+  background: hsl(var(--muted));
+  border-color: hsl(var(--muted-foreground) / 0.55);
+}
+.enterprise-portal-card:focus-visible {
+  outline: 2px solid hsl(var(--foreground));
+  outline-offset: 3px;
 }
 
 /* Collapsible Filter Toolbar */
