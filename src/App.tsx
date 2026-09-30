@@ -270,6 +270,41 @@ export default function App() {
     document.documentElement.classList.toggle('dark', theme === 'dark')
   }, [theme])
 
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('prep-sidebar-collapsed') === 'true'
+  })
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem('prep-sidebar-collapsed', String(next))
+      } catch {}
+      return next
+    })
+  }, [])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        const active = document.activeElement
+        if (
+          active &&
+          (active.tagName === 'INPUT' ||
+            active.tagName === 'TEXTAREA' ||
+            (active as HTMLElement).isContentEditable)
+        ) {
+          return
+        }
+        e.preventDefault()
+        toggleSidebar()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [toggleSidebar])
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
@@ -1007,6 +1042,8 @@ export default function App() {
         onSignOut={handleSignOut}
         hiddenViews={hiddenViews}
         adminHref={platformConfig?.canOpenAdmin ? '/admin' : null}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={toggleSidebar}
       />
 
       <MobileNav
@@ -1034,7 +1071,11 @@ export default function App() {
         adminHref={platformConfig?.canOpenAdmin ? '/admin' : null}
       />
 
-      <main className="flex-1 min-w-0 md:ml-[280px] pt-14 md:pt-0 pb-24 md:pb-0 relative">
+      <main
+        className={`flex-1 min-w-0 transition-all duration-300 ease-in-out ${
+          sidebarCollapsed ? 'md:ml-[72px]' : 'md:ml-[280px]'
+        } pt-14 md:pt-0 pb-24 md:pb-0 relative`}
+      >
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background -z-10 pointer-events-none"></div>
         <div className="app-shell pt-5 sm:pt-8">
           {user && billing?.entitlement?.access && !billing.entitlement.complimentary && billing.entitlement.daysLeft <= 7 && (
