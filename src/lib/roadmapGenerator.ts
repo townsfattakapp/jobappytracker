@@ -408,7 +408,7 @@ export type RoadmapSummary = {
 export function summarizeRoadmap(goal: Goal, days: RoadmapDay[], tracks?: CurriculumTrack[]): RoadmapSummary {
   const all = currentTracks(tracks);
   let topicsTotal = 0;
-  for (const selection of goal.tracks) {
+  for (const selection of (goal.tracks || [])) {
     const track = all.find((x) => x.id === selection.trackId);
     if (track) topicsTotal += estimateTrack(track, selection, goal).topics;
   }

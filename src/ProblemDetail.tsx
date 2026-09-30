@@ -163,7 +163,7 @@ export default function ProblemDetail({
       if (matched) {
         setLcVerifyMsg('✓ Verified! This problem is accepted on your LeetCode profile.')
         if (onUpdateProblem) {
-          onUpdateProblem({ ...problem, leetCodeStatus: 'Accepted', status: 'Solved' })
+          onUpdateProblem({ ...problem, leetCodeStatus: 'Accepted' })
         }
         onToast?.('LeetCode verification confirmed: Accepted!')
       } else {

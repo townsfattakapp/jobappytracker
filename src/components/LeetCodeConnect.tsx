@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { mergeLeetCodeAccepted } from '../lib/dsaPractice'
 import type { LeetCodeConfig, DsaProblem } from '../types'
 
 interface LeetCodeConnectProps {
@@ -17,11 +18,11 @@ export default function LeetCodeConnect({ config, setConfig, problems, setProble
   const [tempUsername, setTempUsername] = useState(config.username)
   const [syncStatus, setSyncStatus] = useState<string | null>(null)
 
-  const handleSync = async () => {
-    const username = config.username.trim()
-    if (!username) {
+  const handleSync = async (targetUsername?: string) => {
+    const username = (targetUsername ?? config.username).trim()
+    if (!/^[A-Za-z0-9_.-]{1,40}$/.test(username)) {
       setIsEditing(true)
-      setError('Add your LeetCode username first.')
+      setError('Enter a valid LeetCode username (1-40 letters, numbers, underscores, dots, or hyphens).')
       return
     }
 
@@ -35,35 +36,11 @@ export default function LeetCodeConnect({ config, setConfig, problems, setProble
       if (!res.ok) throw new Error(data.error || 'LeetCode sync failed')
 
       const submissions: RecentSubmission[] = data.submissions || []
-      const updatedProblems = [...problems]
-      let newlyMatched = 0
-
-      for (const sub of submissions) {
-        const slug = sub.titleSlug
-        if (!slug) continue
-        const existingIdx = updatedProblems.findIndex((p) => p.titleSlug === slug)
-        if (existingIdx >= 0) {
-          if (updatedProblems[existingIdx].leetCodeStatus !== 'Accepted') {
-            updatedProblems[existingIdx] = { ...updatedProblems[existingIdx], leetCodeStatus: 'Accepted' }
-            newlyMatched++
-          }
-        } else {
-          updatedProblems.push({
-            id: `dsa-${slug}`,
-            title: sub.title,
-            titleSlug: slug,
-            url: `https://leetcode.com/problems/${slug}/`,
-            difficulty: 'Medium', // the recent-submissions feed does not include difficulty
-            tags: [],
-            languages: [sub.lang || 'Unknown'],
-            status: 'Unattempted',
-            leetCodeStatus: 'Accepted',
-          })
-          newlyMatched++
-        }
-      }
-
+      const changedProfile = username.toLowerCase() !== config.username.toLowerCase()
+      const updatedProblems = mergeLeetCodeAccepted(problems, submissions.map(s => s.titleSlug), changedProfile)
+      const newlyMatched = updatedProblems.filter((p, i) => p.leetCodeStatus === 'Accepted' && (changedProfile || problems[i].leetCodeStatus !== 'Accepted')).length
       setProblems(updatedProblems)
+      setIsEditing(false)
       setConfig({
         ...config,
         username,
@@ -71,8 +48,7 @@ export default function LeetCodeConnect({ config, setConfig, problems, setProble
         totalSolved: typeof data.totalSolved === 'number' ? data.totalSolved : config.totalSolved,
       })
 
-      setSyncStatus(`Sync complete. ${newlyMatched} recent accepted submissions matched or added.`)
-      setTimeout(() => setSyncStatus(null), 4000)
+      setSyncStatus(`Sync complete. ${newlyMatched} new accepted problems matched in your practice library.`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Network error while syncing.')
     } finally {
@@ -81,11 +57,7 @@ export default function LeetCodeConnect({ config, setConfig, problems, setProble
   }
 
   const handleSaveUsername = () => {
-    const next = tempUsername.trim()
-    setIsEditing(false)
-    setError(null)
-    if (next === config.username) return
-    setConfig({ ...config, username: next, lastSync: null, totalSolved: 0 })
+    if (!loading) void handleSync(tempUsername)
   }
 
   return (
@@ -105,6 +77,7 @@ export default function LeetCodeConnect({ config, setConfig, problems, setProble
             <button
               type="button"
               className="btn btn-ghost text-xs py-1"
+              disabled={loading}
               onClick={() => {
                 setTempUsername(config.username)
                 setIsEditing(true)
@@ -113,7 +86,7 @@ export default function LeetCodeConnect({ config, setConfig, problems, setProble
               {config.username ? 'Edit user' : 'Set username'}
             </button>
           )}
-          <button type="button" className="btn btn-primary text-xs py-1" onClick={handleSync} disabled={loading || isEditing}>
+          <button type="button" className="btn btn-primary text-xs py-1" onClick={() => void handleSync()} disabled={loading || isEditing}>
             {loading ? 'Syncing…' : 'Sync now'}
           </button>
         </div>
@@ -138,6 +111,8 @@ export default function LeetCodeConnect({ config, setConfig, problems, setProble
             <div className="flex gap-2">
               <input
                 className="input-field py-1 text-sm h-8 w-44"
+                aria-label="LeetCode username"
+                disabled={loading}
                 value={tempUsername}
                 placeholder="leetcode username"
                 onChange={(e) => setTempUsername(e.target.value)}
@@ -149,12 +124,12 @@ export default function LeetCodeConnect({ config, setConfig, problems, setProble
                 }}
                 autoFocus
               />
-              <button type="button" className="btn btn-secondary h-8 px-3 text-xs" onClick={handleSaveUsername}>
-                Save
+              <button type="button" className="btn btn-secondary h-8 px-3 text-xs" onClick={handleSaveUsername} disabled={loading}>
+                {loading ? 'Connecting...' : 'Connect & sync'}
               </button>
             </div>
           ) : (
-            <span className="font-mono font-medium text-foreground">{config.username || 'Not set'}</span>
+            <a className="font-mono font-medium text-primary hover:underline" href={`https://leetcode.com/u/${encodeURIComponent(config.username)}/`} target="_blank" rel="noopener noreferrer">{config.username} ↗</a>
           )}
         </div>
 
@@ -170,8 +145,8 @@ export default function LeetCodeConnect({ config, setConfig, problems, setProble
       </div>
 
       <p className="text-[11px] text-muted-foreground leading-tight">
-        Reads your public LeetCode profile (last ~20 accepted submissions). No code is imported and nothing is written to LeetCode.
-        LeetCode status is kept separate from attempts you log here.
+        Reads your public LeetCode profile (up to 50 recent accepted submissions). No code is imported and nothing is written to LeetCode.
+        Only matching library problems are updated; older solves may be absent. LeetCode status is kept separate from attempts you log here.
       </p>
     </div>
   )

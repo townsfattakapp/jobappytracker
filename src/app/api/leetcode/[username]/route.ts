@@ -20,7 +20,7 @@ const QUERY = `
 
 export async function GET(_req: Request, context: { params: Promise<{ username: string }> }) {
   const { username: raw } = await context.params
-  const username = decodeURIComponent(raw || '').trim()
+  const username = (raw || '').trim()
   if (!/^[A-Za-z0-9_.-]{1,40}$/.test(username)) {
     return NextResponse.json({ error: 'Invalid LeetCode username' }, { status: 400 })
   }
@@ -41,6 +41,9 @@ export async function GET(_req: Request, context: { params: Promise<{ username: 
       return NextResponse.json({ error: `LeetCode responded with ${res.status}` }, { status: 502 })
     }
     const data = await res.json()
+    if (data.errors?.length) {
+      return NextResponse.json({ error: 'LeetCode could not load this profile. Please try again later.' }, { status: 502 })
+    }
     const user = data?.data?.matchedUser
     if (!user) return NextResponse.json({ error: 'LeetCode user not found' }, { status: 404 })
 

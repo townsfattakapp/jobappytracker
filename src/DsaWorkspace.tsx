@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import type { DsaProblem, DsaAttemptSummary, RevisionItem, LeetCodeConfig } from './types'
 import LeetCodeConnect from './components/LeetCodeConnect'
+import { dsaStages, mustDoSlugs, isDsaSolved, leetCodeProblemUrl } from './lib/dsaPractice'
 
 interface DsaWorkspaceProps {
   problems: DsaProblem[]
@@ -26,7 +27,10 @@ export default function DsaWorkspace({
   const [filterDifficulty, setFilterDifficulty] = useState<string>('All')
   const [filterStatus, setFilterStatus] = useState<string>('All')
   const [filterLeetCode, setFilterLeetCode] = useState<string>('All')
-  const [curatedTrack, setCuratedTrack] = useState<'All' | 'Blind75' | 'NeedReview' | 'LC'>('All')
+  const [curatedTrack, setCuratedTrack] = useState<'All' | 'MustDo' | 'NeedReview' | 'LC'>('MustDo')
+  const [selectedStage, setSelectedStage] = useState<number | null>(null)
+  const mustDoProblems = mustDoSlugs.flatMap(slug => problems.filter(p => p.titleSlug === slug))
+  const nextProblem = mustDoProblems.find(p => !isDsaSolved(p))
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [selectedBlueprintPattern, setSelectedBlueprintPattern] = useState<string | null>(null)
 
@@ -69,6 +73,8 @@ export default function DsaWorkspace({
       const pat = p.pattern || (p.tags && p.tags[0]) || 'General'
       
       // Curated Tracks
+      if (curatedTrack === 'MustDo' && !mustDoSlugs.includes(p.titleSlug || '')) return false
+      if (selectedStage !== null && !(dsaStages[selectedStage].slugs as readonly string[]).includes(p.titleSlug || '')) return false
       if (curatedTrack === 'NeedReview' && !revisionProblemIds.has(p.id)) return false
       if (curatedTrack === 'LC' && p.leetCodeStatus !== 'Accepted') return false
 
@@ -89,20 +95,20 @@ export default function DsaWorkspace({
       if (filterDifficulty !== 'All' && p.difficulty !== filterDifficulty) return false
 
       // Status Filter
-      if (filterStatus !== 'All' && p.status !== filterStatus) return false
+      if (filterStatus !== 'All' && (isDsaSolved(p) ? 'Solved' : p.status) !== filterStatus) return false
 
       // LeetCode Filter
       if (filterLeetCode === 'Accepted' && p.leetCodeStatus !== 'Accepted') return false
       if (filterLeetCode === 'Unsynced' && p.leetCodeStatus === 'Accepted') return false
 
       return true
-    })
-  }, [problems, selectedPattern, filterDifficulty, filterStatus, filterLeetCode, curatedTrack, searchQuery, revisionProblemIds])
+    }).sort((a, b) => curatedTrack === 'MustDo' ? mustDoSlugs.indexOf(a.titleSlug || '') - mustDoSlugs.indexOf(b.titleSlug || '') : 0)
+  }, [problems, selectedStage, selectedPattern, filterDifficulty, filterStatus, filterLeetCode, curatedTrack, searchQuery, revisionProblemIds])
 
   // Overall statistics
   const stats = useMemo(() => {
     const total = problems.length
-    const solved = problems.filter(p => p.status === 'Solved').length
+    const solved = problems.filter(isDsaSolved).length
     const lcAccepted = problems.filter(p => p.leetCodeStatus === 'Accepted').length
     const patternsPracticed = Array.from(patternStats.values()).filter(s => s.solved > 0).length
     const totalPatterns = patternStats.size
@@ -158,13 +164,13 @@ export default function DsaWorkspace({
             <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
               Pattern-Mastery Curriculum
             </span>
-            <span className="text-xs text-muted-foreground">• 50+ High-Frequency Interview Problems</span>
+            <span className="text-xs text-muted-foreground">• {problems.length} Practice Problems</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-display font-bold text-foreground tracking-tight">
-            Algorithms & Data Structures
+            DSA Practice Hub
           </h1>
           <p className="text-muted-foreground text-sm sm:text-base max-w-2xl">
-            Master 18 core algorithmic patterns, track structured attempts with complexity analysis, and sync your live LeetCode submissions.
+            Build strong DSA foundations for product-company interviews. Follow the must-do roadmap, practice on LeetCode, and revisit what you learn.
           </p>
         </div>
 
@@ -227,6 +233,44 @@ export default function DsaWorkspace({
       />
 
       {/* Pattern Mastery Selector Carousel */}
+      <section className="surface rounded-2xl border border-primary/25 p-5 sm:p-6 flex flex-col gap-5" aria-label="Must-do roadmap">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Your product-company preparation path</h2>
+            <p className="text-sm text-muted-foreground mt-1">{mustDoProblems.length} must-do problems · {mustDoProblems.filter(isDsaSolved).length} completed</p>
+          </div>
+          <a className="text-xs font-semibold text-primary hover:underline" href="https://leetcode.com/studyplan/top-interview-150/" target="_blank" rel="noopener noreferrer">Explore LeetCode Top Interview 150 ↗</a>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          {dsaStages.map((stage, index) => {
+            const items = problems.filter(p => (stage.slugs as readonly string[]).includes(p.titleSlug || ''))
+            const solved = items.filter(isDsaSolved).length
+            return <button key={stage.title} aria-pressed={selectedStage === index} onClick={() => {
+              setSelectedStage(selectedStage === index ? null : index)
+              setCuratedTrack('MustDo')
+              setSelectedPattern('All')
+              setFilterDifficulty('All')
+              setFilterStatus('All')
+              setFilterLeetCode('All')
+              setSearchQuery('')
+            }} className={`rounded-xl border p-4 text-left flex flex-col gap-2 transition-colors ${selectedStage === index ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}>
+              <span className="text-xs font-semibold text-primary">Stage {index + 1} · {solved}/{items.length}</span>
+              <span className="text-sm font-bold text-foreground">{stage.title}</span>
+              <span className="text-xs text-muted-foreground leading-relaxed">{stage.focus}</span>
+              <progress aria-label={stage.title + ' progress'} value={solved} max={items.length || 1} className="w-full h-1.5 mt-auto accent-primary" />
+            </button>
+          })}
+        </div>
+        <div className="bg-muted/40 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">{nextProblem ? `Up next: ${nextProblem.title}` : 'Must-do path complete — revisit your weakest patterns.'}</p>
+            <p className="text-xs text-muted-foreground mt-1">Try for 25 minutes. Explain time and space complexity, test edge cases, then log your attempt for review.</p>
+          </div>
+          {nextProblem && <button className="btn btn-primary text-xs" onClick={() => onSelectProblem(nextProblem.id)}>Start practice →</button>}
+        </div>
+        <p className="text-xs text-muted-foreground">An editorial selection for broad interview preparation. Company tags are reference labels, not verified current question lists or a guarantee of interview coverage.</p>
+      </section>
+
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -288,8 +332,9 @@ export default function DsaWorkspace({
         {/* Curated Track Presets */}
         <div className="flex flex-wrap items-center gap-2 pb-3 border-b border-border/60">
           <span className="text-xs text-muted-foreground font-medium mr-1">Curated Presets:</span>
+          <button onClick={() => { setCuratedTrack('MustDo'); setSelectedStage(null) }} aria-pressed={curatedTrack === 'MustDo'} className="text-xs font-semibold px-3 py-1 rounded-lg border border-primary text-primary">Must-do ({mustDoProblems.length})</button>
           <button
-            onClick={() => setCuratedTrack('All')}
+            onClick={() => { setCuratedTrack('All'); setSelectedStage(null) }}
             className={`text-xs font-semibold px-3 py-1 rounded-lg border transition-colors ${
               curatedTrack === 'All' ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/40 text-muted-foreground border-border hover:text-foreground'
             }`}
@@ -297,7 +342,7 @@ export default function DsaWorkspace({
             All ({problems.length})
           </button>
           <button
-            onClick={() => setCuratedTrack('LC')}
+            onClick={() => { setCuratedTrack('LC'); setSelectedStage(null) }}
             className={`text-xs font-semibold px-3 py-1 rounded-lg border transition-colors flex items-center gap-1.5 ${
               curatedTrack === 'LC' ? 'bg-amber-500 text-white border-amber-500' : 'bg-muted/40 text-muted-foreground border-border hover:text-foreground'
             }`}
@@ -305,7 +350,7 @@ export default function DsaWorkspace({
             <span>LC Accepted ({stats.lcAccepted})</span>
           </button>
           <button
-            onClick={() => setCuratedTrack('NeedReview')}
+            onClick={() => { setCuratedTrack('NeedReview'); setSelectedStage(null) }}
             className={`text-xs font-semibold px-3 py-1 rounded-lg border transition-colors flex items-center gap-1.5 ${
               curatedTrack === 'NeedReview' ? 'bg-rose-500 text-white border-rose-500' : 'bg-muted/40 text-muted-foreground border-border hover:text-foreground'
             }`}
@@ -405,6 +450,7 @@ export default function DsaWorkspace({
               setFilterStatus('All')
               setFilterLeetCode('All')
               setCuratedTrack('All')
+              setSelectedStage(null)
             }}
             className="btn btn-secondary text-xs mt-2"
           >
@@ -464,7 +510,7 @@ export default function DsaWorkspace({
                 {/* Companies Tags */}
                 {p.companies && p.companies.length > 0 && (
                   <div className="flex flex-wrap gap-1 items-center">
-                    <span className="text-[10px] text-muted-foreground">Asked at:</span>
+                    <span className="text-[10px] text-muted-foreground">Company tags:</span>
                     {p.companies.slice(0, 3).map(c => (
                       <span key={c} className="text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground font-medium">
                         {c}
@@ -476,10 +522,11 @@ export default function DsaWorkspace({
                   </div>
                 )}
 
+                {leetCodeProblemUrl(p) && <a className="text-xs font-semibold text-amber-500 hover:underline" href={leetCodeProblemUrl(p)} target="_blank" rel="noopener noreferrer" onClick={event => event.stopPropagation()}>Solve on LeetCode</a>}
                 {/* Bottom Status & Solve CTA */}
                 <div className="flex items-center justify-between pt-3 border-t border-border/50 mt-auto text-xs">
-                  <span className={`px-2 py-0.5 rounded-full border text-[11px] font-medium ${getProblemStatusColor(p.status)}`}>
-                    {p.status}
+                  <span className={`px-2 py-0.5 rounded-full border text-[11px] font-medium ${getProblemStatusColor(isDsaSolved(p) ? 'Solved' : p.status)}`}>
+                    {isDsaSolved(p) ? 'Solved' : p.status}
                   </span>
                   <span className="text-primary font-semibold group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
                     Solve Studio →
@@ -491,7 +538,7 @@ export default function DsaWorkspace({
         </div>
       ) : (
         /* List / High-Density Table View */
-        <div className="surface rounded-2xl overflow-hidden border border-border">
+        <div className="surface rounded-2xl overflow-x-auto border border-border">
           <table className="w-full text-left text-sm">
             <thead className="bg-muted/50 border-b border-border">
               <tr>
@@ -499,7 +546,7 @@ export default function DsaWorkspace({
                 <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider">Pattern</th>
                 <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider">Difficulty</th>
                 <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Asked By</th>
+                <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Company tags</th>
                 <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider text-right">Action</th>
               </tr>
             </thead>
@@ -544,8 +591,8 @@ export default function DsaWorkspace({
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${getProblemStatusColor(p.status)}`}>
-                        {p.status}
+                      <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${getProblemStatusColor(isDsaSolved(p) ? 'Solved' : p.status)}`}>
+                        {isDsaSolved(p) ? 'Solved' : p.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 hidden lg:table-cell">
@@ -558,7 +605,8 @@ export default function DsaWorkspace({
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-xs font-semibold text-primary group-hover:underline">
+                      {leetCodeProblemUrl(p) && <a className="block mb-2 text-xs text-amber-500 hover:underline" href={leetCodeProblemUrl(p)} target="_blank" rel="noopener noreferrer" onClick={event => event.stopPropagation()}>LeetCode</a>}
+                      <button onClick={event => { event.stopPropagation(); onSelectProblem(p.id) }} className="text-xs font-semibold text-primary group-hover:underline">
                         Open Studio →
                       </button>
                     </td>
