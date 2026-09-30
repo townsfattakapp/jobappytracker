@@ -336,10 +336,27 @@ export default function App() {
     }
   }, [])
 
-  const setView = useCallback((next: ViewMode) => {
+  const setView = useCallback((next: ViewMode, preserveScroll?: boolean) => {
     setViewState(next)
-    if (typeof window !== 'undefined') window.scrollTo({ top: 0 })
+    if (!preserveScroll && typeof window !== 'undefined') window.scrollTo({ top: 0 })
   }, [])
+
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (e.state && e.state.view) {
+        if (e.state.view === 'topicWorkspace' && e.state.topicId) {
+          setSelectedTopicId(e.state.topicId)
+          setViewState('topicWorkspace')
+        } else {
+          setViewState(e.state.view)
+        }
+      } else if (view === 'topicWorkspace') {
+        setViewState(learningReturn || 'tracks')
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [view, learningReturn])
 
   const showToast = useCallback((message: string) => {
     setToast(message)
@@ -1743,7 +1760,13 @@ export default function App() {
                   questionId={selectedTopicId}
                   workspaces={knowledgeWorkspaces}
                   onSaveWorkspace={saveWorkspace}
-                  onBack={() => setView(learningReturn)}
+                  onBack={() => {
+                    if (typeof window !== 'undefined' && window.history.state?.view === 'topicWorkspace') {
+                      window.history.back()
+                    } else {
+                      setView(learningReturn, true)
+                    }
+                  }}
                 />
               ) : (
                 <KnowledgeWorkspaceDetail
@@ -1754,7 +1777,13 @@ export default function App() {
                   topicId={selectedTopicId}
                   workspaces={knowledgeWorkspaces}
                   onSaveWorkspace={saveWorkspace}
-                  onBack={() => setView(learningReturn)}
+                  onBack={() => {
+                    if (typeof window !== 'undefined' && window.history.state?.view === 'topicWorkspace') {
+                      window.history.back()
+                    } else {
+                      setView(learningReturn, true)
+                    }
+                  }}
                 />
               )
             ) : view === 'tracks' || view === 'topicWorkspace' ? (

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { CareerPath, CurriculumTrack, Goal } from "./types";
 import type { PickerContext } from "./components/LearningTaskPicker";
 import type { ViewMode } from "./Sidebar";
@@ -9,6 +9,34 @@ import { careerPaths } from "./data/careerPaths";
 
 type Tab = "paths" | "skills";
 type Level = "" | "Beginner" | "Intermediate" | "Advanced";
+
+export interface LearningTracksSavedState {
+  tab: Tab;
+  query: string;
+  family: string;
+  kind: string;
+  language: string;
+  level: Level;
+  status: string;
+  expandedTrackId: string | null;
+  openFamilies: string[];
+  openCategoryIds: string[];
+  lastTopicId: string | null;
+  scrollY: number;
+}
+
+export const TRACKS_STATE_KEY = "prep-learning-tracks-state";
+
+function loadSavedTracksState(): LearningTracksSavedState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(TRACKS_STATE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
 
 function hours(minutes: number): string {
   const h = minutes / 60;
@@ -30,7 +58,7 @@ export default function LearningTracksWorkspace({
   onUsePath,
   onEditCurriculum,
 }: {
-  setView: (v: ViewMode) => void;
+  setView: (v: ViewMode, preserveScroll?: boolean) => void;
   setSelectedTopicId: (id: string) => void;
   onSchedule: (context: Partial<PickerContext>) => void;
   goals: Goal[];
@@ -43,15 +71,18 @@ export default function LearningTracksWorkspace({
   onEditCurriculum?: (goalId: string) => void;
 }) {
   const curriculum = useCurriculum();
-  const [tab, setTab] = useState<Tab>(() => (goals.length ? "skills" : "paths"));
-  const [query, setQuery] = useState("");
-  const [family, setFamily] = useState("");
-  const [kind, setKind] = useState("");
-  const [language, setLanguage] = useState("");
-  const [level, setLevel] = useState<Level>("");
-  const [status, setStatus] = useState("");
-  const [expandedTrackId, setExpandedTrackId] = useState<string | null>(null);
-  const [openFamilies, setOpenFamilies] = useState<Set<string>>(new Set());
+  const savedState = useMemo(() => loadSavedTracksState(), []);
+
+  const [tab, setTab] = useState<Tab>(() => savedState?.tab || (goals.length ? "skills" : "paths"));
+  const [query, setQuery] = useState(() => savedState?.query || "");
+  const [family, setFamily] = useState(() => savedState?.family || "");
+  const [kind, setKind] = useState(() => savedState?.kind || "");
+  const [language, setLanguage] = useState(() => savedState?.language || "");
+  const [level, setLevel] = useState<Level>(() => savedState?.level || "");
+  const [status, setStatus] = useState(() => savedState?.status || "");
+  const [expandedTrackId, setExpandedTrackId] = useState<string | null>(() => savedState?.expandedTrackId || null);
+  const [openFamilies, setOpenFamilies] = useState<Set<string>>(() => new Set(savedState?.openFamilies || []));
+  const [openCategoryIds, setOpenCategoryIds] = useState<Set<string>>(() => new Set(savedState?.openCategoryIds || []));
 
   const activeGoal = goals.find((g) => g.status === "Active") || goals[0];
   const goalId = activeGoal?.id || "";
@@ -60,6 +91,65 @@ export default function LearningTracksWorkspace({
   const families = useMemo(() => tracksByFamily(curriculum.tracks), [curriculum]);
   const languages = useMemo(() => Array.from(new Set(curriculum.tracks.flatMap((t) => t.languages || []))).sort(), [curriculum]);
   const hits = useMemo(() => (query.trim() ? searchCurriculum(query, { limit: 40, family: family || undefined }) : []), [query, family, curriculum]);
+
+  // Keep state updated in sessionStorage so any filter/expansion is preserved
+  useEffect(() => {
+    try {
+      const stateToSave: LearningTracksSavedState = {
+        tab,
+        query,
+        family,
+        kind,
+        language,
+        level,
+        status,
+        expandedTrackId,
+        openFamilies: Array.from(openFamilies),
+        openCategoryIds: Array.from(openCategoryIds),
+        lastTopicId: savedState?.lastTopicId || null,
+        scrollY: typeof window !== "undefined" ? window.scrollY : 0,
+      };
+      sessionStorage.setItem(TRACKS_STATE_KEY, JSON.stringify(stateToSave));
+    } catch {}
+  }, [tab, query, family, kind, language, level, status, expandedTrackId, openFamilies, openCategoryIds, savedState?.lastTopicId]);
+
+  // On mount: smoothly scroll back to last viewed topic and give a subtle highlight
+  useEffect(() => {
+    if (!savedState?.lastTopicId) return;
+
+    const topicId = savedState.lastTopicId;
+    let attempts = 0;
+    const maxAttempts = 15;
+
+    const tryScrollAndHighlight = () => {
+      attempts++;
+      const el =
+        document.getElementById(`topic-item-${topicId}`) ||
+        document.querySelector(`[data-topic-id="${topicId}"]`);
+
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add(
+          "ring-2",
+          "ring-primary",
+          "bg-primary/10",
+          "rounded-lg",
+          "transition-all",
+          "duration-500"
+        );
+        setTimeout(() => {
+          el.classList.remove("ring-2", "ring-primary", "bg-primary/10");
+        }, 2200);
+      } else if (attempts < maxAttempts) {
+        setTimeout(tryScrollAndHighlight, 60);
+      } else if (savedState.scrollY) {
+        window.scrollTo({ top: savedState.scrollY, behavior: "smooth" });
+      }
+    };
+
+    const timer = setTimeout(tryScrollAndHighlight, 80);
+    return () => clearTimeout(timer);
+  }, [savedState]);
 
   const matches = (t: CurriculumTrack) => {
     if (family && (t.source === "personal" ? "Personal" : t.family) !== family) return false;
@@ -87,7 +177,51 @@ export default function LearningTracksWorkspace({
     if (!added) onTrackAdded?.(activeGoal.id, trackId);
   };
 
-  const openTopic = (id: string) => {
+  const openTopic = (
+    id: string,
+    explicitTrackId?: string,
+    explicitFamily?: string,
+    explicitCatId?: string
+  ) => {
+    const ref = curriculum.byId.get(id);
+    const trackId = explicitTrackId || ref?.track?.id || expandedTrackId;
+    const fam = explicitFamily || (ref?.track?.source === "personal" ? "Personal" : ref?.track?.family) || family;
+    const catId = explicitCatId || ref?.category?.id;
+
+    const familiesToSave = new Set(openFamilies);
+    if (fam) familiesToSave.add(fam);
+
+    const categoriesToSave = new Set(openCategoryIds);
+    if (catId) categoriesToSave.add(catId);
+
+    const stateToSave: LearningTracksSavedState = {
+      tab: "skills",
+      query,
+      family,
+      kind,
+      language,
+      level,
+      status,
+      expandedTrackId: trackId || null,
+      openFamilies: Array.from(familiesToSave),
+      openCategoryIds: Array.from(categoriesToSave),
+      lastTopicId: id,
+      scrollY: typeof window !== "undefined" ? window.scrollY : 0,
+    };
+
+    try {
+      sessionStorage.setItem(TRACKS_STATE_KEY, JSON.stringify(stateToSave));
+    } catch {}
+
+    // Push history state so browser back button works cleanly
+    if (typeof window !== "undefined") {
+      window.history.pushState(
+        { view: "topicWorkspace", topicId: id, returnView: "tracks" },
+        "",
+        window.location.href
+      );
+    }
+
     setSelectedTopicId(id);
     setView("topicWorkspace");
   };
@@ -268,7 +402,7 @@ export default function LearningTracksWorkspace({
                     </p>
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <button type="button" className="btn btn-primary btn-sm" onClick={() => openTopic(h.concept?.id || h.ref.topic.id)}>
+                    <button type="button" className="btn btn-primary btn-sm" onClick={() => openTopic(h.concept?.id || h.ref.topic.id, h.ref.track.id, h.ref.track.family, h.ref.category.id)}>
                       Open
                     </button>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => onSchedule({ trackId: h.ref.track.id, categoryId: h.ref.category.id, topicId: h.ref.topic.id, subtopicId: h.concept?.id, goalId })}>
@@ -343,7 +477,23 @@ export default function LearningTracksWorkspace({
                                 {expanded && (
                                   <div className="px-5 pb-4 space-y-2 bg-[hsl(var(--background))]">
                                     {trackCategories(track).map((cat) => (
-                                      <details key={cat.id} className="group border border-border rounded-xl bg-[hsl(var(--card))] overflow-hidden">
+                                      <details
+                                        key={cat.id}
+                                        open={openCategoryIds.has(cat.id)}
+                                        onToggle={(e) => {
+                                          const isOpen = (e.currentTarget as HTMLDetailsElement).open;
+                                          setOpenCategoryIds((prev) => {
+                                            const next = new Set(prev);
+                                            if (isOpen) {
+                                              next.add(cat.id);
+                                            } else {
+                                              next.delete(cat.id);
+                                            }
+                                            return next;
+                                          });
+                                        }}
+                                        className="group border border-border rounded-xl bg-[hsl(var(--card))] overflow-hidden"
+                                      >
                                         <summary className="flex items-center justify-between gap-3 p-3 cursor-pointer list-none">
                                           <span className="font-semibold text-sm">
                                             {cat.title} <small className="text-muted-foreground font-normal">({cat.modules.reduce((n, m) => n + m.topics.length, 0)})</small>
@@ -363,19 +513,51 @@ export default function LearningTracksWorkspace({
                                           {cat.modules
                                             .flatMap((m) => m.topics)
                                             .map((topic) => (
-                                              <div key={topic.id} className="rounded-lg border border-transparent hover:border-border p-2">
+                                              <div
+                                                key={topic.id}
+                                                id={`topic-item-${topic.id}`}
+                                                data-topic-id={topic.id}
+                                                className="rounded-lg border border-transparent hover:border-border p-2 transition-all duration-300"
+                                              >
                                                 <div className="flex items-center justify-between gap-2">
-                                                  <button type="button" className="text-sm font-medium text-left hover:text-primary" onClick={() => openTopic(topic.id)}>
+                                                  <button
+                                                    type="button"
+                                                    className="text-sm font-medium text-left hover:text-primary"
+                                                    onClick={() => openTopic(topic.id, track.id, f.family, cat.id)}
+                                                  >
                                                     {topic.title}
                                                   </button>
-                                                  <button type="button" className="text-primary text-xs hover:underline shrink-0" onClick={() => onSchedule({ trackId: track.id, categoryId: cat.id, topicId: topic.id, goalId })}>
+                                                  <button
+                                                    type="button"
+                                                    className="text-primary text-xs hover:underline shrink-0"
+                                                    onClick={() =>
+                                                      onSchedule({
+                                                        trackId: track.id,
+                                                        categoryId: cat.id,
+                                                        topicId: topic.id,
+                                                        goalId,
+                                                      })
+                                                    }
+                                                  >
                                                     + Schedule
                                                   </button>
                                                 </div>
-                                                {topic.description && <p className="text-xs text-muted-foreground mt-0.5">{topic.description}</p>}
+                                                {topic.description && (
+                                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                                    {topic.description}
+                                                  </p>
+                                                )}
                                                 <div className="flex flex-wrap gap-1 mt-1">
                                                   {topic.subtopics.map((sub) => (
-                                                    <button key={sub.id} type="button" className="cb-chip" onClick={() => openTopic(sub.id)} title="Open this concept">
+                                                    <button
+                                                      key={sub.id}
+                                                      type="button"
+                                                      id={`topic-item-${sub.id}`}
+                                                      data-topic-id={sub.id}
+                                                      className="cb-chip transition-all duration-300"
+                                                      onClick={() => openTopic(sub.id, track.id, f.family, cat.id)}
+                                                      title="Open this concept"
+                                                    >
                                                       {sub.title}
                                                     </button>
                                                   ))}

@@ -1085,9 +1085,23 @@ export default function KnowledgeWorkspaceDetail({
           ← Back
         </button>
         <div className="flex flex-col">
-          <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
-            {curriculumInfo.track?.title}{" "}
-            {curriculumInfo.topic ? `> ${curriculumInfo.topic.title}` : ""}
+          <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
+            {curriculumInfo.track?.title && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="hover:text-primary transition-colors cursor-pointer text-left font-semibold"
+                title={`Back to ${curriculumInfo.track.title}`}
+              >
+                {curriculumInfo.track.title}
+              </button>
+            )}
+            {curriculumInfo.topic && (
+              <>
+                <span aria-hidden="true">&rsaquo;</span>
+                <span>{curriculumInfo.topic.title}</span>
+              </>
+            )}
           </div>
           <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-3">
             {curriculumInfo.title}
