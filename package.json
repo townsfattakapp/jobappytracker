@@ -17,6 +17,7 @@
     "lint": "eslint src",
     "check": "npm run typecheck && npm run lint && npm run build",
     "test:e2e": "node scripts/e2e.mjs",
+    "test:responsive": "node scripts/audit-responsive.mjs",
     "test:e2e:email": "node scripts/e2e-email.mjs",
     "test:learning": "node scripts/e2e-learning.mjs",
     "test:learning:cloud": "node scripts/e2e-learning-cloud.mjs",

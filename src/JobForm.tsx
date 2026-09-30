@@ -215,7 +215,7 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
         role="dialog"
         aria-modal="true"
         aria-labelledby="job-form-title"
-        className="relative z-10 flex flex-col w-full h-[95dvh] rounded-t-3xl sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl surface animate-slide-up bg-[hsl(var(--card))] overflow-hidden"
+        className="relative z-10 flex flex-col w-full h-[95dvh] rounded-t-3xl sm:h-auto sm:max-h-[90dvh] sm:max-w-2xl sm:rounded-2xl surface animate-slide-up bg-[hsl(var(--card))] overflow-hidden"
       >
         <div className="px-5 pt-5 sm:px-6 sm:pt-6 pb-2 shrink-0 flex items-start justify-between gap-4">
           <div>
@@ -494,7 +494,7 @@ export default function JobForm({ open, initial, prefill, onClose, onSave }: Job
           </div>
         </div>
 
-        <div className="px-5 pb-5 sm:px-6 sm:pb-6 pt-4 border-t border-border flex shrink-0 justify-end gap-3 bg-[hsl(var(--card))]">
+        <div className="px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6 pt-4 border-t border-border flex flex-wrap shrink-0 justify-end gap-3 bg-[hsl(var(--card))]">
           <button type="button" className="btn btn-ghost" onClick={requestClose}>
             Cancel
           </button>

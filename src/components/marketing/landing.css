@@ -969,7 +969,7 @@ html:not(.dark) .lp-preview-progress span:first-child { background: #943e70; }
 /* Grid & Cards */
 .lp-curriculum-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
   gap: 1.25rem;
   position: relative;
   z-index: 1;
@@ -1150,14 +1150,14 @@ html:not(.dark) .lp-preview-progress span:first-child { background: #943e70; }
 /* Live proof: numbers read from the database and the hiring companies' logos. */
 .lp-live { padding: 2.5rem 0 0.5rem; }
 .lp-live .lp-section-head { margin-bottom: 1.5rem; }
-.lp-live-grid { display: grid; gap: 0.85rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.lp-live-grid { display: grid; gap: 0.85rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
 .lp-live-stat { padding: 1.1rem 1.25rem; border-radius: 18px; background: hsl(var(--card)); border: 1px solid hsl(var(--border) / 0.6); }
 .lp-live-stat strong { display: block; font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .lp-live-stat span { display: block; margin-top: 0.35rem; font-size: 0.85rem; color: hsl(var(--muted-foreground)); line-height: 1.4; }
 .lp-logo-row { list-style: none; margin: 1rem 0 0; padding: 0 0 0.4rem; display: flex; flex-wrap: nowrap; gap: 0.5rem; overflow-x: auto; scrollbar-width: thin; }
 .lp-live .lp-fineprint { margin-top: 0.6rem; }
 .lp-logo-row li { flex: 0 0 auto; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.75rem 0.35rem 0.4rem; border-radius: 999px; border: 1px solid hsl(var(--border) / 0.7); background: hsl(var(--card)); font-size: 0.85rem; font-weight: 600; }
-.lp-trust-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.lp-trust-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
 .lp-trust-card { padding: 1.4rem 1.4rem 1.5rem; border-radius: 18px; background: hsl(var(--card)); border: 1px solid hsl(var(--border) / 0.6); }
 .lp-trust-icon { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 12px; background: hsl(var(--primary) / 0.12); color: hsl(var(--primary)); font-size: 1.2rem; font-weight: 800; margin-bottom: 0.9rem; }
 .lp-trust-card h3 { font-size: 1.05rem; font-weight: 800; margin: 0 0 0.4rem; letter-spacing: -0.01em; }

@@ -152,7 +152,6 @@ const HEADER_COPY: Partial<Record<ViewMode, { title: string; subtitle: string }>
   roadmap: { title: 'Career Roadmap', subtitle: 'Your step-by-step master plan to hit your professional engineering goals.' },
   prepKit: { title: 'Preparation Notes', subtitle: 'Company briefs, STAR stories, and cheat sheets with AI help.' },
   jobs: { title: 'Explore Jobs', subtitle: 'Openings matching tech and product engineering tracks, ranked by your preferences with verified direct links.' },
-  portals: { title: 'Direct Enterprise Career Portals', subtitle: 'Verified official career portals for 300+ Fortune 500 tech leaders, GCCs, and product companies. Apply directly at the source.' },
   resume: { title: 'Resume & ATS Scanner', subtitle: 'Analyze resume versions, identify missing ATS keywords, and tailor bullets to any job.' },
   referrals: { title: 'Vetted Referral Network', subtitle: 'Connect with verified employees who test and screen your qualifications end-to-end before submitting an internal endorsement.' },
   mock: { title: 'AI Mock Interviews', subtitle: 'Realistic role-adapted interviews with voice, real-time critique, and retry drills.' },
@@ -2070,7 +2069,7 @@ export default function App() {
                 </span>
               </div>
 
-              <div className="mb-4 p-3 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-between gap-3 text-xs">
+              <div className="mb-4 p-3 rounded-2xl bg-primary/10 border border-primary/20 flex flex-wrap items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-2.5">
                   <span className="text-xl">💼</span>
                   <div>

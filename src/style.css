@@ -237,6 +237,8 @@ body {
 
 .input-field {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   border-radius: var(--radius);
   border: 1px solid hsl(var(--input) / 0.8);
   background: hsl(var(--card));
@@ -2967,7 +2969,7 @@ a {
 .iv-round-grid {
   display: grid;
   gap: 0.6rem;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr));
   margin-top: 0.4rem;
 }
 .iv-round {
@@ -3013,7 +3015,7 @@ a {
 .iv-persona-grid {
   display: grid;
   gap: 0.6rem;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
   margin-top: 0.4rem;
 }
 .iv-persona {
@@ -3701,7 +3703,7 @@ a {
 .cb-templates {
   display: grid;
   gap: 0.5rem;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
 }
 .cb-template {
   display: flex;
@@ -3830,6 +3832,7 @@ a {
 }
 .cb-sel-head {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
@@ -3840,7 +3843,7 @@ a {
   gap: 0.5rem;
   align-items: center;
   min-width: 0;
-  flex: 1;
+  flex: 1 1 12rem;
   text-align: left;
   font-size: 0.88rem;
 }
@@ -3851,6 +3854,8 @@ a {
 }
 .cb-sel-controls {
   display: flex;
+  flex-wrap: wrap;
+  max-width: 100%;
   gap: 0.25rem;
   align-items: center;
   flex-shrink: 0;
@@ -3971,7 +3976,7 @@ a {
 }
 .iv-stats-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
   gap: 0.75rem;
 }
 .iv-stat-card {
@@ -4085,5 +4090,45 @@ button:not(:disabled), summary { cursor: pointer; }
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+/* Small screens must reflow content, including long imported titles and URLs. */
+:where(.app-shell, .admin-content, .legal-main, .pricing-main, .referrer-shell) {
+  overflow-wrap: anywhere;
+}
+:where(.surface, .admin-card, .admin-form, .admin-field, .job-detail-main, .job-detail-side) {
+  min-width: 0;
+}
+:where(pre, .admin-table-wrap) {
+  max-width: 100%;
+  overflow-x: auto;
+}
+@media (max-width: 767px) {
+  .app-shell {
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+  }
+  #workspace-content {
+    padding-top: calc(3.5rem + env(safe-area-inset-top));
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+  .mobile-header {
+    height: calc(3.5rem + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+  }
+  .pb-safe {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  .btn { max-width: 100%; }
+  .iv-report { max-height: 100dvh; }
+  .tutor-drawer { padding-bottom: env(safe-area-inset-bottom); }
+}
+@media (pointer: coarse) {
+  /* Keep native phone keyboards from zooming small text fields. */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea {
+    font-size: max(1rem, 16px);
   }
 }

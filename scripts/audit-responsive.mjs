@@ -1,145 +1,94 @@
-import { chromium } from 'playwright';
-import fs from 'node:fs';
-import path from 'node:path';
-
-const VIEWPORTS = [
-  { name: '320x568-mobile-small', width: 320, height: 568 },
-  { name: '360x800-mobile-s20', width: 360, height: 800 },
-  { name: '375x812-mobile-iphone-x', width: 375, height: 812 },
-  { name: '390x844-mobile-iphone-14', width: 390, height: 844 },
-  { name: '430x932-mobile-promax', width: 430, height: 932 },
-  { name: '768x1024-tablet-portrait', width: 768, height: 1024 },
-  { name: '1024x768-tablet-landscape', width: 1024, height: 768 },
-  { name: '1280x800-laptop', width: 1280, height: 800 },
-  { name: '1440x900-desktop', width: 1440, height: 900 },
-];
-
-const SHOTS_DIR = 'scratch/responsive-audit';
-fs.mkdirSync(SHOTS_DIR, { recursive: true });
-
-async function detectOverflow(page, routeName, vp) {
-  return await page.evaluate(({ routeName, vp }) => {
-    const docEl = document.documentElement;
-    const body = document.body;
-    const winWidth = window.innerWidth;
-    const scrollWidth = Math.max(docEl.scrollWidth, body.scrollWidth);
-    const hasDocOverflow = scrollWidth > winWidth + 1;
-
-    // Scan all visible elements to find which specific elements overflow the viewport
-    const overflowingElements = [];
-    const elements = document.querySelectorAll('*');
-    for (const el of elements) {
-      // Exclude pre, code, svg paths, or elements explicitly designed to scroll horizontally
-      if (['PRE', 'CODE'].includes(el.tagName)) continue;
-      if (el.closest('pre, code, .overflow-x-auto, [data-allow-scroll]')) continue;
-
-      const rect = el.getBoundingClientRect();
-      // Only check visible elements
-      if (rect.width === 0 || rect.height === 0) continue;
-      if (window.getComputedStyle(el).display === 'none') continue;
-      if (window.getComputedStyle(el).visibility === 'hidden') continue;
-
-      if (rect.right > winWidth + 1) {
-        let identifier = el.tagName.toLowerCase();
-        if (el.id) identifier += '#' + el.id;
-        if (el.className && typeof el.className === 'string') {
-          identifier += '.' + el.className.trim().split(/\s+/).slice(0, 3).join('.');
-        }
-        overflowingElements.push({
-          identifier,
-          tag: el.tagName,
-          rectRight: Math.round(rect.right),
-          winWidth,
-          delta: Math.round(rect.right - winWidth),
-          textSnippet: (el.textContent || '').trim().slice(0, 40),
-        });
+import { chromium } from 'playwright'
+import fs from 'node:fs'
+const base = process.env.BASE_URL || 'http://localhost:3000'
+const widths = (process.env.AUDIT_WIDTHS || '280,320,360,390,430,640,768,1024,1440').split(',').map(Number)
+const views = ['Command Center', 'Today', 'Goals & Roadmap', 'Explore', 'Job Discovery', 'Enterprise Portals', 'Resume', 'Dashboard', 'Kanban Board', 'Applications', 'Referrals', 'DSA Practice', 'System Design', 'Engineering Labs', 'Mock Interviews', 'Prep Notes', 'Settings']
+const dir = 'scratch/responsive-audit'
+fs.mkdirSync(dir, { recursive: true })
+const browser = await chromium.launch()
+const report = []
+async function check(page, width, route) {
+  await page.waitForTimeout(250)
+  const issues = await page.evaluate(() => {
+    const width = document.documentElement.clientWidth
+    const issues = []
+    for (const el of document.querySelectorAll('body *')) {
+      if (!(el instanceof HTMLElement) || el.closest('nextjs-portal, [aria-hidden="true"], .pointer-events-none')) continue
+      const r = el.getBoundingClientRect()
+      if (!r.width || !r.height || getComputedStyle(el).visibility === 'hidden') continue
+      // Content inside an actual horizontal scroll region is intentionally wider.
+      let scrollable = false
+      for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+        if (['auto', 'scroll'].includes(getComputedStyle(p).overflowX) && p.scrollWidth > p.clientWidth) { scrollable = true; break }
       }
+      if (scrollable) continue
+      if (r.right > width + 2 || r.left < -2) issues.push({ tag: el.tagName, class: el.className, text: el.textContent?.trim().slice(0, 70), left: Math.round(r.left), right: Math.round(r.right) })
     }
-
-    return {
-      hasDocOverflow,
-      scrollWidth,
-      winWidth,
-      overflowDelta: scrollWidth - winWidth,
-      overflowingElements: overflowingElements.slice(0, 10), // cap top 10 per view
-    };
-  }, { routeName, vp });
+    return issues.slice(0, 15)
+  })
+  report.push({ width, route, issues })
+  console.log(`${issues.length ? 'FAIL' : 'PASS'} ${width} ${route}${issues.length ? ' ' + JSON.stringify(issues.slice(0, 3)) : ''}`)
+  if (issues.length || width === 280 || route === 'Command Center') await page.screenshot({ path: `${dir}/${width}-${route.replace(/[^a-z0-9]/gi, '-')}.png` })
 }
-
-async function runAudit() {
-  const browser = await chromium.launch({ headless: true });
-  const report = [];
-
-  console.log('=== STARTING RESPONSIVE AUDIT ACROSS VIEWPORTS ===\n');
-
-  for (const vp of VIEWPORTS) {
-    console.log(`\n--- Testing Viewport: ${vp.name} (${vp.width}x${vp.height}) ---`);
-    const context = await browser.newContext({
-      viewport: { width: vp.width, height: vp.height },
-      deviceScaleFactor: 1,
-      colorScheme: 'dark',
-    });
-    const page = await context.newPage();
-
-    // 1. Landing Page
-    await page.goto('http://localhost:3000/', { waitUntil: 'networkidle' });
-    let res = await detectOverflow(page, 'Landing', vp);
-    await page.screenshot({ path: `${SHOTS_DIR}/${vp.name}-landing.png`, fullPage: false });
-    report.push({ vp: vp.name, route: 'Landing', ...res });
-    if (res.hasDocOverflow) {
-      console.log(`  [OVERFLOW] Landing at ${vp.width}px: scrollWidth=${res.scrollWidth}px (delta=+${res.overflowDelta}px)`);
-      for (const el of res.overflowingElements) console.log(`     -> ${el.identifier} (+${el.delta}px): "${el.textSnippet}"`);
-    } else {
-      console.log(`  [PASS] Landing at ${vp.width}px`);
+try {
+  for (const width of widths) {
+    const context = await browser.newContext({ viewport: { width, height: Number(process.env.AUDIT_HEIGHT) || (width < 640 ? 568 : 900) }, hasTouch: width < 768, reducedMotion: 'reduce' })
+    const page = await context.newPage()
+    for (const route of ['/', '/privacy', '/terms', '/refund', '/contact', '/data-deletion', '/pricing', '/reset-password', '/referrer']) {
+      await page.goto(base + route, { waitUntil: 'networkidle' })
+      await check(page, width, route)
     }
-
-    // 2. Legal Pages: Privacy, Terms, Refund, Contact, Data-Deletion
-    for (const legalRoute of ['privacy', 'terms', 'refund', 'contact', 'data-deletion', 'pricing']) {
-      await page.goto(`http://localhost:3000/${legalRoute}`, { waitUntil: 'networkidle' });
-      res = await detectOverflow(page, `/${legalRoute}`, vp);
-      report.push({ vp: vp.name, route: `/${legalRoute}`, ...res });
-      if (res.hasDocOverflow) {
-        console.log(`  [OVERFLOW] /${legalRoute} at ${vp.width}px: scrollWidth=${res.scrollWidth}px (delta=+${res.overflowDelta}px)`);
-        for (const el of res.overflowingElements) console.log(`     -> ${el.identifier} (+${el.delta}px)`);
+    await page.goto(base + '/app', { waitUntil: 'networkidle' })
+    await check(page, width, 'auth')
+    await page.getByRole('button', { name: /Continue offline/i }).click()
+    await page.locator('#workspace-content').waitFor()
+    for (const view of views) {
+      if (width < 768) {
+        await page.getByRole('button', { name: 'Open all views drawer', exact: true }).click()
+        await page.getByRole('dialog', { name: 'All application views' }).getByRole('button', { name: new RegExp('^' + view.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '( Current)?$') }).click()
       } else {
-        console.log(`  [PASS] /${legalRoute} at ${vp.width}px`);
+        await page.locator('aside').getByRole('button', { name: new RegExp('^' + view.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '( Current)?$') }).click()
+      }
+      await page.waitForTimeout(600)
+      await check(page, width, view)
+      if (view === 'Goals & Roadmap') {
+        await page.getByRole('button', { name: 'Choose a starting point', exact: true }).click()
+        await check(page, width, 'goal-paths')
+        await page.getByRole('button', { name: /Software Engineer Interview Preparation/ }).click()
+        await page.getByRole('button', { name: 'Customize my plan', exact: true }).click()
+        await check(page, width, 'goal-customize')
+        await page.getByRole('button', { name: 'Review my plan', exact: true }).click()
+        await check(page, width, 'goal-review')
+      }
+      if (view === 'Applications') {
+        await page.getByRole('button', { name: '+ Add application', exact: true }).first().click()
+        const dialog = page.getByRole('dialog', { name: 'Add application' }).or(page.locator('form[role="dialog"]'))
+        await dialog.waitFor()
+        await check(page, width, 'application-form')
+        await dialog.getByPlaceholder('Acme Inc.').fill('A very long international company name for a narrow screen')
+        await dialog.getByPlaceholder('Frontend Engineer').fill('Senior Software Engineer Platform Infrastructure')
+        await dialog.getByRole('tab', { name: 'contacts', exact: true }).click()
+        await dialog.getByRole('button', { name: '+ Add contact', exact: true }).click()
+        await check(page, width, 'application-contacts')
+        await dialog.getByRole('tab', { name: 'interviews', exact: true }).click()
+        await dialog.getByRole('button', { name: '+ Add interview round', exact: true }).click()
+        await check(page, width, 'application-interviews')
+        await dialog.getByRole('button', { name: 'Add application', exact: true }).click()
+        await dialog.waitFor({ state: 'hidden' })
+        await check(page, width, 'populated-applications')
       }
     }
-
-    // 3. App Core (Guest Mode first run)
-    await page.goto('http://localhost:3000/app', { waitUntil: 'networkidle' });
-    // In guest mode, if auth gate appears, click continue offline
-    const continueOffline = page.getByRole('button', { name: /Continue offline/i });
-    if (await continueOffline.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await continueOffline.click();
-      await page.waitForTimeout(500);
+    if (width < 768) {
+      await page.getByRole('button', { name: 'Open all views drawer', exact: true }).click()
+      await check(page, width, 'navigation-drawer')
+      await page.getByRole('button', { name: 'Close menu' }).click()
+      await page.locator('nav[aria-label="Primary"]:visible').getByRole('button', { name: /More/ }).click()
+      await check(page, width, 'navigation-sheet')
     }
-
-    // Check Today / Goal view
-    res = await detectOverflow(page, '/app:today', vp);
-    await page.screenshot({ path: `${SHOTS_DIR}/${vp.name}-app-today.png`, fullPage: false });
-    report.push({ vp: vp.name, route: '/app:today', ...res });
-    if (res.hasDocOverflow) {
-      console.log(`  [OVERFLOW] /app:today at ${vp.width}px: scrollWidth=${res.scrollWidth}px (delta=+${res.overflowDelta}px)`);
-      for (const el of res.overflowingElements) console.log(`     -> ${el.identifier} (+${el.delta}px): "${el.textSnippet}"`);
-    } else {
-      console.log(`  [PASS] /app:today at ${vp.width}px`);
-    }
-
-    // Check MobileNav visibility and positioning on mobile
-    if (vp.width < 768) {
-      const navVisible = await page.locator('nav[aria-label="Primary"]').isVisible();
-      console.log(`  [NAV] MobileNav visible at ${vp.width}px: ${navVisible}`);
-    }
-
-    await context.close();
+    await context.close()
   }
-
-  await browser.close();
-
-  // Save report
-  fs.writeFileSync(`${SHOTS_DIR}/audit-report.json`, JSON.stringify(report, null, 2), 'utf8');
-  console.log(`\nAudit complete! Saved report to ${SHOTS_DIR}/audit-report.json`);
+} finally {
+  fs.writeFileSync(`${dir}/audit-report.json`, JSON.stringify(report, null, 2))
+  await browser.close()
 }
-
-runAudit().catch(console.error);
+if (report.some(r => r.issues.length)) process.exitCode = 1

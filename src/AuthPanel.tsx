@@ -649,7 +649,7 @@ export default function AuthPanel({
       )}
 
       {!isReferrer && (
-        <div className="mt-4 p-3 rounded-xl bg-muted/40 border border-border/50 flex items-center justify-between gap-2 text-xs">
+        <div className="mt-4 p-3 rounded-xl bg-muted/40 border border-border/50 flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2">
             <span className="text-base">💼</span>
             <span className="text-muted-foreground">Are you a tech employee?</span>

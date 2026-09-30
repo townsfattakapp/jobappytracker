@@ -563,18 +563,18 @@ export default function JobsWorkspace({
         {/* Dedicated Direct Enterprise Portals Hub Quick Banner */}
         {onOpenPortals && (
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 p-4 rounded-2xl bg-gradient-to-r from-primary/10 via-card to-blue-500/10 border border-primary/25 shadow-xs mb-4">
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-3 min-w-0 w-full">
               <span className="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0 shadow-xs">
                 <Building2 size={20} />
               </span>
               <div className="min-w-0">
-                <div className="text-sm font-bold text-foreground flex items-center gap-2">
+                <div className="text-sm font-bold text-foreground flex flex-wrap items-center gap-2">
                   <span>Direct Enterprise Career Portals</span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/15 text-primary">
                     300+ Verified
                   </span>
                 </div>
-                <div className="text-xs text-muted-foreground truncate">
+                <div className="text-xs text-muted-foreground line-clamp-2 sm:truncate">
                   Looking to apply directly at official corporate sites (FAANG, GCCs, Banks & IT Leaders)? Browse the dedicated portal directory.
                 </div>
               </div>
@@ -582,7 +582,7 @@ export default function JobsWorkspace({
             <button
               type="button"
               onClick={onOpenPortals}
-              className="btn btn-primary btn-sm shrink-0 flex items-center gap-1.5 text-xs font-bold shadow-xs whitespace-nowrap"
+              className="btn btn-primary btn-sm shrink-0 flex items-center justify-center gap-1.5 text-xs font-bold shadow-xs whitespace-nowrap w-full sm:w-auto"
             >
               <span>Explore Direct Portals</span>
               <ArrowUpRight size={13} />

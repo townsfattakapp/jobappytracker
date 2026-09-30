@@ -78,11 +78,11 @@ export default function MobileHeader({
           </div>
         </button>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           <button
             type="button"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="w-9 h-9 rounded-xl border border-border/60 bg-card/60 flex items-center justify-center text-sm hover:bg-muted active:scale-95 transition-all"
+            className="w-11 h-11 shrink-0 rounded-xl border border-border/60 bg-card/60 flex items-center justify-center text-sm hover:bg-muted active:scale-95 transition-all"
             aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
@@ -91,18 +91,18 @@ export default function MobileHeader({
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-border/70 bg-primary/10 text-primary font-semibold text-xs hover:bg-primary/20 active:scale-95 transition-all"
+            className="flex items-center gap-1.5 min-h-11 px-2.5 py-1.5 rounded-xl border border-border/70 bg-primary/10 text-primary font-semibold text-xs hover:bg-primary/20 active:scale-95 transition-all"
             aria-label="Open all views drawer"
           >
             <span className="text-sm leading-none" aria-hidden="true"><Menu size={18} /></span>
-            <span>All Views</span>
+            <span className="hidden min-[360px]:inline">All Views</span>
           </button>
         </div>
       </header>
 
       {drawerOpen && (
         <div
-          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-md md:hidden flex flex-col justify-start"
+          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-md md:hidden flex flex-col justify-start pt-[env(safe-area-inset-top)]"
           onClick={() => setDrawerOpen(false)}
           role="presentation"
         >
@@ -113,9 +113,9 @@ export default function MobileHeader({
             aria-label="All application views"
           >
             {/* Drawer top header */}
-            <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/60 sticky top-0 bg-card/95 backdrop-blur-md z-10">
+            <div className="flex items-center justify-between px-3 py-3.5 gap-2 border-b border-border/60 sticky top-0 bg-card/95 backdrop-blur-md z-10">
               <div className="flex items-center gap-2.5">
-                <BrandLogo size={28} />
+                <BrandLogo size={28} wordmark={false} />
                 <span className="font-display font-bold text-sm tracking-tight text-foreground">
                   All Views & Tools
                 </span>
@@ -123,7 +123,7 @@ export default function MobileHeader({
               <button
                 type="button"
                 onClick={() => setDrawerOpen(false)}
-                className="w-9 h-9 rounded-xl border border-border/60 bg-muted/40 hover:bg-muted flex items-center justify-center text-sm font-bold text-muted-foreground hover:text-foreground active:scale-95 transition-all"
+                className="w-11 h-11 shrink-0 rounded-xl border border-border/60 bg-muted/40 hover:bg-muted flex items-center justify-center text-sm font-bold text-muted-foreground hover:text-foreground active:scale-95 transition-all"
                 aria-label="Close menu"
               >
                 ✕

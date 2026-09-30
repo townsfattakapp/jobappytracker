@@ -273,11 +273,11 @@ export default function EnterprisePortalsWorkspace({
   }, [])
 
   return (
-    <div className="enterprise-portals-workspace max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="enterprise-portals-workspace w-full min-w-0 space-y-5 sm:space-y-6">
       {/* Top Header & Breadcrumb Navigation */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/50 pb-5">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/50 pb-4 sm:pb-5">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex-wrap">
             <button
               type="button"
               onClick={() => onNavigate('jobs')}
@@ -292,23 +292,23 @@ export default function EnterprisePortalsWorkspace({
               <span>Direct Enterprise Portals</span>
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight flex items-center gap-3">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-foreground tracking-tight flex flex-wrap items-center gap-2 sm:gap-2.5">
             <span>Direct Enterprise Career Portals</span>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20 whitespace-nowrap">
               Verified Directory
             </span>
           </h1>
-          <p className="text-sm text-muted-foreground max-w-3xl mt-1.5 leading-relaxed">
+          <p className="text-xs sm:text-sm text-muted-foreground max-w-3xl mt-1.5 leading-relaxed">
             Apply directly at the source. Access official corporate career portals of 300+ Fortune 500 tech leaders,
             product companies, and Global Capability Centers (GCCs) without aggregator delays or agency middlemen.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
           <button
             type="button"
             onClick={() => onNavigate('jobs')}
-            className="btn btn-ghost btn-sm flex items-center gap-1.5 text-xs font-semibold"
+            className="btn btn-ghost btn-sm flex-1 sm:flex-initial flex items-center justify-center gap-1.5 text-xs font-semibold"
           >
             <Briefcase size={14} />
             <span>Search Live Postings</span>
@@ -316,7 +316,7 @@ export default function EnterprisePortalsWorkspace({
           <button
             type="button"
             onClick={() => onNavigate('referrals')}
-            className="btn btn-primary btn-sm flex items-center gap-1.5 text-xs font-semibold shadow-sm"
+            className="btn btn-primary btn-sm flex-1 sm:flex-initial flex items-center justify-center gap-1.5 text-xs font-semibold shadow-sm"
           >
             <span>Ask for Referral</span>
             <ArrowUpRight size={14} />
@@ -325,60 +325,60 @@ export default function EnterprisePortalsWorkspace({
       </div>
 
       {/* Metrics Highlights Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-3.5 rounded-xl bg-card border border-border/60 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-            <Building2 size={20} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+        <div className="p-2.5 sm:p-3.5 rounded-xl bg-card border border-border/60 shadow-xs flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+            <Building2 size={18} className="sm:w-5 sm:h-5" />
           </div>
           <div className="min-w-0">
-            <div className="text-lg font-bold text-foreground leading-tight">{totalCount}+</div>
-            <div className="text-xs text-muted-foreground truncate">Official Portals</div>
+            <div className="text-base sm:text-lg font-bold text-foreground leading-tight truncate">{totalCount}+</div>
+            <div className="text-[11px] sm:text-xs text-muted-foreground truncate">Official Portals</div>
           </div>
         </div>
 
-        <div className="p-3.5 rounded-xl bg-card border border-border/60 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-            <Globe size={20} />
+        <div className="p-2.5 sm:p-3.5 rounded-xl bg-card border border-border/60 shadow-xs flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <Globe size={18} className="sm:w-5 sm:h-5" />
           </div>
           <div className="min-w-0">
-            <div className="text-lg font-bold text-foreground leading-tight">{indiaCount}+</div>
-            <div className="text-xs text-muted-foreground truncate">India Tech Hubs & GCCs</div>
+            <div className="text-base sm:text-lg font-bold text-foreground leading-tight truncate">{indiaCount}+</div>
+            <div className="text-[11px] sm:text-xs text-muted-foreground truncate">India Hubs & GCCs</div>
           </div>
         </div>
 
-        <div className="p-3.5 rounded-xl bg-card border border-border/60 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-            <CheckCircle2 size={20} />
+        <div className="p-2.5 sm:p-3.5 rounded-xl bg-card border border-border/60 shadow-xs flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+            <CheckCircle2 size={18} className="sm:w-5 sm:h-5" />
           </div>
           <div className="min-w-0">
-            <div className="text-lg font-bold text-foreground leading-tight">100% Direct</div>
-            <div className="text-xs text-muted-foreground truncate">Zero Middlemen</div>
+            <div className="text-base sm:text-lg font-bold text-foreground leading-tight truncate">100% Direct</div>
+            <div className="text-[11px] sm:text-xs text-muted-foreground truncate">Zero Middlemen</div>
           </div>
         </div>
 
-        <div className="p-3.5 rounded-xl bg-card border border-border/60 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-            <Star size={20} />
+        <div className="p-2.5 sm:p-3.5 rounded-xl bg-card border border-border/60 shadow-xs flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+            <Star size={18} className="sm:w-5 sm:h-5" />
           </div>
           <div className="min-w-0">
-            <div className="text-lg font-bold text-foreground leading-tight">{favorites.size}</div>
-            <div className="text-xs text-muted-foreground truncate">Target Companies</div>
+            <div className="text-base sm:text-lg font-bold text-foreground leading-tight truncate">{favorites.size}</div>
+            <div className="text-[11px] sm:text-xs text-muted-foreground truncate">Target Companies</div>
           </div>
         </div>
       </div>
 
       {/* Main Filter & Search Control Panel */}
-      <div className="bg-card border border-border/70 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+      <div className="bg-card border border-border/70 rounded-2xl p-3 sm:p-5 shadow-xs space-y-3.5 sm:space-y-4">
         {/* Top Search & Layout Toggle Bar */}
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-          <div className="relative flex-1">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
+          <div className="relative flex-1 min-w-0">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by company name, industry, headquarters, or domain (e.g. Google, Cloud, Bengaluru, Fintech)..."
-              className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-background border border-border/70 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+              placeholder="Search by company name, tech, industry, or city (e.g. Google, Cloud, Bengaluru)..."
+              className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-background border border-border/70 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
             />
             {searchQuery && (
               <button
@@ -392,13 +392,13 @@ export default function EnterprisePortalsWorkspace({
             )}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Location Filter Segments */}
-            <div className="inline-flex rounded-xl p-1 bg-muted/60 border border-border/50 text-xs">
+            <div className="inline-flex w-full sm:w-auto rounded-xl p-1 bg-muted/60 border border-border/50 text-xs shrink-0">
               <button
                 type="button"
                 onClick={() => setLocationFilter('all')}
-                className={`px-2.5 py-1.5 rounded-lg font-medium transition-all ${
+                className={`flex-1 sm:flex-initial px-2.5 py-1.5 rounded-lg font-medium text-center transition-all ${
                   locationFilter === 'all'
                     ? 'bg-background text-foreground shadow-xs font-semibold'
                     : 'text-muted-foreground hover:text-foreground'
@@ -409,7 +409,7 @@ export default function EnterprisePortalsWorkspace({
               <button
                 type="button"
                 onClick={() => setLocationFilter('india')}
-                className={`px-2.5 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1 ${
+                className={`flex-1 sm:flex-initial px-2.5 py-1.5 rounded-lg font-medium text-center transition-all flex items-center justify-center gap-1 ${
                   locationFilter === 'india'
                     ? 'bg-background text-primary shadow-xs font-bold'
                     : 'text-muted-foreground hover:text-foreground'
@@ -420,7 +420,7 @@ export default function EnterprisePortalsWorkspace({
               <button
                 type="button"
                 onClick={() => setLocationFilter('global')}
-                className={`px-2.5 py-1.5 rounded-lg font-medium transition-all ${
+                className={`flex-1 sm:flex-initial px-2.5 py-1.5 rounded-lg font-medium text-center transition-all ${
                   locationFilter === 'global'
                     ? 'bg-background text-foreground shadow-xs font-semibold'
                     : 'text-muted-foreground hover:text-foreground'
@@ -434,7 +434,7 @@ export default function EnterprisePortalsWorkspace({
             <button
               type="button"
               onClick={() => setOnlyFavorites((v) => !v)}
-              className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-all ${
+              className={`flex-1 sm:flex-initial px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition-all ${
                 onlyFavorites
                   ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
                   : 'bg-background text-muted-foreground border-border/60 hover:text-foreground'
@@ -442,7 +442,7 @@ export default function EnterprisePortalsWorkspace({
               title="Show only starred target companies"
             >
               <Star size={14} className={onlyFavorites ? 'fill-amber-500' : ''} />
-              <span className="hidden sm:inline">Target Companies</span>
+              <span>Target List</span>
               <span className="px-1.5 py-0.2 rounded-full bg-muted text-[10px]">{favorites.size}</span>
             </button>
 
@@ -450,7 +450,7 @@ export default function EnterprisePortalsWorkspace({
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="py-2 px-2.5 rounded-xl bg-background border border-border/60 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="flex-1 sm:flex-initial py-2 px-2.5 rounded-xl bg-background border border-border/60 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
               aria-label="Sort enterprise portals"
             >
               <option value="featured">Featured & Relevant</option>
@@ -460,7 +460,7 @@ export default function EnterprisePortalsWorkspace({
             </select>
 
             {/* View Layout Toggle */}
-            <div className="hidden md:inline-flex rounded-xl p-1 bg-muted/60 border border-border/50">
+            <div className="inline-flex max-w-full rounded-xl p-1 bg-muted/60 border border-border/50 shrink-0">
               <button
                 type="button"
                 onClick={() => setViewLayout('grid')}
@@ -488,7 +488,7 @@ export default function EnterprisePortalsWorkspace({
         </div>
 
         {/* Category Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 pt-0.5 custom-scrollbar -mx-1 px-1 touch-pan-x scroll-smooth">
           {CATEGORIES.map((cat) => {
             const isSelected = selectedCategory === cat.id
             return (
@@ -511,12 +511,12 @@ export default function EnterprisePortalsWorkspace({
         </div>
 
         {/* A-Z Quick Letter Jump Bar */}
-        <div className="flex items-center justify-between gap-1 overflow-x-auto pt-1 border-t border-border/40 text-[11px] font-mono text-muted-foreground">
+        <div className="flex items-center gap-1 overflow-x-auto pt-2 pb-1 border-t border-border/40 text-xs font-mono text-muted-foreground custom-scrollbar -mx-1 px-1 touch-pan-x scroll-smooth">
           <button
             type="button"
             onClick={() => setActiveLetter(null)}
-            className={`px-2 py-0.5 rounded transition-colors ${
-              activeLetter === null ? 'bg-primary text-primary-foreground font-bold' : 'hover:text-foreground'
+            className={`shrink-0 h-7 px-2.5 rounded-lg transition-colors font-sans text-xs font-semibold ${
+              activeLetter === null ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted/40 hover:text-foreground hover:bg-muted'
             }`}
           >
             ALL
@@ -528,8 +528,8 @@ export default function EnterprisePortalsWorkspace({
                 key={letter}
                 type="button"
                 onClick={() => setActiveLetter(isActive ? null : letter)}
-                className={`px-1.5 py-0.5 rounded transition-colors ${
-                  isActive ? 'bg-primary text-primary-foreground font-bold' : 'hover:text-foreground hover:bg-muted'
+                className={`shrink-0 min-w-[28px] h-7 px-1.5 rounded-lg flex items-center justify-center transition-colors ${
+                  isActive ? 'bg-primary text-primary-foreground font-bold shadow-xs' : 'hover:text-foreground hover:bg-muted'
                 }`}
               >
                 {letter}
@@ -540,8 +540,8 @@ export default function EnterprisePortalsWorkspace({
       </div>
 
       {/* Results Meta Info */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-muted-foreground px-1">
+        <div className="leading-relaxed">
           Showing <strong className="text-foreground font-semibold">{filteredCompanies.length}</strong> enterprise career portals
           {searchQuery && (
             <span>
@@ -556,6 +556,13 @@ export default function EnterprisePortalsWorkspace({
             </span>
           )}
           {locationFilter === 'india' && <span> with active India operations</span>}
+          {locationFilter === 'global' && <span> with global headquarters</span>}
+          {activeLetter && (
+            <span>
+              {' '}
+              starting with <strong className="text-foreground font-bold">{activeLetter}</strong>
+            </span>
+          )}
           {onlyFavorites && <span> in your target list</span>}
         </div>
 
@@ -569,7 +576,7 @@ export default function EnterprisePortalsWorkspace({
               setActiveLetter(null)
               setOnlyFavorites(false)
             }}
-            className="text-primary hover:underline font-semibold flex items-center gap-1"
+            className="text-primary hover:underline font-semibold flex items-center gap-1 self-start sm:self-auto shrink-0"
           >
             <span>Reset filters</span>
             <X size={12} />
@@ -579,7 +586,7 @@ export default function EnterprisePortalsWorkspace({
 
       {/* Companies Directory: Grid or List */}
       {filteredCompanies.length === 0 ? (
-        <div className="bg-card border border-border rounded-2xl p-12 text-center space-y-4">
+        <div className="bg-card border border-border rounded-2xl p-8 sm:p-12 text-center space-y-4">
           <div className="w-14 h-14 rounded-2xl bg-muted text-muted-foreground mx-auto flex items-center justify-center">
             <Building2 size={28} />
           </div>
@@ -604,7 +611,7 @@ export default function EnterprisePortalsWorkspace({
           </button>
         </div>
       ) : viewLayout === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
           {filteredCompanies.map((c) => {
             const isFav = favorites.has(c.slug)
             let displayDomain = ''
@@ -623,20 +630,20 @@ export default function EnterprisePortalsWorkspace({
             return (
               <div
                 key={c.slug}
-                className="bg-card border border-border/70 hover:border-primary/50 rounded-2xl p-4 transition-all duration-200 hover:shadow-md flex flex-col justify-between group relative"
+                className="bg-card border border-border/70 hover:border-primary/50 rounded-2xl p-3.5 sm:p-4 transition-all duration-200 hover:shadow-md flex flex-col justify-between group relative min-w-0"
               >
                 <div>
                   {/* Card Header: Logo, Name, Domain & Star */}
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 min-w-0">
-                      <CompanyLogo company={c} size={42} className="rounded-xl shadow-xs shrink-0" />
+                    <div className="flex items-start gap-2.5 sm:gap-3 min-w-0">
+                      <CompanyLogo company={c} size={40} className="rounded-xl shadow-xs shrink-0" />
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <h3 className="font-bold text-base text-foreground leading-tight truncate group-hover:text-primary transition-colors">
                             {c.name}
                           </h3>
                           <span
-                            className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.2 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                            className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.2 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 whitespace-nowrap"
                             title="Official verified career portal"
                           >
                             ✓ Official
@@ -666,10 +673,10 @@ export default function EnterprisePortalsWorkspace({
                   </div>
 
                   {/* Industry & Location Tags */}
-                  <div className="mt-3.5 space-y-1.5">
+                  <div className="mt-3 sm:mt-3.5 space-y-1.5">
                     {c.industry && (
                       <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-                        <span className="px-2 py-0.5 rounded-md bg-muted text-[11px] font-medium text-foreground/80 border border-border/50 truncate">
+                        <span className="px-2 py-0.5 rounded-md bg-muted text-[11px] font-medium text-foreground/80 border border-border/50 truncate max-w-full">
                           {c.industry}
                         </span>
                       </div>
@@ -684,12 +691,12 @@ export default function EnterprisePortalsWorkspace({
                 </div>
 
                 {/* Bottom Actions Row */}
-                <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1">
+                <div className="mt-3.5 sm:mt-4 pt-3 border-t border-border/50 flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1 flex-wrap">
                     <button
                       type="button"
                       onClick={() => handleCopyLink(c)}
-                      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
                       title="Copy official careers portal link"
                       aria-label="Copy portal link"
                     >
@@ -699,7 +706,7 @@ export default function EnterprisePortalsWorkspace({
                       <button
                         type="button"
                         onClick={() => onAddToTracker(c.name, c.careersUrl || c.website || '')}
-                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
                         title="Add target application to tracker"
                         aria-label="Add to tracker"
                       >
@@ -712,7 +719,7 @@ export default function EnterprisePortalsWorkspace({
                         onNavigate('referrals')
                         onToast(`Looking for referrals at ${c.name}...`)
                       }}
-                      className="px-2 py-1 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                      className="px-2 py-1 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
                       title="Request an internal referral for this company"
                     >
                       Referral 🤝
@@ -723,7 +730,7 @@ export default function EnterprisePortalsWorkspace({
                     href={c.careersUrl || c.website || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity shadow-xs"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity shadow-xs shrink-0 ml-auto sm:ml-0"
                     title={`Open ${c.name} official careers portal`}
                   >
                     <span>Open Portal</span>
@@ -737,8 +744,8 @@ export default function EnterprisePortalsWorkspace({
       ) : (
         /* List / Directory Layout */
         <div className="bg-card border border-border/70 rounded-2xl overflow-hidden shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto touch-pan-x">
+            <table className="w-full min-w-[640px] text-left text-sm">
               <thead className="bg-muted/50 border-b border-border text-xs uppercase text-muted-foreground font-semibold">
                 <tr>
                   <th className="py-3 px-4 w-10">★</th>

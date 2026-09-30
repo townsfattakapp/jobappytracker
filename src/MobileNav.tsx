@@ -62,7 +62,7 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
         className="fixed bottom-0 left-0 right-0 z-50 bg-background/85 backdrop-blur-xl border-t border-border/50 md:hidden pb-safe"
         aria-label="Primary"
       >
-        <div className="flex items-center justify-around px-1 py-1.5">
+        <div className="grid grid-cols-5 px-1 py-1.5">
           {GROUPS.map((group) => {
             const isActive = group.matches.includes(active)
             const single = group.matches.length === 1
@@ -82,7 +82,7 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
                     setSheet(null)
                   }
                 }}
-                className={`flex flex-col items-center justify-center min-w-[3.6rem] h-14 rounded-xl transition-all relative ${
+                className={`flex flex-col items-center justify-center min-w-0 w-full h-14 rounded-xl transition-all relative ${
                   isActive ? 'text-primary' : 'text-muted-foreground'
                 }`}
               >
@@ -111,7 +111,7 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
 
       {sheet && openGroup && (
         <div
-          className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm md:hidden flex flex-col justify-end px-3 pb-[5.5rem]"
+          className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm md:hidden flex flex-col justify-end px-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))]"
           onClick={() => setSheet(null)}
           role="presentation"
         >
@@ -198,7 +198,7 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
                     <span className="w-5 text-center text-lg leading-none" aria-hidden="true">
                       <LogOut size={20} />
                     </span>
-                    <span>Sign out ({user.email})</span>
+                    <span className="min-w-0 break-all">Sign out ({user.email})</span>
                   </button>
                 ) : (
                   <button

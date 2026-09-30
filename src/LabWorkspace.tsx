@@ -122,7 +122,7 @@ export default function LabWorkspace({ labs, onSelectLab }: LabWorkspaceProps) {
         <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col gap-2 relative z-10">
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <span className="text-xs font-bold tracking-wider uppercase px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
               Interactive Production Sim
             </span>
@@ -137,7 +137,7 @@ export default function LabWorkspace({ labs, onSelectLab }: LabWorkspaceProps) {
         </div>
 
         {/* Global Progress Metrics */}
-        <div className="flex items-center gap-3 sm:gap-4 p-4 rounded-2xl bg-muted/40 border border-border/70 backdrop-blur-sm relative z-10 shrink-0">
+        <div className="grid grid-cols-3 max-w-full items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-2xl bg-muted/40 border border-border/70 backdrop-blur-sm relative z-10 shrink-0">
           <div className="flex flex-col">
             <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider mb-1">Solved</span>
             <span className="text-2xl sm:text-3xl font-bold text-foreground leading-none">
@@ -145,12 +145,10 @@ export default function LabWorkspace({ labs, onSelectLab }: LabWorkspaceProps) {
               <span className="text-sm text-muted-foreground font-medium">/{stats.total}</span>
             </span>
           </div>
-          <div className="w-px h-10 bg-border/60 mx-1" />
           <div className="flex flex-col">
             <span className="text-[11px] text-amber-400 font-semibold uppercase tracking-wider mb-1">In Progress</span>
             <span className="text-2xl sm:text-3xl font-bold text-foreground leading-none">{stats.inProgress}</span>
           </div>
-          <div className="w-px h-10 bg-border/60 mx-1" />
           <div className="flex flex-col">
             <span className="text-[11px] text-primary font-semibold uppercase tracking-wider mb-1">Coverage</span>
             <span className="text-2xl sm:text-3xl font-bold text-foreground leading-none">
