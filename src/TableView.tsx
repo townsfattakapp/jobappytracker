@@ -51,7 +51,7 @@ export default function TableView({
       </p>
 
       <div className="relative flex w-full min-w-0 flex-col overflow-hidden rounded-2xl surface">
-        <div className="app-row-head" role="row">
+        <div className="app-row-head">
           <div className="flex items-center justify-center">
             <input
               type="checkbox"
@@ -215,6 +215,7 @@ export default function TableView({
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground sm:justify-start">
               <span>Show</span>
               <select
+                aria-label="Applications per page"
                 value={pageSize}
                 onChange={(e) => {
                   setPageSize(Number(e.target.value))

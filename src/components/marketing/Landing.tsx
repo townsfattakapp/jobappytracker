@@ -1,6 +1,7 @@
 'use client'
 
-import dynamic from 'next/dynamic'
+import { ArrowRight, Check } from 'lucide-react'
+import WorkspacePreview from './WorkspacePreview'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import BrandLogo, { BrandMark } from '../BrandLogo'
 import { PLAN_FEATURES, PLANS } from '../../lib/billing/plan'
@@ -16,7 +17,6 @@ import {
 } from '../../data/marketingCurriculum'
 import './landing.css'
 
-const HeroScene = dynamic(() => import('../HeroScene'), { ssr: false, loading: () => null })
 
 /** Adds `is-visible` to elements with data-reveal as they scroll into view. */
 function useReveal() {
@@ -367,6 +367,7 @@ export default function Landing() {
 
   return (
     <div className="lp">
+      <a className="skip-link" href="#main-content">Skip to content</a>
       <header className={`lp-nav ${scrolled ? 'is-scrolled' : ''}`}>
         <div className="lp-container lp-nav-inner">
           <a href="/?home=1" className="lp-nav-brand" aria-label="Prep by EVOLW home">
@@ -392,37 +393,32 @@ export default function Landing() {
         </div>
       </header>
 
-      <main>
+      <main id="main-content">
         <section className="lp-hero" ref={heroRef}>
           <div className="lp-hero-glow" aria-hidden="true" />
           <div className="lp-container lp-hero-grid">
             <div className="lp-hero-copy">
-              <p className="lp-eyebrow">157 Engineering Tracks · 12 Disciplines · AI Mock Interviews</p>
+              <p className="lp-eyebrow">Your engineering career, thoughtfully planned</p>
               <h1>
-                Stop collecting resources.
+                Build your skills.
                 <br />
-                <span className="text-gradient">Start finishing them.</span>
+                <span className="text-gradient">Shape your future.</span>
               </h1>
               <p className="lp-lede">
-                A day-by-day plan across 157 engineering tracks, explanations in the language you code in, live openings from the companies you are preparing for, and a voice mock interview for the exact job. One payment from ₹{PLANS[0].priceInr} for {PLANS[0].name}; nothing renews by itself.
+                Turn your next career move into a clear daily plan. Learn with purpose, practice real interviews, and keep your job search in one focused workspace.
               </p>
               <div className="lp-cta-row">
                 <a href="/app?mode=signup" className="btn btn-primary lp-cta">
-                  Get started
+                  Build my career plan <ArrowRight size={18} aria-hidden="true" />
                 </a>
                 <a href="#curriculum" className="btn btn-ghost lp-cta">
                   Explore curriculum
                 </a>
               </div>
-              <p className="lp-fineprint">One payment, no auto-renew · Razorpay checkout, receipt by email · Refund if access fails · Built by Evolw, India</p>
+              <p className="lp-hero-trust"><Check size={15} aria-hidden="true" /> Free account to get started <span>·</span> Pro from {fromPrice}</p>
             </div>
             <div className="lp-hero-visual">
-              <div className="lp-hero-scene">
-                <HeroScene height={340} />
-              </div>
-              <div className="lp-hero-shot">
-                <Shot src="/screens/today.jpg" alt="Prep’s Today view with the day’s plan" priority />
-              </div>
+              <WorkspacePreview />
             </div>
           </div>
         </section>
@@ -488,12 +484,13 @@ export default function Landing() {
 
               {/* Domain Filter Pills for Tracks */}
               {curriculumTab === 'tracks' && (
-                <div className="lp-domain-pills" role="tablist" aria-label="Filter by discipline">
+                <div className="lp-domain-pills" role="group" aria-label="Filter by discipline">
                   {MARKETING_DOMAINS.map((dom) => (
                     <button
                       key={dom.id}
                       type="button"
                       className={`lp-pill-btn ${selectedDomain === dom.id ? 'is-active' : ''}`}
+                      aria-pressed={selectedDomain === dom.id}
                       onClick={() => setSelectedDomain(dom.id)}
                     >
                       <span>{dom.icon}</span>

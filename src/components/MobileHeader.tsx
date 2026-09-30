@@ -1,3 +1,4 @@
+import { Sun, Moon, Menu } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import BrandLogo from './BrandLogo'
 import { NAV_SECTIONS, navParent, type ViewMode } from '../Sidebar'
@@ -84,7 +85,7 @@ export default function MobileHeader({
             className="w-9 h-9 rounded-xl border border-border/60 bg-card/60 flex items-center justify-center text-sm hover:bg-muted active:scale-95 transition-all"
             aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
-            {theme === 'dark' ? '☀️' : '🌙'}
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
 
           <button
@@ -93,7 +94,7 @@ export default function MobileHeader({
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-border/70 bg-primary/10 text-primary font-semibold text-xs hover:bg-primary/20 active:scale-95 transition-all"
             aria-label="Open all views drawer"
           >
-            <span className="text-sm leading-none" aria-hidden="true">☰</span>
+            <span className="text-sm leading-none" aria-hidden="true"><Menu size={18} /></span>
             <span>All Views</span>
           </button>
         </div>
@@ -158,7 +159,7 @@ export default function MobileHeader({
                             }`}
                           >
                             <span className="w-6 text-center text-lg leading-none" aria-hidden="true">
-                              {item.icon}
+                              <item.icon size={20} strokeWidth={1.7} />
                             </span>
                             <span className="flex-1">{item.label}</span>
                             {isCurrent && (
@@ -216,7 +217,7 @@ export default function MobileHeader({
                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-foreground/90 hover:bg-muted/80 transition-all text-left"
                   >
                     <span className="w-6 text-center text-lg leading-none" aria-hidden="true">
-                      {theme === 'dark' ? '☀️' : '🌙'}
+                      {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
                     </span>
                     <span className="flex-1">
                       {theme === 'dark' ? 'Switch to Light mode' : 'Switch to Dark mode'}

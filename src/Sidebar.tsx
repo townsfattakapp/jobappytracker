@@ -1,3 +1,25 @@
+import {
+  LayoutDashboard,
+  Sun,
+  Map as MapIcon,
+  Compass,
+  Search,
+  FileText,
+  ChartNoAxesCombined,
+  Columns3,
+  ListChecks,
+  Handshake,
+  Code2,
+  Network,
+  FlaskConical,
+  Mic,
+  NotebookPen,
+  Settings,
+  Moon,
+  ShieldCheck,
+  Briefcase,
+  type LucideIcon,
+} from 'lucide-react'
 import BrandLogo, { BrandMark } from './components/BrandLogo'
 import type { AppUser } from './lib/cloudSync'
 
@@ -21,37 +43,39 @@ export type ViewMode =
   | 'jobDetail'
   | 'resume'
 
-export const NAV_SECTIONS: { category: string; items: { id: ViewMode; label: string; icon: string }[] }[] = [
+export const NAV_SECTIONS: { category: string; items: { id: ViewMode; label: string; icon: LucideIcon }[] }[] = [
   {
-    category: 'Daily Focus',
+    category: 'Career Plan',
     items: [
-      { id: 'home', label: 'Home', icon: '🏠' },
-      { id: 'today', label: "Today's Tasks", icon: '☀️' },
-      { id: 'roadmap', label: 'Career Roadmap', icon: '🗺️' },
+      { id: 'home', label: 'Command Center', icon: LayoutDashboard },
+      { id: 'today', label: 'Today', icon: Sun },
+      { id: 'roadmap', label: 'Goals & Roadmap', icon: MapIcon },
+      { id: 'tracks', label: 'Explore', icon: Compass },
     ],
   },
   {
-    category: 'Job Hunt',
+    category: 'Job Tracker',
     items: [
-      { id: 'jobs', label: 'Explore Jobs', icon: '🔎' },
-      { id: 'resume', label: 'Resume & ATS', icon: '📄' },
-      { id: 'board', label: 'Application Tracker', icon: '🗂️' },
-      { id: 'referrals', label: 'Referrals', icon: '🤝' },
+      { id: 'jobs', label: 'Job Discovery', icon: Search },
+      { id: 'resume', label: 'Resume', icon: FileText },
+      { id: 'dashboard', label: 'Dashboard', icon: ChartNoAxesCombined },
+      { id: 'board', label: 'Kanban Board', icon: Columns3 },
+      { id: 'list', label: 'Applications', icon: ListChecks },
+      { id: 'referrals', label: 'Referrals', icon: Handshake },
     ],
   },
   {
-    category: 'Interview & Prep',
+    category: 'Engineering Hub',
     items: [
-      { id: 'mock', label: 'Mock Interviews', icon: '🎙️' },
-      { id: 'dsa', label: 'DSA Practice', icon: '🧩' },
-      { id: 'systemDesign', label: 'System Design', icon: '🏗️' },
-      { id: 'labs', label: 'Engineering Labs', icon: '🧪' },
-      { id: 'tracks', label: 'All Curriculum', icon: '🧭' },
+      { id: 'dsa', label: 'DSA Practice', icon: Code2 },
+      { id: 'systemDesign', label: 'System Design', icon: Network },
+      { id: 'labs', label: 'Engineering Labs', icon: FlaskConical },
+      { id: 'mock', label: 'Mock Interviews', icon: Mic },
     ],
   },
   {
-    category: 'Workspace',
-    items: [{ id: 'prepKit', label: 'Prep Notes', icon: '📝' }],
+    category: 'Resources',
+    items: [{ id: 'prepKit', label: 'Prep Notes', icon: NotebookPen }],
   },
 ]
 
@@ -101,8 +125,8 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`h-screen shrink-0 border-r border-border/40 bg-card/80 backdrop-blur-2xl flex-col justify-between fixed left-0 top-0 z-40 hidden md:flex overflow-y-auto overflow-x-hidden custom-scrollbar shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-300 ease-in-out ${
-        collapsed ? 'w-[72px] px-2.5 py-4' : 'w-[280px] p-5'
+      className={`workspace-sidebar h-screen shrink-0 border-r border-border/40 bg-card/80 backdrop-blur-2xl flex-col justify-between fixed left-0 top-0 z-40 hidden md:flex overflow-y-auto overflow-x-hidden custom-scrollbar shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-300 ease-in-out ${
+        collapsed ? 'w-[72px] px-2.5 py-4' : 'w-[260px] p-4'
       }`}
       aria-label="Sidebar navigation"
     >
@@ -176,8 +200,8 @@ export default function Sidebar({
                           : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
                       }`}
                     >
-                      <span className="text-center text-lg leading-none shrink-0" aria-hidden="true">
-                        {item.icon}
+                      <span className="text-center text-lg leading-none shrink-0 flex items-center justify-center" aria-hidden="true">
+                        <item.icon size={19} strokeWidth={1.7} />
                       </span>
                       {!collapsed && <span className="truncate">{item.label}</span>}
                     </button>
@@ -189,7 +213,7 @@ export default function Sidebar({
         </nav>
       </div>
 
-      <div className={`flex flex-col mt-6 ${collapsed ? 'gap-3' : 'gap-4'}`}>
+      <div className={`flex flex-col mt-6 ${collapsed ? 'gap-3' : 'gap-4 border-t border-border pt-3'}`}>
         <div className={`flex flex-col ${collapsed ? 'gap-2' : 'gap-1.5'}`}>
           <a
             href="/referrer"
@@ -201,8 +225,8 @@ export default function Sidebar({
                 : 'w-full gap-3 px-3 py-2.5'
             }`}
           >
-            <span className="text-center text-lg leading-none shrink-0" aria-hidden="true">
-              💼
+            <span className="text-center text-lg leading-none shrink-0 flex items-center justify-center" aria-hidden="true">
+              <Briefcase size={18} />
             </span>
             {!collapsed && (
               <>
@@ -224,8 +248,8 @@ export default function Sidebar({
                 : 'w-full gap-3 px-3 py-2.5'
             }`}
           >
-            <span className="text-center text-lg leading-none shrink-0" aria-hidden="true">
-              {theme === 'dark' ? '☀️' : '🌙'}
+            <span className="w-5 text-center shrink-0 flex items-center justify-center" aria-hidden="true">
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </span>
             {!collapsed && <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>}
           </button>
@@ -245,8 +269,8 @@ export default function Sidebar({
                 : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
             }`}
           >
-            <span className="text-center text-lg leading-none shrink-0" aria-hidden="true">
-              ⚙️
+            <span className="w-5 text-center shrink-0 flex items-center justify-center" aria-hidden="true">
+              <Settings size={18} />
             </span>
             {!collapsed && <span>Settings</span>}
           </button>
@@ -261,8 +285,8 @@ export default function Sidebar({
                   : 'w-full gap-3 px-3 py-2.5'
               }`}
             >
-              <span className="text-center text-lg leading-none shrink-0" aria-hidden="true">
-                🛡️
+              <span className="w-5 text-center shrink-0 flex items-center justify-center" aria-hidden="true">
+                <ShieldCheck size={18} />
               </span>
               {!collapsed && <span>Admin panel</span>}
             </a>
