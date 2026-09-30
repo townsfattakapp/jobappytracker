@@ -298,16 +298,18 @@ html:not(.dark) .lp-preview-progress span:first-child { background: #943e70; }
   border-top: 1px solid var(--lp-border);
   border-bottom: 1px solid var(--lp-border);
   background: rgb(var(--lp-ink) / 0.02);
+  padding: clamp(2.5rem, 5vw, 3.5rem) 0;
 }
 .lp-stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem 1rem;
-  padding: 3rem 0;
+  gap: 2rem 1.5rem;
 }
 .lp-stats-grid > div {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
   gap: 0.5rem;
 }
 .lp-stats-grid strong {
@@ -329,7 +331,7 @@ html:not(.dark) .lp-preview-progress span:first-child { background: #943e70; }
 @media (min-width: 760px) {
   .lp-stats-grid {
     grid-template-columns: repeat(4, 1fr);
-    gap: 3rem;
+    gap: 2.5rem;
   }
 }
 

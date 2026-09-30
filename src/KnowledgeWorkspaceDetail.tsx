@@ -1078,19 +1078,42 @@ export default function KnowledgeWorkspaceDetail({
   );
 
   return (
-    <div className={`animate-rise flex flex-col gap-6 max-w-6xl mx-auto w-full pb-24 transition-[padding] duration-300 lg:pr-[var(--tutor-pad,0px)]`}>
+    <div className={`animate-rise flex flex-col gap-5 sm:gap-6 max-w-6xl mx-auto w-full pb-24 transition-[padding] duration-300 lg:pr-[var(--tutor-pad,0px)]`}>
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <button onClick={onBack} className="btn btn-ghost px-3">
-          ← Back
-        </button>
-        <div className="flex flex-col">
+      <div className="flex flex-col gap-2.5 sm:gap-3.5">
+        {/* Navigation & Action Bar */}
+        <div className="flex items-center justify-between gap-2.5">
+          <button
+            onClick={onBack}
+            className="btn btn-ghost btn-sm px-2.5 sm:px-3 flex items-center gap-1.5 text-xs sm:text-sm font-semibold shrink-0 whitespace-nowrap"
+          >
+            <span aria-hidden="true">←</span>
+            <span>Back</span>
+          </button>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setShowTutor(!showTutor)}
+              className={`btn btn-sm ${
+                showTutor
+                  ? "bg-primary/20 text-primary border-primary/40 shadow-xs"
+                  : "btn-ghost border border-border/80"
+              } flex items-center gap-1.5 text-xs sm:text-sm font-semibold shrink-0 whitespace-nowrap`}
+            >
+              <span className="text-base">🤖</span>
+              <span>{showTutor ? "Hide Tutor" : "Ask AI Tutor"}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Breadcrumb & Title */}
+        <div className="flex flex-col gap-1 min-w-0">
           <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
             {curriculumInfo.track?.title && (
               <button
                 type="button"
                 onClick={onBack}
-                className="hover:text-primary transition-colors cursor-pointer text-left font-semibold"
+                className="hover:text-primary transition-colors cursor-pointer text-left font-semibold truncate max-w-full"
                 title={`Back to ${curriculumInfo.track.title}`}
               >
                 {curriculumInfo.track.title}
@@ -1099,35 +1122,28 @@ export default function KnowledgeWorkspaceDetail({
             {curriculumInfo.topic && (
               <>
                 <span aria-hidden="true">&rsaquo;</span>
-                <span>{curriculumInfo.topic.title}</span>
+                <span className="truncate max-w-full">{curriculumInfo.topic.title}</span>
               </>
             )}
           </div>
-          <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-3">
-            {curriculumInfo.title}
-            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-foreground tracking-tight leading-snug">
+              {curriculumInfo.title}
+            </h1>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-semibold whitespace-nowrap shrink-0">
               Knowledge Workspace
             </span>
-          </h1>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={() => setShowTutor(!showTutor)}
-            className={`btn ${showTutor ? "bg-primary/20 text-primary" : "btn-ghost border border-border"} flex items-center gap-2`}
-          >
-            <span className="text-lg">🤖</span>{" "}
-            {showTutor ? "Hide Tutor" : "Ask AI Tutor"}
-          </button>
+          </div>
         </div>
       </div>
 
       {/* Learning Status Bar */}
-      <div className="surface rounded-xl p-4 border border-border flex flex-wrap gap-4 items-center justify-between shadow-sm">
-        <div className="flex flex-wrap items-center gap-6">
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <span className="whitespace-nowrap">Status:</span>
+      <div className="surface rounded-2xl p-3.5 sm:p-4 border border-border flex flex-col lg:flex-row gap-3.5 sm:gap-4 lg:items-center justify-between shadow-xs">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-5">
+          <label className="flex items-center gap-2 text-xs sm:text-sm font-medium">
+            <span className="text-muted-foreground whitespace-nowrap">Status:</span>
             <select
-              className="input-field min-w-[140px]"
+              className="input-field py-1.5 px-2.5 text-xs sm:text-sm min-w-[130px]"
               value={workspace.learningStatus}
               onChange={(e) =>
                 handleUpdate({ learningStatus: e.target.value as any })
@@ -1141,10 +1157,10 @@ export default function KnowledgeWorkspaceDetail({
             </select>
           </label>
 
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <span className="whitespace-nowrap">Confidence:</span>
+          <label className="flex items-center gap-2 text-xs sm:text-sm font-medium">
+            <span className="text-muted-foreground whitespace-nowrap">Confidence:</span>
             <select
-              className="input-field min-w-[120px]"
+              className="input-field py-1.5 px-2.5 text-xs sm:text-sm min-w-[110px]"
               value={workspace.confidenceRating?.toString() || ""}
               onChange={(e) =>
                 handleUpdate({
@@ -1162,30 +1178,30 @@ export default function KnowledgeWorkspaceDetail({
           </label>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           <button
-            className="btn btn-ghost btn-sm border border-border"
-            onClick={() => onSchedule?.("Revise Topic")}
-          >
-            Schedule Revision
-          </button>
-          <button
-            className="btn btn-primary btn-sm"
+            className="btn btn-primary btn-sm text-xs font-bold whitespace-nowrap justify-center shadow-xs py-2 px-3 flex-1 sm:flex-initial"
             onClick={() => onSchedule?.()}
           >
             Add to Today
           </button>
           <button
-            className="btn"
+            className="btn btn-ghost btn-sm border border-border/80 text-xs font-semibold whitespace-nowrap justify-center px-2.5 sm:px-3 py-2 flex-1 sm:flex-initial"
+            onClick={() => onSchedule?.("Revise Topic")}
+          >
+            Schedule Revision
+          </button>
+          <button
+            className="btn btn-ghost btn-sm border border-border/80 text-xs font-semibold whitespace-nowrap justify-center px-2.5 sm:px-3 py-2 flex-1 sm:flex-initial"
             onClick={() => handleUpdate({ bookmarked: !workspace.bookmarked })}
           >
-            {workspace.bookmarked ? "Remove Bookmark" : "Bookmark Topic"}
+            {workspace.bookmarked ? "Bookmarked ★" : "Bookmark"}
           </button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="workspace-tabs flex border-b border-border overflow-x-auto no-scrollbar">
+      <div className="workspace-tabs flex border-b border-border overflow-x-auto no-scrollbar -mx-1 px-1 touch-pan-x scroll-smooth">
         {(
           [
             "Concepts",
@@ -1199,7 +1215,7 @@ export default function KnowledgeWorkspaceDetail({
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
+            className={`px-3.5 sm:px-4 py-2.5 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap border-b-2 transition-colors shrink-0 ${
               activeTab === tab
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
