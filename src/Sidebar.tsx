@@ -1,3 +1,4 @@
+import { LayoutDashboard, Sun, Map as MapIcon, Compass, Search, FileText, ChartNoAxesCombined, Columns3, ListChecks, Handshake, Code2, Network, FlaskConical, Mic, NotebookPen, Settings, Moon, ShieldCheck, type LucideIcon } from 'lucide-react'
 import BrandLogo from './components/BrandLogo'
 import type { AppUser } from './lib/cloudSync'
 
@@ -21,39 +22,39 @@ export type ViewMode =
   | 'jobDetail'
   | 'resume'
 
-export const NAV_SECTIONS: { category: string; items: { id: ViewMode; label: string; icon: string }[] }[] = [
+export const NAV_SECTIONS: { category: string; items: { id: ViewMode; label: string; icon: LucideIcon }[] }[] = [
   {
     category: 'Career Plan',
     items: [
-      { id: 'home', label: 'Command Center', icon: '🏠' },
-      { id: 'today', label: 'Today', icon: '☀️' },
-      { id: 'roadmap', label: 'Goals & Roadmap', icon: '🗺️' },
-      { id: 'tracks', label: 'Explore', icon: '🧭' },
+      { id: 'home', label: 'Command Center', icon: LayoutDashboard },
+      { id: 'today', label: 'Today', icon: Sun },
+      { id: 'roadmap', label: 'Goals & Roadmap', icon: MapIcon },
+      { id: 'tracks', label: 'Explore', icon: Compass },
     ],
   },
   {
     category: 'Job Tracker',
     items: [
-      { id: 'jobs', label: 'Job Discovery', icon: '🔎' },
-      { id: 'resume', label: 'Resume', icon: '📄' },
-      { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-      { id: 'board', label: 'Kanban Board', icon: '🗂️' },
-      { id: 'list', label: 'Applications', icon: '📋' },
-      { id: 'referrals', label: 'Referrals', icon: '🤝' },
+      { id: 'jobs', label: 'Job Discovery', icon: Search },
+      { id: 'resume', label: 'Resume', icon: FileText },
+      { id: 'dashboard', label: 'Dashboard', icon: ChartNoAxesCombined },
+      { id: 'board', label: 'Kanban Board', icon: Columns3 },
+      { id: 'list', label: 'Applications', icon: ListChecks },
+      { id: 'referrals', label: 'Referrals', icon: Handshake },
     ],
   },
   {
     category: 'Engineering Hub',
     items: [
-      { id: 'dsa', label: 'DSA Practice', icon: '🧩' },
-      { id: 'systemDesign', label: 'System Design', icon: '🏗️' },
-      { id: 'labs', label: 'Engineering Labs', icon: '🧪' },
-      { id: 'mock', label: 'Mock Interviews', icon: '🎙️' },
+      { id: 'dsa', label: 'DSA Practice', icon: Code2 },
+      { id: 'systemDesign', label: 'System Design', icon: Network },
+      { id: 'labs', label: 'Engineering Labs', icon: FlaskConical },
+      { id: 'mock', label: 'Mock Interviews', icon: Mic },
     ],
   },
   {
     category: 'Resources',
-    items: [{ id: 'prepKit', label: 'Prep Notes', icon: '📝' }],
+    items: [{ id: 'prepKit', label: 'Prep Notes', icon: NotebookPen }],
   },
 ]
 
@@ -84,18 +85,18 @@ export default function Sidebar({ view, setView, theme, setTheme, user, syncing,
   const active = navParent(view)
 
   return (
-    <aside className="w-[280px] h-screen shrink-0 border-r border-border/40 bg-card/80 backdrop-blur-2xl flex-col justify-between p-5 fixed left-0 top-0 z-40 hidden md:flex overflow-y-auto custom-scrollbar shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
-      <div>
+    <aside className="workspace-sidebar w-[260px] h-screen shrink-0 border-r border-border/40 bg-card flex-col justify-between p-4 fixed left-0 top-0 z-40 hidden md:flex overflow-hidden shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+      <div className="flex min-h-0 flex-1 flex-col">
         <button
           type="button"
           onClick={() => setView('today')}
-          className="flex items-center gap-3 px-3 mb-10 mt-2 text-left hover:opacity-80 transition-opacity"
+          className="flex items-center gap-3 px-3 mb-6 mt-2 shrink-0 text-left hover:opacity-80 transition-opacity"
           aria-label="Go to Today"
         >
           <BrandLogo size={36} />
         </button>
 
-        <nav className="flex flex-col gap-8" aria-label="Primary">
+        <nav className="flex min-h-0 flex-col gap-8 overflow-y-auto custom-scrollbar pb-2" aria-label="Primary">
           {NAV_SECTIONS.map((section) => (
             <div key={section.category}>
               <h3 className="px-3 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60 mb-3">
@@ -115,7 +116,7 @@ export default function Sidebar({ view, setView, theme, setTheme, user, syncing,
                     }`}
                   >
                     <span className="w-5 text-center text-lg leading-none" aria-hidden="true">
-                      {item.icon}
+                      <item.icon size={19} strokeWidth={1.7} />
                     </span>
                     {item.label}
                   </button>
@@ -126,7 +127,7 @@ export default function Sidebar({ view, setView, theme, setTheme, user, syncing,
         </nav>
       </div>
 
-      <div className="flex flex-col gap-4 mt-8">
+      <div className="flex shrink-0 flex-col gap-3 mt-4 border-t border-border pt-3">
         <div className="flex flex-col gap-1.5">
           <button
             type="button"
@@ -134,7 +135,7 @@ export default function Sidebar({ view, setView, theme, setTheme, user, syncing,
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-all duration-200"
           >
             <span className="w-5 text-center" aria-hidden="true">
-              {theme === 'dark' ? '☀️' : '🌙'}
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </span>
             {theme === 'dark' ? 'Light mode' : 'Dark mode'}
           </button>
@@ -149,7 +150,7 @@ export default function Sidebar({ view, setView, theme, setTheme, user, syncing,
             onClick={() => setView('settings')}
           >
             <span className="w-5 text-center" aria-hidden="true">
-              ⚙️
+              <Settings size={18} />
             </span>
             Settings
           </button>
@@ -159,7 +160,7 @@ export default function Sidebar({ view, setView, theme, setTheme, user, syncing,
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-all duration-200"
             >
               <span className="w-5 text-center" aria-hidden="true">
-                🛡️
+                <ShieldCheck size={18} />
               </span>
               Admin panel
             </a>

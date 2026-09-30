@@ -3,7 +3,7 @@ import { BrandMark } from './BrandLogo'
 export default function AppFooter() {
   const year = new Date().getFullYear()
   return (
-    <footer className="app-footer" aria-label="Site footer">
+    <footer className="app-footer">
       <div className="flex items-center gap-2 min-w-0">
         <BrandMark size={22} />
         <span className="font-semibold text-foreground">Prep</span>

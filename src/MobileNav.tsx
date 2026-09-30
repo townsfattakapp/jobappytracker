@@ -1,3 +1,4 @@
+import { LayoutDashboard, Map as MapIcon, Search, Code2, Menu, Settings, Sun, Moon, ShieldCheck, LogOut, Cloud, type LucideIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NAV_SECTIONS, navParent, type ViewMode } from './Sidebar'
 import type { AppUser } from './lib/cloudSync'
@@ -14,19 +15,24 @@ interface MobileNavProps {
   adminHref?: string | null
 }
 
-const GROUPS: { label: string; icon: string; matches: ViewMode[]; defaultView: ViewMode }[] = [
-  { label: 'Home', icon: '🏠', matches: ['home', 'today'], defaultView: 'home' },
-  { label: 'Career', icon: '🗺️', matches: ['roadmap', 'tracks', 'topicWorkspace'], defaultView: 'roadmap' },
-  { label: 'Jobs', icon: '🚀', matches: ['jobs', 'jobDetail', 'resume', 'dashboard', 'board', 'list', 'referrals'], defaultView: 'jobs' },
-  { label: 'Engineer', icon: '💻', matches: ['dsa', 'systemDesign', 'labs', 'mock'], defaultView: 'dsa' },
-  { label: 'More', icon: '☰', matches: ['prepKit', 'settings'], defaultView: 'prepKit' },
+const GROUPS: { label: string; icon: LucideIcon; matches: ViewMode[]; defaultView: ViewMode }[] = [
+  { label: 'Home', icon: LayoutDashboard, matches: ['home', 'today'], defaultView: 'home' },
+  { label: 'Career', icon: MapIcon, matches: ['roadmap', 'tracks', 'topicWorkspace'], defaultView: 'roadmap' },
+  { label: 'Jobs', icon: Search, matches: ['jobs', 'jobDetail', 'resume', 'dashboard', 'board', 'list', 'referrals'], defaultView: 'jobs' },
+  { label: 'Engineer', icon: Code2, matches: ['dsa', 'systemDesign', 'labs', 'mock'], defaultView: 'dsa' },
+  { label: 'More', icon: Menu, matches: ['prepKit', 'settings'], defaultView: 'prepKit' },
 ]
 
 const LABELS = new Map<ViewMode, string>(NAV_SECTIONS.flatMap((s) => s.items.map((i) => [i.id, i.label] as [ViewMode, string])))
 LABELS.set('settings', 'Settings')
 
-const ICONS = new Map<ViewMode, string>(NAV_SECTIONS.flatMap((s) => s.items.map((i) => [i.id, i.icon] as [ViewMode, string])))
-ICONS.set('settings', '⚙️')
+const ICONS = new Map<ViewMode, LucideIcon>(NAV_SECTIONS.flatMap((s) => s.items.map((i) => [i.id, i.icon] as [ViewMode, LucideIcon])))
+ICONS.set('settings', Settings)
+
+function ViewIcon({ view }: { view: ViewMode }) {
+  const Icon = ICONS.get(view) ?? Menu
+  return <Icon size={20} strokeWidth={1.7} />
+}
 
 export default function MobileNav({ view, setView, theme, setTheme, user, onSignIn, onSignOut, hiddenViews = [], adminHref = null }: MobileNavProps) {
   const [sheet, setSheet] = useState<string | null>(null)
@@ -80,7 +86,7 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
               >
                 <div className="relative">
                   <span className="text-xl leading-none mb-1 inline-block" aria-hidden="true">
-                    {group.icon}
+                    <group.icon size={21} strokeWidth={1.7} />
                   </span>
                   {!single && (
                     <span
@@ -130,7 +136,7 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
                 }`}
               >
                 <span className="w-5 text-center text-lg leading-none" aria-hidden="true">
-                  {ICONS.get(item) || '📄'}
+                  <ViewIcon view={item} />
                 </span>
                 <span className="flex-1">{LABELS.get(item) || item}</span>
                 {active === item && (
@@ -148,7 +154,7 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
                     className="w-full text-left px-3.5 py-2.5 rounded-xl font-medium text-foreground hover:bg-muted flex items-center gap-3"
                   >
                     <span className="w-5 text-center text-lg leading-none" aria-hidden="true">
-                      🛡️
+                      <ShieldCheck size={20} />
                     </span>
                     <span className="flex-1">Admin Control Center</span>
                   </a>
@@ -162,7 +168,7 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
                   className="w-full text-left px-3.5 py-2.5 rounded-xl font-medium hover:bg-muted text-foreground flex items-center gap-3"
                 >
                   <span className="w-5 text-center text-lg leading-none" aria-hidden="true">
-                    {theme === 'dark' ? '☀️' : '🌙'}
+                    {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
                   </span>
                   <span>{theme === 'dark' ? 'Switch to Light mode' : 'Switch to Dark mode'}</span>
                 </button>
@@ -176,7 +182,7 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
                     className="w-full text-left px-3.5 py-2.5 rounded-xl font-medium text-destructive hover:bg-destructive/10 flex items-center gap-3"
                   >
                     <span className="w-5 text-center text-lg leading-none" aria-hidden="true">
-                      🚪
+                      <LogOut size={20} />
                     </span>
                     <span>Sign out ({user.email})</span>
                   </button>
@@ -190,7 +196,7 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
                     className="w-full text-left px-3.5 py-2.5 rounded-xl font-medium text-primary hover:bg-primary/10 flex items-center gap-3"
                   >
                     <span className="w-5 text-center text-lg leading-none" aria-hidden="true">
-                      ☁️
+                      <Cloud size={20} />
                     </span>
                     <span>Sign in to sync progress</span>
                   </button>

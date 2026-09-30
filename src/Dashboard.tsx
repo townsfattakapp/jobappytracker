@@ -1,4 +1,4 @@
-import dynamic from 'next/dynamic'
+import { BriefcaseBusiness } from 'lucide-react'
 import { useMemo } from 'react'
 import {
   type JobApplication,
@@ -16,7 +16,6 @@ import {
 } from './types'
 import type { ViewMode } from './Sidebar'
 
-const HeroScene = dynamic(() => import('./components/HeroScene'), { ssr: false, loading: () => null })
 
 interface DashboardProps {
   applications: JobApplication[]
@@ -133,7 +132,7 @@ export default function Dashboard({
   if (applications.length === 0 && goals.length === 0) {
     return (
       <div className="py-16 px-6 text-center flex flex-col items-center justify-center surface rounded-3xl animate-fade">
-        <HeroScene height={210} className="w-full max-w-lg -mt-10 mb-2" />
+        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary"><BriefcaseBusiness size={28} strokeWidth={1.5} aria-hidden="true" /></div>
         <h2 className="text-2xl font-display font-bold mb-2">Welcome to Prep</h2>
         <p className="text-muted-foreground max-w-md mx-auto mb-6">
           Track every application in one place, then build a daily prep plan so interviews never catch you off guard.

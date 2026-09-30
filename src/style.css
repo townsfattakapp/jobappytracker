@@ -36,7 +36,7 @@
   --border: 0 0% 86%;
   --input: 0 0% 78%;
   --ring: var(--ig-magenta);
-  --radius: 0.85rem;
+  --radius: 0.75rem;
   --chip-mix: black;
   --shadow-soft: 0 1px 2px rgba(20, 10, 30, 0.04), 0 8px 24px -12px rgba(20, 10, 30, 0.12);
   color-scheme: light;
@@ -76,7 +76,7 @@ html {
 
 @media (min-width: 768px) {
   html {
-    font-size: 106.25%; /* ~17px on tablet+ */
+    font-size: 100%;
   }
 }
 
@@ -250,7 +250,7 @@ body {
 }
 
 .input-field::placeholder {
-  color: hsl(var(--muted-foreground) / 0.6);
+  color: hsl(var(--muted-foreground));
   font-weight: 400;
 }
 
@@ -1238,7 +1238,7 @@ body {
   outline-offset: 2px;
 }
 
-/* --- Instagram look: gradients for brand moments --- */
+/* Brand accents and selected navigation. */
 .ig-gradient {
   background: var(--ig-gradient);
 }
@@ -1251,10 +1251,7 @@ body {
   box-shadow: 0 6px 16px -6px hsl(var(--ig-magenta) / 0.6);
 }
 .stat-value {
-  background: var(--ig-gradient-soft);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: hsl(var(--foreground));
 }
 .stat-value.text-destructive {
   background: none;
@@ -2356,18 +2353,12 @@ a {
 }
 .app-footer-link {
   font-weight: 600;
-  color: hsl(var(--foreground));
-  background: var(--ig-gradient-soft);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: hsl(var(--primary));
   text-decoration: none;
 }
 .app-footer-link:hover {
-  filter: brightness(1.15);
   text-decoration: underline;
-  text-decoration-color: hsl(var(--ig-magenta));
-  -webkit-text-fill-color: transparent;
+  text-underline-offset: 3px;
 }
 
 /* --- Worked examples --- */
@@ -3894,4 +3885,38 @@ a {
   color: hsl(var(--muted-foreground));
   max-width: 32rem;
   line-height: 1.55;
+}
+
+/* Shared interaction and workspace rhythm. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 4px;
+}
+:where(button, a, input, select, textarea) { -webkit-tap-highlight-color: transparent; }
+button:not(:disabled), summary { cursor: pointer; }
+.btn { min-height: 42px; }
+.btn-sm { min-height: 36px; }
+.input-field { min-height: 44px; }
+.workspace-heading { font-size: clamp(1.8rem, 3vw, 2.35rem); font-weight: 700; line-height: 1.2; letter-spacing: -0.045em; }
+.workspace-header { padding-bottom: 1.5rem; border-bottom: 1px solid hsl(var(--border)); }
+.workspace-sidebar { background: hsl(var(--card)); }
+.workspace-sidebar nav { gap: 1.5rem; }
+.workspace-sidebar nav h3 { color: hsl(var(--muted-foreground)); letter-spacing: 0.1em; }
+.workspace-sidebar nav button { min-height: 40px; padding-top: 0.55rem; padding-bottom: 0.55rem; }
+.workspace-sidebar nav button svg { flex-shrink: 0; }
+.skip-link { position: fixed; top: 0.75rem; left: 1rem; z-index: 200; padding: 0.75rem 1rem; border-radius: 0.5rem; color: hsl(var(--primary-foreground)); background: hsl(var(--primary)); transform: translateY(-180%); }
+.skip-link:focus { transform: translateY(0); }
+@media (max-width: 639px) {
+  .input-field { font-size: 1rem; }
+  .workspace-header { padding-bottom: 1.1rem; }
+  .btn { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

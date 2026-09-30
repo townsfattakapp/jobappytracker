@@ -1,42 +1,43 @@
-const LearningDayWorkspace = dynamic(() => import('./LearningDayWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Learning Day Workspace...</div> })
+import { ChartNoAxesCombined, Mail, MessagesSquare, Trophy, TriangleAlert } from 'lucide-react'
+const LearningDayWorkspace = dynamic(() => import('./LearningDayWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Learning Day Workspace...</div> })
 import LearningTaskPicker, { type PickerContext } from './components/LearningTaskPicker'
 import { dateKey, dayDate, makeDay, allTopics } from './lib/learningPlan'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
-const JobForm = dynamic(() => import('./JobForm'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Job Form...</div> })
-const KanbanBoard = dynamic(() => import('./KanbanBoard'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Kanban Board...</div> })
-const TableView = dynamic(() => import('./TableView'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Table View...</div> })
-const Dashboard = dynamic(() => import('./Dashboard'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Dashboard...</div> })
-const SearchFilter = dynamic(() => import('./SearchFilter'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Search Filter...</div> })
-const EmailImport = dynamic(() => import('./EmailImport'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Email Import...</div> })
+const JobForm = dynamic(() => import('./JobForm'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Job Form...</div> })
+const KanbanBoard = dynamic(() => import('./KanbanBoard'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Kanban Board...</div> })
+const TableView = dynamic(() => import('./TableView'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Table View...</div> })
+const Dashboard = dynamic(() => import('./Dashboard'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Dashboard...</div> })
+const SearchFilter = dynamic(() => import('./SearchFilter'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Search Filter...</div> })
+const EmailImport = dynamic(() => import('./EmailImport'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Email Import...</div> })
 import BookmarkletModal from './BookmarkletModal.tsx'
 import dynamic from 'next/dynamic'
 import AppFooter from './components/AppFooter'
 import BrandLogo, { BrandMark } from './components/BrandLogo'
 import PrepKit from './PrepKit.tsx'
 import AuthPanel from './AuthPanel.tsx'
-const GmailSyncPanel = dynamic(() => import('./GmailSyncPanel'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Gmail Sync Panel...</div> })
-const GoalManager = dynamic(() => import('./GoalManager'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Goal Manager...</div> })
-const DsaWorkspace = dynamic(() => import('./DsaWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Dsa Workspace...</div> })
-const ProblemDetail = dynamic(() => import('./ProblemDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Problem Detail...</div> })
-const LabWorkspace = dynamic(() => import('./LabWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Lab Workspace...</div> })
-const LabTicketDetail = dynamic(() => import('./LabTicketDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Lab Ticket Detail...</div> })
-const MockInterviewWorkspace = dynamic(() => import('./MockInterviewWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Mock Interview Workspace...</div> })
-const InterviewSession = dynamic(() => import('./InterviewSession'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Interview Session...</div> })
+const GmailSyncPanel = dynamic(() => import('./GmailSyncPanel'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Gmail Sync Panel...</div> })
+const GoalManager = dynamic(() => import('./GoalManager'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Goal Manager...</div> })
+const DsaWorkspace = dynamic(() => import('./DsaWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Dsa Workspace...</div> })
+const ProblemDetail = dynamic(() => import('./ProblemDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Problem Detail...</div> })
+const LabWorkspace = dynamic(() => import('./LabWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Lab Workspace...</div> })
+const LabTicketDetail = dynamic(() => import('./LabTicketDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Lab Ticket Detail...</div> })
+const MockInterviewWorkspace = dynamic(() => import('./MockInterviewWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Mock Interview Workspace...</div> })
+const InterviewSession = dynamic(() => import('./InterviewSession'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Interview Session...</div> })
 const readActiveMock = () => (typeof window === 'undefined' ? null : import('./InterviewSession').then((m) => m.readActiveMock()))
 import { roundForTrack, type InterviewSetup } from './lib/interview/config'
-const LearningTracksWorkspace = dynamic(() => import('./LearningTracksWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Learning Tracks Workspace...</div> })
-const SystemDesignWorkspace = dynamic(() => import('./SystemDesignWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading System Design Workspace...</div> })
-const SystemDesignExerciseDetail = dynamic(() => import('./SystemDesignExerciseDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading System Design Exercise Detail...</div> })
-const KnowledgeWorkspaceDetail = dynamic(() => import('./KnowledgeWorkspaceDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Knowledge Workspace Detail...</div> })
-const InterviewQuestionWorkspace = dynamic(() => import('./InterviewQuestionWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Interview Question Workspace...</div> })
-const SettingsWorkspace = dynamic(() => import('./SettingsWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Settings Workspace...</div> })
-const JobsWorkspace = dynamic(() => import('./JobsWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading Jobs...</div> })
+const LearningTracksWorkspace = dynamic(() => import('./LearningTracksWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Learning Tracks Workspace...</div> })
+const SystemDesignWorkspace = dynamic(() => import('./SystemDesignWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading System Design Workspace...</div> })
+const SystemDesignExerciseDetail = dynamic(() => import('./SystemDesignExerciseDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading System Design Exercise Detail...</div> })
+const KnowledgeWorkspaceDetail = dynamic(() => import('./KnowledgeWorkspaceDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Knowledge Workspace Detail...</div> })
+const InterviewQuestionWorkspace = dynamic(() => import('./InterviewQuestionWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Interview Question Workspace...</div> })
+const SettingsWorkspace = dynamic(() => import('./SettingsWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Settings Workspace...</div> })
+const JobsWorkspace = dynamic(() => import('./JobsWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Jobs...</div> })
 const ReferralsWorkspace = dynamic(() => import('./ReferralsWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading…</div> })
-const JobDetail = dynamic(() => import('./JobDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading job...</div> })
+const JobDetail = dynamic(() => import('./JobDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading job...</div> })
 const CommandCenter = dynamic(() => import('./CommandCenter'), { ssr: false, loading: () => <div className="cc-grid" aria-busy="true">{Array.from({ length: 6 }, (_, i) => <div key={i} className="cc-card cc-skeleton" />)}</div> })
-const OnboardingFlow = dynamic(() => import('./components/onboarding/OnboardingFlow'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading setup...</div> })
-const ResumeWorkspace = dynamic(() => import('./ResumeWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground animate-pulse">Loading resume...</div> })
+const OnboardingFlow = dynamic(() => import('./components/onboarding/OnboardingFlow'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading setup...</div> })
+const ResumeWorkspace = dynamic(() => import('./ResumeWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading resume...</div> })
 import { fetchAllInterviews } from './lib/jobs/interviewClient'
 import type { HistoryItem } from './lib/server/interviews'
 import { fetchPlatformConfig, type LearnerJob, type PlatformConfigResponse } from './lib/jobs/client'
@@ -86,7 +87,6 @@ import { CODE_LANGUAGES, CODE_LANGUAGE_EVENT, getCodeLanguage, setCodeLanguage }
 import { setPersonalTracks } from './lib/curriculum/registry'
 import { fillRoadmap, scheduleTrackIntoRoadmap } from './lib/roadmapGenerator'
 import { initGlobalHorizontalScroll } from './lib/useHorizontalScroll'
-import { GlobalAmbientArt } from './components/AmbientBackgroundArt'
 
 const GUEST_MODE_KEY = 'jobappy-guest-mode'
 const STORAGE_OWNER_KEY = 'jobappy-storage-owner'
@@ -961,7 +961,7 @@ export default function App() {
 
   return (
     <div className="app-page text-foreground bg-background min-h-screen flex selection:bg-primary/20 relative">
-      <GlobalAmbientArt />
+      <a className="skip-link" href="#workspace-content">Skip to workspace</a>
       <Sidebar
         view={view}
         setView={setView}
@@ -1001,8 +1001,7 @@ export default function App() {
         adminHref={platformConfig?.canOpenAdmin ? '/admin' : null}
       />
 
-      <main className="flex-1 min-w-0 md:ml-[280px] pt-14 md:pt-0 pb-24 md:pb-0 relative">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background -z-10 pointer-events-none"></div>
+      <main id="workspace-content" tabIndex={-1} className="flex-1 min-w-0 md:ml-[260px] pt-14 md:pt-0 pb-24 md:pb-0 relative">
         <div className="app-shell pt-5 sm:pt-8">
           {user && billing?.entitlement?.access && !billing.entitlement.complimentary && billing.entitlement.daysLeft <= 7 && (
             <div className="trial-banner">
@@ -1025,12 +1024,12 @@ export default function App() {
             </div>
           )}
           {header && (
-            <header className="animate-rise mb-6 w-full min-w-0 sm:mb-8 flex flex-col gap-5">
+            <header className="workspace-header animate-rise mb-6 w-full min-w-0 sm:mb-8 flex flex-col gap-5">
               <div className="flex flex-col items-start text-left">
-                <h1 className="font-display text-gradient text-[2rem] font-black leading-[1.1] sm:text-5xl pb-1 tracking-tight">
+                <h1 className="workspace-heading text-foreground">
                   {header.title}
                 </h1>
-                <p className="mt-2 text-[0.98rem] text-muted-foreground sm:text-lg max-w-2xl font-medium">{header.subtitle}</p>
+                <p className="mt-2 text-sm text-muted-foreground sm:text-base max-w-2xl">{header.subtitle}</p>
               </div>
 
               {isTrackerView && (
@@ -1059,22 +1058,22 @@ export default function App() {
           {isTrackerView && (
             <section className="stats-grid animate-rise mb-6 w-full min-w-0 sm:mb-8" aria-label="Pipeline summary">
               {[
-                { label: 'Tracked', value: stats.total, icon: '📊' },
-                { label: 'Open', value: stats.open, icon: '📬' },
-                { label: 'Interviews', value: stats.interviews, icon: '🗣️' },
-                { label: 'Offers', value: stats.offers, icon: '🏆' },
-                { label: 'Overdue', value: stats.overdue, alert: stats.overdue > 0, icon: '⚠️' },
+                { label: 'Tracked', value: stats.total, icon: ChartNoAxesCombined },
+                { label: 'Open', value: stats.open, icon: Mail },
+                { label: 'Interviews', value: stats.interviews, icon: MessagesSquare },
+                { label: 'Offers', value: stats.offers, icon: Trophy },
+                { label: 'Overdue', value: stats.overdue, alert: stats.overdue > 0, icon: TriangleAlert },
               ].map((item) => (
                 <div
                   key={item.label}
-                  className="stat-card rounded-2xl bg-card/60 backdrop-blur-xl border border-border/50 shadow-soft flex items-center justify-between p-5"
+                  className="stat-card rounded-2xl bg-card border border-border shadow-soft flex items-center justify-between p-5"
                 >
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 mb-1">{item.label}</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">{item.label}</p>
                     <p className={`stat-value ${item.alert ? 'text-destructive' : 'text-foreground'}`}>{item.value}</p>
                   </div>
-                  <div className="text-3xl opacity-80" aria-hidden="true">
-                    {item.icon}
+                  <div className="rounded-xl bg-muted p-2.5 text-muted-foreground" aria-hidden="true">
+                    <item.icon size={21} strokeWidth={1.7} />
                   </div>
                 </div>
               ))}
@@ -1082,7 +1081,7 @@ export default function App() {
           )}
 
           {(view === 'board' || view === 'list') && (
-            <div className="mb-6 w-full bg-card/40 backdrop-blur-md rounded-2xl p-1 border border-border/30">
+            <div className="mb-6 w-full bg-card rounded-xl p-2 border border-border">
               <SearchFilter
                 query={searchQuery}
                 setQuery={setSearchQuery}
@@ -1826,11 +1825,11 @@ export default function App() {
           <div className="animate-pulse">
             <BrandMark size={56} />
           </div>
-          <p className="mt-4 font-semibold text-muted-foreground animate-pulse">Loading Prep…</p>
+          <p className="mt-4 font-semibold text-muted-foreground">Loading Prep…</p>
         </div>
       )}
       {authReady && showAuthGate && (
-        <div className="fixed inset-0 z-[100] bg-background/90 backdrop-blur-2xl flex items-center justify-center p-3 sm:p-6 lg:p-8 overflow-y-auto">
+        <div className="fixed inset-0 z-[100] bg-background flex items-center justify-center p-3 sm:p-6 lg:p-8 overflow-y-auto">
           {/* Subtle atmospheric ambient glow */}
           <div className="fixed inset-0 pointer-events-none overflow-hidden">
             <div className="absolute -top-40 left-1/4 w-96 h-96 bg-primary/15 rounded-full blur-3xl" />
@@ -1854,10 +1853,10 @@ export default function App() {
                 </div>
 
                 <h2 className="text-2xl font-display font-extrabold tracking-tight text-foreground mb-3 leading-tight">
-                  Master High-Stakes Tech Interviews.
+                  Make your next move with confidence.
                 </h2>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-8">
-                  The complete engineering preparation workspace with zero-to-one architecture, voice AI mocks, and local-first privacy.
+                <p className="text-sm text-muted-foreground leading-relaxed mb-8">
+                  Your learning plan, interview practice, and job search. Together in one focused workspace.
                 </p>
 
                 {/* Key Pillars */}
@@ -1875,7 +1874,7 @@ export default function App() {
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <div className="w-7 h-7 rounded-lg bg-accent/10 text-accent border border-accent/20 flex items-center justify-center shrink-0 mt-0.5">
+                    <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
                       </svg>
@@ -1900,16 +1899,9 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Quote pill */}
-              <div className="mt-8 pt-5 border-t border-border/40">
-                <p className="text-xs italic text-muted-foreground leading-snug">
-                  "Prep gave me the structured rigor I needed for Staff rounds at tier-1 tech companies."
-                </p>
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">S</div>
-                  <span className="text-[11px] font-medium text-foreground">Senior Staff Architect</span>
-                  <span className="text-[11px] text-muted-foreground">• San Francisco</span>
-                </div>
+              <div className="mt-8 pt-5 border-t border-border">
+                <p className="text-sm font-medium text-foreground">A little progress, every day.</p>
+                <p className="text-xs text-muted-foreground mt-2 leading-relaxed">Choose a goal, build a routine, and keep your preparation organized.</p>
               </div>
             </div>
 
