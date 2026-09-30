@@ -204,31 +204,31 @@ Instructions:
     <div className="animate-rise flex flex-col gap-6 max-w-7xl mx-auto w-full pb-16">
       {/* Top Navigation & Status Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card border border-border/70 rounded-3xl p-4 sm:p-6 shadow-md">
-        <div className="flex flex-wrap items-center gap-3">
-          <button type="button" onClick={onBack} className="btn btn-ghost px-3 py-1.5 text-xs font-semibold">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <button type="button" onClick={onBack} className="btn btn-ghost px-3 py-1.5 text-xs font-semibold shrink-0 whitespace-nowrap">
             ← {backLabel}
           </button>
-          <div className="h-4 w-px bg-border/60" />
-          <span className="text-xs font-mono font-bold text-foreground bg-muted px-2.5 py-1 rounded-lg border border-border/60">
+          <div className="h-4 w-px bg-border/60 hidden sm:block shrink-0" />
+          <span className="text-xs font-mono font-bold text-foreground bg-muted px-2.5 py-1 rounded-lg border border-border/60 shrink-0 whitespace-nowrap">
             {lab.ticketId}
           </span>
           {lab.severity?.startsWith('P0') && (
-            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30">
+            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30 shrink-0 whitespace-nowrap">
               P0 Outage
             </span>
           )}
           {lab.severity?.startsWith('P1') && (
-            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0 whitespace-nowrap">
               P1 High
             </span>
           )}
-          <span className="text-xs text-muted-foreground font-medium">
+          <span className="text-xs text-muted-foreground font-medium shrink-0 whitespace-nowrap">
             {lab.category || lab.type}
           </span>
         </div>
 
-        <div className="flex items-center gap-3 ml-auto">
-          <span className={`text-xs px-3 py-1 rounded-full border font-bold uppercase tracking-wider ${
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <span className={`text-xs px-3 py-1 rounded-full border font-bold uppercase tracking-wider shrink-0 whitespace-nowrap ${
             lab.status === 'Done' || saved
               ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
               : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
@@ -239,7 +239,7 @@ Instructions:
             type="button"
             onClick={runVerificationTests}
             disabled={runningTests}
-            className="btn btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5"
+            className="btn btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 shrink-0 whitespace-nowrap"
           >
             {runningTests ? 'Running tests…' : '▶ Run Verification'}
           </button>
@@ -253,7 +253,7 @@ Instructions:
             <span className="text-emerald-500 text-lg">✅</span>
             <span>Ticket {lab.ticketId} has been resolved and your PR write-up is saved on this device.</span>
           </div>
-          <button type="button" className="btn btn-ghost btn-sm text-xs font-semibold" onClick={onBack}>
+          <button type="button" className="btn btn-ghost btn-sm text-xs font-semibold shrink-0 whitespace-nowrap" onClick={onBack}>
             Return to Lab Workspace
           </button>
         </div>
@@ -264,7 +264,7 @@ Instructions:
         {/* Left Column: Interactive Studio Tabs */}
         <div className="flex flex-col gap-4">
           {/* Tab Navigation Buttons */}
-          <div className="flex items-center gap-1.5 overflow-x-auto p-1.5 bg-card border border-border/70 rounded-2xl scrollbar-none">
+          <div className="flex items-center gap-1.5 overflow-x-auto p-1.5 bg-card border border-border/70 rounded-2xl scrollbar-none touch-pan-x scroll-smooth">
             {[
               { id: 'brief', label: '📋 Incident Brief', count: `${checkedCriteria.length}/${lab.acceptanceCriteria.length}` },
               { id: 'logs', label: '📜 Telemetry & Logs', count: `${lab.initialLogs?.length || 0}` },
@@ -277,7 +277,7 @@ Instructions:
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as TabKey)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'bg-foreground text-background shadow-md'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'

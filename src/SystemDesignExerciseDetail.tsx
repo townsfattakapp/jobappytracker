@@ -434,11 +434,11 @@ export default function SystemDesignExerciseDetail({
         </div>
 
         {/* Studio Navigation Tabs */}
-        <div className="flex flex-wrap gap-2 border-b border-border/60 pt-2 -mb-2">
+        <div className="flex border-b border-border/60 gap-1 sm:gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pt-2 -mb-2 touch-pan-x scroll-smooth">
           <button
             type="button"
             onClick={() => setActiveTab('canvas')}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+            className={`px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 shrink-0 whitespace-nowrap ${
               activeTab === 'canvas'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -449,7 +449,7 @@ export default function SystemDesignExerciseDetail({
           <button
             type="button"
             onClick={() => setActiveTab('brief')}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+            className={`px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 shrink-0 whitespace-nowrap ${
               activeTab === 'brief'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -461,7 +461,7 @@ export default function SystemDesignExerciseDetail({
             <button
               type="button"
               onClick={() => setActiveTab('blueprint')}
-              className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+              className={`px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 shrink-0 whitespace-nowrap ${
                 activeTab === 'blueprint'
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -473,7 +473,7 @@ export default function SystemDesignExerciseDetail({
           <button
             type="button"
             onClick={() => setActiveTab('review')}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+            className={`px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 shrink-0 whitespace-nowrap ${
               activeTab === 'review'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -489,7 +489,7 @@ export default function SystemDesignExerciseDetail({
           <button
             type="button"
             onClick={() => setActiveTab('history')}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+            className={`px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 shrink-0 whitespace-nowrap ${
               activeTab === 'history'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'

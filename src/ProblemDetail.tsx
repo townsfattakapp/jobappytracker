@@ -231,26 +231,28 @@ export default function ProblemDetail({
   }
 
   return (
-    <div className={`animate-rise flex flex-col gap-6 max-w-7xl mx-auto w-full transition-[padding] duration-300 lg:pr-[var(--tutor-pad,0px)] pb-16`}>
-      {/* Top Header Bar */}
-      <div className="flex flex-col gap-4 surface rounded-2xl p-5 sm:p-6 border border-border shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+    <div className={`animate-rise flex flex-col gap-5 sm:gap-6 max-w-7xl mx-auto w-full transition-[padding] duration-300 lg:pr-[var(--tutor-pad,0px)] pb-16`}>
+      {/* Top Header Card */}
+      <div className="flex flex-col gap-3.5 sm:gap-4 surface rounded-2xl p-4 sm:p-6 border border-border shadow-xs">
+        {/* Tier 1: Navigation & Actions Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          {/* Back button & badges */}
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0">
             <button 
               type="button" 
               onClick={onBack} 
-              className="btn btn-ghost px-3 py-1.5 text-xs font-semibold"
+              className="btn btn-ghost btn-sm px-2.5 sm:px-3 py-1.5 text-xs font-semibold shrink-0 whitespace-nowrap"
             >
               ← {backLabel}
             </button>
-            <div className="h-4 w-px bg-border hidden sm:block" />
-            <div className="flex items-center gap-2">
+            <div className="h-4 w-px bg-border hidden sm:block shrink-0" />
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               {problem.pattern && (
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                <span className="text-[11px] sm:text-xs font-semibold px-2 sm:px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0 whitespace-nowrap">
                   {problem.pattern}
                 </span>
               )}
-              <span className={`text-xs font-bold px-2 py-0.5 rounded border ${
+              <span className={`text-[11px] sm:text-xs font-bold px-2 py-0.5 rounded border shrink-0 whitespace-nowrap ${
                 problem.difficulty === 'Easy' ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' :
                 problem.difficulty === 'Medium' ? 'text-amber-500 bg-amber-500/10 border-amber-500/20' :
                 'text-rose-500 bg-rose-500/10 border-rose-500/20'
@@ -260,16 +262,16 @@ export default function ProblemDetail({
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Quick Actions (Stopwatch, LeetCode, AI Tutor, Prep Note) */}
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             {/* Stopwatch widget */}
-            <div className="flex items-center gap-1.5 bg-muted/60 px-3 py-1 rounded-xl border border-border text-xs font-mono">
+            <div className="flex items-center gap-1.5 bg-muted/60 px-2.5 sm:px-3 py-1 rounded-xl border border-border text-xs font-mono shrink-0 whitespace-nowrap">
               <span className={timerRunning ? 'text-emerald-500 animate-pulse' : 'text-muted-foreground'}>⏱</span>
               <span className="font-bold text-foreground">{formatTimer(timerSeconds)}</span>
               <button
                 type="button"
                 onClick={() => setTimerRunning(!timerRunning)}
-                className={`ml-1 text-[11px] font-semibold px-1.5 py-0.5 rounded ${
+                className={`ml-0.5 text-[10px] sm:text-[11px] font-semibold px-1.5 py-0.5 rounded ${
                   timerRunning ? 'bg-amber-500/20 text-amber-500' : 'bg-primary/20 text-primary'
                 }`}
               >
@@ -293,7 +295,7 @@ export default function ProblemDetail({
                 href={problem.url} 
                 target="_blank" 
                 rel="noreferrer" 
-                className="btn btn-ghost text-xs py-1.5 gap-1.5 flex items-center text-amber-500 hover:text-amber-400"
+                className="btn btn-ghost btn-sm text-xs py-1.5 px-2.5 gap-1 flex items-center text-amber-500 hover:text-amber-400 shrink-0 whitespace-nowrap"
               >
                 <span>LeetCode</span>
                 <span className="text-[10px]">↗</span>
@@ -304,45 +306,47 @@ export default function ProblemDetail({
             <button 
               type="button" 
               onClick={() => setShowTutor(v => !v)} 
-              className={`btn text-xs py-1.5 ${showTutor ? 'bg-primary/20 text-primary border-primary/30' : 'btn-ghost'}`}
+              className={`btn btn-sm text-xs py-1.5 px-2.5 ${showTutor ? 'bg-primary/20 text-primary border-primary/30' : 'btn-ghost'} shrink-0 whitespace-nowrap`}
             >
               🤖 {showTutor ? 'Hide tutor' : 'AI Tutor'}
             </button>
 
             {/* Prep Note */}
-            <button type="button" onClick={onCreateNote} className="btn btn-secondary text-xs py-1.5">
+            <button type="button" onClick={onCreateNote} className="btn btn-secondary btn-sm text-xs py-1.5 px-2.5 shrink-0 whitespace-nowrap">
               📝 Prep note
             </button>
           </div>
         </div>
 
-        {/* Title, Companies & LC Status */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/50">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground flex items-center gap-3">
-              <span>{problem.title}</span>
+        {/* Tier 2: Title, Companies & LC Status */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border/50">
+          <div className="flex flex-col gap-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-foreground tracking-tight">
+                {problem.title}
+              </h1>
               {problem.leetCodeStatus === 'Accepted' ? (
-                <span className="text-xs font-bold bg-amber-500/15 text-amber-500 px-2 py-0.5 rounded-md border border-amber-500/30 flex items-center gap-1">
+                <span className="text-xs font-bold bg-amber-500/15 text-amber-500 px-2 py-0.5 rounded-md border border-amber-500/30 flex items-center gap-1 shrink-0 whitespace-nowrap">
                   <span>LC Verified ✓</span>
                 </span>
               ) : (
                 <button
                   onClick={handleCheckLeetCode}
                   disabled={isVerifyingLC}
-                  className="text-[11px] font-semibold text-muted-foreground hover:text-amber-500 border border-dashed border-border px-2 py-0.5 rounded hover:border-amber-500/40 transition-colors"
+                  className="text-[11px] font-semibold text-muted-foreground hover:text-amber-500 border border-dashed border-border px-2 py-0.5 rounded hover:border-amber-500/40 transition-colors shrink-0 whitespace-nowrap"
                   title="Check if this problem was recently accepted on LeetCode"
                 >
                   {isVerifyingLC ? 'Checking LC…' : 'Check LC Status'}
                 </button>
               )}
-            </h1>
+            </div>
 
             {/* Company Tags */}
             {problem.companies && problem.companies.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                <span className="text-xs text-muted-foreground">High frequency at:</span>
+                <span className="text-xs text-muted-foreground shrink-0">High frequency at:</span>
                 {problem.companies.map(c => (
-                  <span key={c} className="text-[11px] font-medium px-2 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/50">
+                  <span key={c} className="text-[11px] font-medium px-2 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/50 shrink-0 whitespace-nowrap">
                     {c}
                   </span>
                 ))}
@@ -351,9 +355,9 @@ export default function ProblemDetail({
           </div>
 
           {/* Current Status Pill */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Local Status:</span>
-            <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Local Status:</span>
+            <span className={`text-xs font-bold px-3 py-1 rounded-full border shrink-0 whitespace-nowrap ${
               problem.status === 'Solved' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
               problem.status === 'Attempted' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
               'bg-muted text-muted-foreground border-border'
@@ -372,10 +376,10 @@ export default function ProblemDetail({
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-border gap-2">
+      <div className="flex border-b border-border gap-1 sm:gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 touch-pan-x scroll-smooth">
         <button
           onClick={() => setActiveTab('workspace')}
-          className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${
+          className={`px-3.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-all flex items-center gap-2 shrink-0 whitespace-nowrap ${
             activeTab === 'workspace'
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -386,7 +390,7 @@ export default function ProblemDetail({
 
         <button
           onClick={() => setActiveTab('problem')}
-          className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${
+          className={`px-3.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-all flex items-center gap-2 shrink-0 whitespace-nowrap ${
             activeTab === 'problem'
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -397,7 +401,7 @@ export default function ProblemDetail({
 
         <button
           onClick={() => setActiveTab('pattern')}
-          className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${
+          className={`px-3.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-all flex items-center gap-2 shrink-0 whitespace-nowrap ${
             activeTab === 'pattern'
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -413,7 +417,7 @@ export default function ProblemDetail({
 
         <button
           onClick={() => setActiveTab('history')}
-          className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${
+          className={`px-3.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-all flex items-center gap-2 shrink-0 whitespace-nowrap ${
             activeTab === 'history'
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -432,7 +436,7 @@ export default function ProblemDetail({
       {activeTab === 'workspace' && (
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-6 items-start">
           {/* Code Editor Column */}
-          <div className="surface rounded-2xl p-5 sm:p-6 border border-border flex flex-col gap-4">
+          <div className="surface rounded-2xl p-4 sm:p-6 border border-border flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border/50">
               <div className="flex items-center gap-3">
                 <span className="text-sm font-bold text-foreground">Interactive Editor</span>
@@ -462,7 +466,7 @@ export default function ProblemDetail({
           </div>
 
           {/* Structured Attempt Logger Column */}
-          <form onSubmit={handleSubmit} className="surface rounded-2xl p-5 sm:p-6 border border-border flex flex-col gap-4">
+          <form onSubmit={handleSubmit} className="surface rounded-2xl p-4 sm:p-6 border border-border flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold text-foreground">Log Problem Attempt</h2>
               <span className="text-xs text-muted-foreground">Self-Evaluation & Tracking</span>
@@ -496,7 +500,7 @@ export default function ProblemDetail({
             </div>
 
             {/* Metrics Grid */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Time (minutes)</label>
                 <input 

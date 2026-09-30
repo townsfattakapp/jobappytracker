@@ -155,9 +155,6 @@ const HEADER_COPY: Partial<Record<ViewMode, { title: string; subtitle: string }>
   resume: { title: 'Resume & ATS Scanner', subtitle: 'Analyze resume versions, identify missing ATS keywords, and tailor bullets to any job.' },
   referrals: { title: 'Vetted Referral Network', subtitle: 'Connect with verified employees who test and screen your qualifications end-to-end before submitting an internal endorsement.' },
   mock: { title: 'AI Mock Interviews', subtitle: 'Realistic role-adapted interviews with voice, real-time critique, and retry drills.' },
-  dsa: { title: 'DSA Practice Hub', subtitle: 'Curated algorithmic problem solving with live code runner and complexity analysis.' },
-  systemDesign: { title: 'System Design Workspace', subtitle: 'Interactive high-level and low-level design blueprints with editable diagrams.' },
-  labs: { title: 'Engineering Labs', subtitle: 'Practical, real-world development exercises and architectural ticket simulations.' },
   tracks: { title: 'Engineering Curriculum', subtitle: 'Explore 157 structured engineering tracks across 12 disciplines from zero.' },
 }
 
