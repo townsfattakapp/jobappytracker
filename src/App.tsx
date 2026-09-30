@@ -33,6 +33,7 @@ const KnowledgeWorkspaceDetail = dynamic(() => import('./KnowledgeWorkspaceDetai
 const InterviewQuestionWorkspace = dynamic(() => import('./InterviewQuestionWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Interview Question Workspace...</div> })
 const SettingsWorkspace = dynamic(() => import('./SettingsWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Settings Workspace...</div> })
 const JobsWorkspace = dynamic(() => import('./JobsWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Jobs...</div> })
+const EnterprisePortalsWorkspace = dynamic(() => import('./EnterprisePortalsWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading Enterprise Portals...</div> })
 const ReferralsWorkspace = dynamic(() => import('./ReferralsWorkspace'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading…</div> })
 const JobDetail = dynamic(() => import('./JobDetail'), { ssr: false, loading: () => <div className="p-8 flex justify-center text-muted-foreground">Loading job...</div> })
 const CommandCenter = dynamic(() => import('./CommandCenter'), { ssr: false, loading: () => <div className="cc-grid" aria-busy="true">{Array.from({ length: 6 }, (_, i) => <div key={i} className="cc-card cc-skeleton" />)}</div> })
@@ -140,7 +141,7 @@ function sortApplications(
 }
 
 /** Views a signed-in account without a pass may use (job discovery and the application tracker). */
-const FREE_VIEWS: ViewMode[] = ['home', 'jobs', 'jobDetail', 'resume', 'dashboard', 'board', 'list', 'referrals', 'settings']
+const FREE_VIEWS: ViewMode[] = ['home', 'jobs', 'jobDetail', 'portals', 'resume', 'dashboard', 'board', 'list', 'referrals', 'settings']
 
 const HEADER_COPY: Partial<Record<ViewMode, { title: string; subtitle: string }>> = {
   dashboard: { title: 'Pipeline Analytics', subtitle: 'Overview of your application pipeline, conversion rates, and upcoming interviews.' },
@@ -151,6 +152,7 @@ const HEADER_COPY: Partial<Record<ViewMode, { title: string; subtitle: string }>
   roadmap: { title: 'Career Roadmap', subtitle: 'Your step-by-step master plan to hit your professional engineering goals.' },
   prepKit: { title: 'Preparation Notes', subtitle: 'Company briefs, STAR stories, and cheat sheets with AI help.' },
   jobs: { title: 'Explore Jobs', subtitle: 'Openings matching tech and product engineering tracks, ranked by your preferences with verified direct links.' },
+  portals: { title: 'Direct Enterprise Career Portals', subtitle: 'Verified official career portals for 300+ Fortune 500 tech leaders, GCCs, and product companies. Apply directly at the source.' },
   resume: { title: 'Resume & ATS Scanner', subtitle: 'Analyze resume versions, identify missing ATS keywords, and tailor bullets to any job.' },
   referrals: { title: 'Vetted Referral Network', subtitle: 'Connect with verified employees who test and screen your qualifications end-to-end before submitting an internal endorsement.' },
   mock: { title: 'AI Mock Interviews', subtitle: 'Realistic role-adapted interviews with voice, real-time critique, and retry drills.' },
@@ -1528,9 +1530,28 @@ export default function App() {
                   setSelectedJobId(id)
                   setView('jobDetail')
                 }}
+                onOpenPortals={() => setView('portals')}
                 onSignIn={() => setAuthModalOpen(true)}
                 onUpgrade={() => setPaywallForced(true)}
                 onToast={showToast}
+              />
+            ) : view === 'portals' ? (
+              <EnterprisePortalsWorkspace
+                user={user}
+                isSubscribed={!onFreePlan}
+                onNavigate={setView}
+                onToast={showToast}
+                onSignIn={() => setAuthModalOpen(true)}
+                onUpgrade={() => setPaywallForced(true)}
+                onAddToTracker={(companyName, careersUrl) => {
+                  setPrefill({
+                    company: companyName,
+                    jobUrl: careersUrl,
+                    source: 'Direct Portal',
+                    role: 'Engineering Role',
+                  })
+                  setFormOpen(true)
+                }}
               />
             ) : view === 'referrals' ? (
               <ReferralsWorkspace

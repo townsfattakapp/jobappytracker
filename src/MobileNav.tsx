@@ -18,7 +18,7 @@ interface MobileNavProps {
 const GROUPS: { label: string; icon: LucideIcon; matches: ViewMode[]; defaultView: ViewMode }[] = [
   { label: 'Home', icon: LayoutDashboard, matches: ['home', 'today'], defaultView: 'home' },
   { label: 'Career', icon: MapIcon, matches: ['roadmap', 'tracks', 'topicWorkspace'], defaultView: 'roadmap' },
-  { label: 'Jobs', icon: Search, matches: ['jobs', 'jobDetail', 'resume', 'dashboard', 'board', 'list', 'referrals'], defaultView: 'jobs' },
+  { label: 'Jobs', icon: Search, matches: ['jobs', 'jobDetail', 'portals', 'resume', 'dashboard', 'board', 'list', 'referrals'], defaultView: 'jobs' },
   { label: 'Engineer', icon: Code2, matches: ['dsa', 'systemDesign', 'labs', 'mock'], defaultView: 'dsa' },
   { label: 'More', icon: Menu, matches: ['prepKit', 'settings'], defaultView: 'prepKit' },
 ]

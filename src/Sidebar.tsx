@@ -4,6 +4,7 @@ import {
   Map as MapIcon,
   Compass,
   Search,
+  Building2,
   FileText,
   ChartNoAxesCombined,
   Columns3,
@@ -42,6 +43,7 @@ export type ViewMode =
   | 'jobs'
   | 'jobDetail'
   | 'resume'
+  | 'portals'
 
 export const NAV_SECTIONS: { category: string; items: { id: ViewMode; label: string; icon: LucideIcon }[] }[] = [
   {
@@ -57,6 +59,7 @@ export const NAV_SECTIONS: { category: string; items: { id: ViewMode; label: str
     category: 'Job Tracker',
     items: [
       { id: 'jobs', label: 'Job Discovery', icon: Search },
+      { id: 'portals', label: 'Enterprise Portals', icon: Building2 },
       { id: 'resume', label: 'Resume', icon: FileText },
       { id: 'dashboard', label: 'Dashboard', icon: ChartNoAxesCombined },
       { id: 'board', label: 'Kanban Board', icon: Columns3 },

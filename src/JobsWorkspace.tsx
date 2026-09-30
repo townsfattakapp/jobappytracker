@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   ArrowRight,
+  ArrowUpRight,
   Briefcase,
   Building2,
   CheckCircle2,
@@ -57,6 +58,7 @@ interface JobsWorkspaceProps {
   roadmap: RoadmapDay[]
   knowledgeWorkspaces: KnowledgeWorkspace[]
   onOpenJob: (id: string) => void
+  onOpenPortals?: () => void
   onSignIn: () => void
   onUpgrade: () => void
   onToast: (message: string) => void
@@ -173,6 +175,7 @@ export default function JobsWorkspace({
   roadmap: _roadmap,
   knowledgeWorkspaces: _knowledgeWorkspaces,
   onOpenJob,
+  onOpenPortals,
   onSignIn,
   onUpgrade,
   onToast,
@@ -515,12 +518,22 @@ export default function JobsWorkspace({
                 <span>{totalOpeningsCount.toLocaleString()} Openings</span>
               </span>
             )}
-            {others.length > 0 && (
+            {onOpenPortals ? (
+              <button
+                type="button"
+                onClick={onOpenPortals}
+                className="jobs-pill-stat hover:border-primary/60 hover:bg-primary/5 transition-all cursor-pointer font-bold text-primary"
+                title="Open dedicated Direct Enterprise Career Portals directory"
+              >
+                <Globe size={13} className="text-primary" />
+                <span>{others.length > 0 ? others.length : 300}+ Direct Portals ↗</span>
+              </button>
+            ) : others.length > 0 ? (
               <span className="jobs-pill-stat" title="Direct enterprise career portals">
                 <Globe size={13} className="text-blue-500" />
                 <span>{others.length} Direct Portals</span>
               </span>
-            )}
+            ) : null}
             {userSubscribed ? (
               <button
                 type="button"
@@ -546,6 +559,36 @@ export default function JobsWorkspace({
             )}
           </div>
         </header>
+
+        {/* Dedicated Direct Enterprise Portals Hub Quick Banner */}
+        {onOpenPortals && (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 p-4 rounded-2xl bg-gradient-to-r from-primary/10 via-card to-blue-500/10 border border-primary/25 shadow-xs mb-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0 shadow-xs">
+                <Building2 size={20} />
+              </span>
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <span>Direct Enterprise Career Portals</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/15 text-primary">
+                    300+ Verified
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground truncate">
+                  Looking to apply directly at official corporate sites (FAANG, GCCs, Banks & IT Leaders)? Browse the dedicated portal directory.
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onOpenPortals}
+              className="btn btn-primary btn-sm shrink-0 flex items-center gap-1.5 text-xs font-bold shadow-xs whitespace-nowrap"
+            >
+              <span>Explore Direct Portals</span>
+              <ArrowUpRight size={13} />
+            </button>
+          </div>
+        )}
 
         {/* Company Directory Hub: hiring companies + 100+ direct enterprise portals */}
         <CompanyStrip
