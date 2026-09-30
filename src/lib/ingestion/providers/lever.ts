@@ -33,6 +33,7 @@ export const leverProvider: JobProvider = {
     const res = await ctx.fetch(url, { headers: { accept: 'application/json', 'user-agent': 'JobAppy-ingestion/1.0 (+https://prep.evolw.in)' } })
     if (!res.ok) throw new Error(`Lever responded ${res.status} for site ${site}`)
     const body = (await res.json()) as LeverPosting[]
+    if (!Array.isArray(body)) throw new Error('Lever returned an unrecognised postings payload')
     const postings = Array.isArray(body) ? body : []
     ctx.log(`${postings.length} postings for ${site}`)
     return postings.map<RawJob>((p) => {

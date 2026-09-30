@@ -1,0 +1,2584 @@
+{
+  "checkedAt": "2026-09-30T05:28:11.351Z",
+  "scope": "Official source network reads; disposable local database only. Sampled API imports are PARTIAL, not full integrations. URL-only classifications are not live verifications.",
+  "totalEnterpriseCompanies": 304,
+  "portalOnlyCompanies": 117,
+  "providerDistribution": {
+    "amazon": 1,
+    "ashby": 37,
+    "atlassian": 1,
+    "eightfold": 3,
+    "greenhouse": 80,
+    "keka": 1,
+    "lever": 10,
+    "oraclecloud": 4,
+    "smartrecruiters": 4,
+    "static/server-rendered": 135,
+    "successfactors": 1,
+    "workday": 27
+  },
+  "successfullyIntegratedCompaniesLocal": 2,
+  "unsupportedProtectedCompanies": 4,
+  "jobsFetched": 60,
+  "relevantJobs": 17,
+  "duplicatesRemoved": 0,
+  "publishedJobsLocal": 17,
+  "publishedJobsProduction": 0,
+  "failedSources": [
+    "confluent",
+    "adobe",
+    "freshworks",
+    "oracle",
+    "quess-corp",
+    "dell"
+  ],
+  "providersAdded": [
+    "public-careers (public Schema.org JSON-LD / JSON JobPosting data)"
+  ],
+  "providersReused": [
+    "greenhouse",
+    "lever",
+    "ashby",
+    "workday",
+    "smartrecruiters",
+    "oraclecloud"
+  ],
+  "notTestedSources": [
+    "microsoft",
+    "google",
+    "amazon",
+    "atlassian",
+    "salesforce",
+    "sap",
+    "servicenow",
+    "intuit",
+    "cisco",
+    "nvidia",
+    "amd",
+    "qualcomm",
+    "uber",
+    "walmart-global-tech",
+    "paypal",
+    "autodesk",
+    "palo-alto-networks",
+    "booking-com",
+    "expedia-group",
+    "stripe",
+    "datadog",
+    "cloudflare",
+    "mongodb",
+    "snowflake",
+    "elastic",
+    "gitlab",
+    "twilio",
+    "okta",
+    "rubrik",
+    "inmobi",
+    "flipkart",
+    "phonepe",
+    "razorpay",
+    "paytm",
+    "meesho",
+    "swiggy",
+    "zomato",
+    "zoho",
+    "browserstack",
+    "postman",
+    "chargebee",
+    "whatfix",
+    "hasura",
+    "dream11",
+    "myntra",
+    "cred",
+    "groww",
+    "zerodha",
+    "juspay",
+    "clear",
+    "darwinbox",
+    "sharechat",
+    "ola",
+    "makemytrip",
+    "meta",
+    "apple",
+    "netflix",
+    "linkedin",
+    "goldman-sachs-engineering",
+    "jpmorgan-technology",
+    "visa",
+    "mastercard",
+    "databricks",
+    "openai",
+    "anthropic",
+    "airwallex",
+    "doordash",
+    "braze",
+    "binance",
+    "brex",
+    "roblox",
+    "samsara",
+    "coinbase",
+    "elevenlabs",
+    "scale-ai",
+    "flexport",
+    "fivetran",
+    "affirm",
+    "lyft",
+    "riot-games",
+    "figma",
+    "robinhood",
+    "airbnb",
+    "ramp",
+    "epic-games",
+    "pinterest",
+    "reddit",
+    "deliveroo",
+    "grafana-labs",
+    "cohere",
+    "notion",
+    "cursor",
+    "perplexity",
+    "plaid",
+    "instacart",
+    "intercom",
+    "baseten",
+    "asana",
+    "gusto",
+    "vercel",
+    "vanta",
+    "duolingo",
+    "hightouch",
+    "spotify",
+    "carta",
+    "replit",
+    "mixpanel",
+    "monzo",
+    "crypto-com",
+    "n26",
+    "chime",
+    "suno",
+    "neo4j",
+    "twitch",
+    "supabase",
+    "launchdarkly",
+    "peloton",
+    "new-relic",
+    "tailscale",
+    "pagerduty",
+    "rho",
+    "discord",
+    "dropbox",
+    "singlestore",
+    "fastly",
+    "bitwarden",
+    "render",
+    "drata",
+    "modal",
+    "amplitude",
+    "algolia",
+    "squarespace",
+    "linear",
+    "workos",
+    "webflow",
+    "oyster",
+    "anyscale",
+    "warp",
+    "contentful",
+    "cockroach-labs",
+    "midjourney",
+    "substack",
+    "yugabyte",
+    "circleci",
+    "patreon",
+    "mintlify",
+    "pika",
+    "calendly",
+    "planetscale",
+    "offchain-labs",
+    "sumo-logic",
+    "resend",
+    "posthog",
+    "railway",
+    "stability-ai",
+    "netlify",
+    "runway",
+    "airtable",
+    "clerk",
+    "zeta",
+    "atlan",
+    "observe-ai",
+    "fampay",
+    "zenoti",
+    "highradius",
+    "zuora",
+    "sigmoid",
+    "glance",
+    "thoughtworks",
+    "turing",
+    "hp",
+    "workday",
+    "target",
+    "accenture",
+    "micron",
+    "intel",
+    "cadence",
+    "nike",
+    "citi",
+    "barclays",
+    "nxp",
+    "marvell",
+    "comcast",
+    "nbcuniversal",
+    "sky",
+    "zs",
+    "persistent",
+    "jio",
+    "deloitte-india",
+    "keka",
+    "wednesday",
+    "amdocs",
+    "happiest-minds",
+    "concentrix",
+    "mphasis",
+    "ust",
+    "ifedora",
+    "nusummit",
+    "bridgenext",
+    "kpmg",
+    "siemens",
+    "amla-commerce",
+    "zensar",
+    "ampcus",
+    "insurity",
+    "ltimindtree",
+    "ltts",
+    "synopsys",
+    "capgemini",
+    "ntt-data",
+    "nutanix",
+    "caterpillar",
+    "bp",
+    "dupont",
+    "bank-of-america",
+    "american-express",
+    "halliburton",
+    "progressive-infotech",
+    "lear",
+    "xiaomi",
+    "schneider-electric",
+    "infosys",
+    "cognizant",
+    "tech-mahindra",
+    "hcltech",
+    "genpact",
+    "adp",
+    "dxc-technology",
+    "epam",
+    "virtusa",
+    "thomson-reuters",
+    "honeywell",
+    "cyient",
+    "opentext",
+    "valuelabs",
+    "globallogic",
+    "ncr-voyix",
+    "ncr-atleos",
+    "infor",
+    "coforge",
+    "hitachi-vantara",
+    "blue-yonder",
+    "pega",
+    "birlasoft",
+    "maq-software",
+    "petpooja",
+    "marg-erp",
+    "entain",
+    "247-ai",
+    "cdk-global",
+    "kyndryl",
+    "teradata",
+    "yash-technologies",
+    "mathworks",
+    "conduent",
+    "innova-solutions",
+    "valuemomentum",
+    "ness",
+    "phenom-people",
+    "nagarro",
+    "hpe",
+    "unisys",
+    "hexaware",
+    "itc-infotech",
+    "altimetrik",
+    "indeed",
+    "arcesium",
+    "synechron",
+    "f5",
+    "movate",
+    "ssc-technologies",
+    "atos",
+    "people-tech-group",
+    "cybage",
+    "innominds",
+    "gep",
+    "sonata-software",
+    "htc-global-services",
+    "cotiviti",
+    "fujitsu",
+    "aveva",
+    "stefanini",
+    "trianz",
+    "photon",
+    "infinite-computer",
+    "igate",
+    "verisk",
+    "rackspace",
+    "globant",
+    "brillio",
+    "rmsi",
+    "backbase",
+    "tide",
+    "avaya"
+  ],
+  "checks": [
+    {
+      "slug": "druva",
+      "provider": "greenhouse",
+      "status": "INTEGRATED (LOCAL)",
+      "fetched": 34,
+      "relevant": 11,
+      "duplicates": 0,
+      "published": 11,
+      "secondRunCreated": 0,
+      "note": "Official public payload ingested twice into isolated local database."
+    },
+    {
+      "slug": "mindtickle",
+      "provider": "lever",
+      "status": "INTEGRATED (LOCAL)",
+      "fetched": 17,
+      "relevant": 5,
+      "duplicates": 0,
+      "published": 5,
+      "secondRunCreated": 0,
+      "note": "Official public payload ingested twice into isolated local database."
+    },
+    {
+      "slug": "confluent",
+      "provider": "ashby",
+      "status": "PROTECTED",
+      "fetched": 0,
+      "relevant": 0,
+      "duplicates": 0,
+      "published": 0,
+      "secondRunCreated": null,
+      "note": "Robots policy unavailable (401)"
+    },
+    {
+      "slug": "adobe",
+      "provider": "workday",
+      "status": "PARTIAL",
+      "fetched": 3,
+      "relevant": 0,
+      "duplicates": 0,
+      "published": 0,
+      "secondRunCreated": 0,
+      "note": "Incomplete import: Workday search capped at 3"
+    },
+    {
+      "slug": "freshworks",
+      "provider": "smartrecruiters",
+      "status": "PROTECTED",
+      "fetched": 0,
+      "relevant": 0,
+      "duplicates": 0,
+      "published": 0,
+      "secondRunCreated": null,
+      "note": "robots.txt disallows this URL"
+    },
+    {
+      "slug": "oracle",
+      "provider": "oraclecloud",
+      "status": "PARTIAL",
+      "fetched": 3,
+      "relevant": 1,
+      "duplicates": 0,
+      "published": 1,
+      "secondRunCreated": 0,
+      "note": "Incomplete import: Oracle search capped at 3"
+    },
+    {
+      "slug": "wipro",
+      "provider": "successfactors",
+      "status": "UNSUPPORTED",
+      "fetched": 0,
+      "relevant": 0,
+      "duplicates": 0,
+      "published": 0,
+      "secondRunCreated": null,
+      "note": "No supported public feed or JobPosting data found. Official career URL retained."
+    },
+    {
+      "slug": "quess-corp",
+      "provider": "oraclecloud",
+      "status": "PARTIAL",
+      "fetched": 0,
+      "relevant": 0,
+      "duplicates": 0,
+      "published": 0,
+      "secondRunCreated": 0,
+      "note": "Incomplete import: Oracle search capped at 3; Oracle detail missing description; Oracle detail missing description; Oracle detail missing description"
+    },
+    {
+      "slug": "ibm",
+      "provider": "static/server-rendered",
+      "status": "UNSUPPORTED",
+      "fetched": 0,
+      "relevant": 0,
+      "duplicates": 0,
+      "published": 0,
+      "secondRunCreated": null,
+      "note": "No supported public feed or JobPosting data found. Official career URL retained."
+    },
+    {
+      "slug": "dell",
+      "provider": "oraclecloud",
+      "status": "PARTIAL",
+      "fetched": 3,
+      "relevant": 0,
+      "duplicates": 0,
+      "published": 0,
+      "secondRunCreated": 0,
+      "note": "Incomplete import: Oracle search capped at 3"
+    }
+  ],
+  "companies": [
+    {
+      "slug": "microsoft",
+      "name": "Microsoft",
+      "careersUrl": "https://careers.microsoft.com/",
+      "providerDetected": "eightfold",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "google",
+      "name": "Google",
+      "careersUrl": "https://www.google.com/about/careers/applications/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "amazon",
+      "name": "Amazon",
+      "careersUrl": "https://www.amazon.jobs/",
+      "providerDetected": "amazon",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "adobe",
+      "name": "Adobe",
+      "careersUrl": "https://careers.adobe.com/",
+      "providerDetected": "workday",
+      "verification": "PARTIAL"
+    },
+    {
+      "slug": "atlassian",
+      "name": "Atlassian",
+      "careersUrl": "https://www.atlassian.com/company/careers",
+      "providerDetected": "atlassian",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "salesforce",
+      "name": "Salesforce",
+      "careersUrl": "https://careers.salesforce.com/",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "oracle",
+      "name": "Oracle",
+      "careersUrl": "https://www.oracle.com/careers/",
+      "providerDetected": "oraclecloud",
+      "verification": "PARTIAL"
+    },
+    {
+      "slug": "sap",
+      "name": "SAP",
+      "careersUrl": "https://jobs.sap.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "servicenow",
+      "name": "ServiceNow",
+      "careersUrl": "https://careers.servicenow.com/",
+      "providerDetected": "smartrecruiters",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "intuit",
+      "name": "Intuit",
+      "careersUrl": "https://www.intuit.com/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "cisco",
+      "name": "Cisco",
+      "careersUrl": "https://jobs.cisco.com/",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "nvidia",
+      "name": "NVIDIA",
+      "careersUrl": "https://www.nvidia.com/en-in/about-nvidia/careers/",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "amd",
+      "name": "AMD",
+      "careersUrl": "https://www.amd.com/en/corporate/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "qualcomm",
+      "name": "Qualcomm",
+      "careersUrl": "https://careers.qualcomm.com/",
+      "providerDetected": "eightfold",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "uber",
+      "name": "Uber",
+      "careersUrl": "https://www.uber.com/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "walmart-global-tech",
+      "name": "Walmart Global Tech",
+      "careersUrl": "https://careers.walmart.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "paypal",
+      "name": "PayPal",
+      "careersUrl": "https://www.paypal.com/us/webapps/mpp/jobs",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "autodesk",
+      "name": "Autodesk",
+      "careersUrl": "https://www.autodesk.com/careers",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "palo-alto-networks",
+      "name": "Palo Alto Networks",
+      "careersUrl": "https://jobs.paloaltonetworks.com/",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "booking-com",
+      "name": "Booking.com",
+      "careersUrl": "https://jobs.booking.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "expedia-group",
+      "name": "Expedia Group",
+      "careersUrl": "https://careers.expediagroup.com/",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "stripe",
+      "name": "Stripe",
+      "careersUrl": "https://stripe.com/jobs",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "datadog",
+      "name": "Datadog",
+      "careersUrl": "https://careers.datadoghq.com/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "cloudflare",
+      "name": "Cloudflare",
+      "careersUrl": "https://www.cloudflare.com/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "mongodb",
+      "name": "MongoDB",
+      "careersUrl": "https://www.mongodb.com/company/careers/see-jobs",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "confluent",
+      "name": "Confluent",
+      "careersUrl": "https://www.confluent.io/careers/",
+      "providerDetected": "ashby",
+      "verification": "PROTECTED"
+    },
+    {
+      "slug": "snowflake",
+      "name": "Snowflake",
+      "careersUrl": "https://careers.snowflake.com/",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "elastic",
+      "name": "Elastic",
+      "careersUrl": "https://www.elastic.co/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "gitlab",
+      "name": "GitLab",
+      "careersUrl": "https://about.gitlab.com/jobs/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "twilio",
+      "name": "Twilio",
+      "careersUrl": "https://www.twilio.com/en-us/company/jobs",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "okta",
+      "name": "Okta",
+      "careersUrl": "https://www.okta.com/company/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "rubrik",
+      "name": "Rubrik",
+      "careersUrl": "https://www.rubrik.com/company/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "druva",
+      "name": "Druva",
+      "careersUrl": "https://www.druva.com/about/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "INTEGRATED (LOCAL)"
+    },
+    {
+      "slug": "inmobi",
+      "name": "InMobi",
+      "careersUrl": "https://www.inmobi.com/company/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "flipkart",
+      "name": "Flipkart",
+      "careersUrl": "https://www.flipkartcareers.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "phonepe",
+      "name": "PhonePe",
+      "careersUrl": "https://www.phonepe.com/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "razorpay",
+      "name": "Razorpay",
+      "careersUrl": "https://razorpay.com/jobs/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "paytm",
+      "name": "Paytm",
+      "careersUrl": "https://paytm.com/careers/",
+      "providerDetected": "lever",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "meesho",
+      "name": "Meesho",
+      "careersUrl": "https://www.meesho.io/jobs",
+      "providerDetected": "lever",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "swiggy",
+      "name": "Swiggy",
+      "careersUrl": "https://careers.swiggy.com/",
+      "providerDetected": "smartrecruiters",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "zomato",
+      "name": "Zomato",
+      "careersUrl": "https://www.zomato.com/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "freshworks",
+      "name": "Freshworks",
+      "careersUrl": "https://www.freshworks.com/company/careers/",
+      "providerDetected": "smartrecruiters",
+      "verification": "PROTECTED"
+    },
+    {
+      "slug": "zoho",
+      "name": "Zoho",
+      "careersUrl": "https://www.zoho.com/careers.html",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "browserstack",
+      "name": "BrowserStack",
+      "careersUrl": "https://www.browserstack.com/careers",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "postman",
+      "name": "Postman",
+      "careersUrl": "https://www.postman.com/company/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "chargebee",
+      "name": "Chargebee",
+      "careersUrl": "https://www.chargebee.com/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "whatfix",
+      "name": "Whatfix",
+      "careersUrl": "https://whatfix.com/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "hasura",
+      "name": "Hasura",
+      "careersUrl": "https://hasura.io/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "dream11",
+      "name": "Dream11 (Dream Sports)",
+      "careersUrl": "https://www.dreamsports.group/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "myntra",
+      "name": "Myntra",
+      "careersUrl": "https://careers.myntra.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "cred",
+      "name": "CRED",
+      "careersUrl": "https://careers.cred.club/",
+      "providerDetected": "lever",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "groww",
+      "name": "Groww",
+      "careersUrl": "https://groww.in/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "zerodha",
+      "name": "Zerodha",
+      "careersUrl": "https://zerodha.com/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "juspay",
+      "name": "Juspay",
+      "careersUrl": "https://juspay.io/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "clear",
+      "name": "Clear (ClearTax)",
+      "careersUrl": "https://clear.in/s/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "mindtickle",
+      "name": "Mindtickle",
+      "careersUrl": "https://jobs.lever.co/mindtickle",
+      "providerDetected": "lever",
+      "verification": "INTEGRATED (LOCAL)"
+    },
+    {
+      "slug": "darwinbox",
+      "name": "Darwinbox",
+      "careersUrl": "https://darwinbox.com/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "sharechat",
+      "name": "ShareChat",
+      "careersUrl": "https://sharechat.com/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "ola",
+      "name": "Ola",
+      "careersUrl": "https://www.olacabs.com/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "makemytrip",
+      "name": "MakeMyTrip",
+      "careersUrl": "https://careers.makemytrip.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "meta",
+      "name": "Meta",
+      "careersUrl": "https://www.metacareers.com/jobs",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "apple",
+      "name": "Apple",
+      "careersUrl": "https://jobs.apple.com/en-in/search",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "netflix",
+      "name": "Netflix",
+      "careersUrl": "https://explore.jobs.netflix.net/careers",
+      "providerDetected": "eightfold",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "linkedin",
+      "name": "LinkedIn",
+      "careersUrl": "https://careers.linkedin.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "goldman-sachs-engineering",
+      "name": "Goldman Sachs Engineering",
+      "careersUrl": "https://www.goldmansachs.com/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "jpmorgan-technology",
+      "name": "JPMorgan Chase Technology",
+      "careersUrl": "https://careers.jpmorgan.com/",
+      "providerDetected": "oraclecloud",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "visa",
+      "name": "Visa",
+      "careersUrl": "https://www.visa.co.in/careers.html",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "mastercard",
+      "name": "Mastercard",
+      "careersUrl": "https://careers.mastercard.com/",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "databricks",
+      "name": "Databricks",
+      "careersUrl": "https://www.databricks.com/company/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "openai",
+      "name": "OpenAI",
+      "careersUrl": "https://openai.com/careers/",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "anthropic",
+      "name": "Anthropic",
+      "careersUrl": "https://www.anthropic.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "airwallex",
+      "name": "Airwallex",
+      "careersUrl": "https://www.airwallex.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "doordash",
+      "name": "DoorDash",
+      "careersUrl": "https://careers.doordash.com/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "braze",
+      "name": "Braze",
+      "careersUrl": "https://www.braze.com/company/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "binance",
+      "name": "Binance",
+      "careersUrl": "https://www.binance.com/en/careers",
+      "providerDetected": "lever",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "brex",
+      "name": "Brex",
+      "careersUrl": "https://www.brex.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "roblox",
+      "name": "Roblox",
+      "careersUrl": "https://careers.roblox.com/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "samsara",
+      "name": "Samsara",
+      "careersUrl": "https://www.samsara.com/company/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "coinbase",
+      "name": "Coinbase",
+      "careersUrl": "https://www.coinbase.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "elevenlabs",
+      "name": "ElevenLabs",
+      "careersUrl": "https://elevenlabs.io/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "scale-ai",
+      "name": "Scale AI",
+      "careersUrl": "https://scale.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "flexport",
+      "name": "Flexport",
+      "careersUrl": "https://www.flexport.com/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "fivetran",
+      "name": "Fivetran",
+      "careersUrl": "https://www.fivetran.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "affirm",
+      "name": "Affirm",
+      "careersUrl": "https://www.affirm.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "lyft",
+      "name": "Lyft",
+      "careersUrl": "https://www.lyft.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "riot-games",
+      "name": "Riot Games",
+      "careersUrl": "https://www.riotgames.com/en/work-with-us",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "figma",
+      "name": "Figma",
+      "careersUrl": "https://www.figma.com/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "robinhood",
+      "name": "Robinhood",
+      "careersUrl": "https://careers.robinhood.com/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "airbnb",
+      "name": "Airbnb",
+      "careersUrl": "https://careers.airbnb.com/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "ramp",
+      "name": "Ramp",
+      "careersUrl": "https://ramp.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "epic-games",
+      "name": "Epic Games",
+      "careersUrl": "https://www.epicgames.com/site/en-US/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "pinterest",
+      "name": "Pinterest",
+      "careersUrl": "https://www.pinterestcareers.com/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "reddit",
+      "name": "Reddit",
+      "careersUrl": "https://www.redditinc.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "deliveroo",
+      "name": "Deliveroo",
+      "careersUrl": "https://careers.deliveroo.co.uk/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "grafana-labs",
+      "name": "Grafana Labs",
+      "careersUrl": "https://grafana.com/about/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "cohere",
+      "name": "Cohere",
+      "careersUrl": "https://cohere.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "notion",
+      "name": "Notion",
+      "careersUrl": "https://www.notion.so/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "cursor",
+      "name": "Cursor (Anysphere)",
+      "careersUrl": "https://cursor.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "perplexity",
+      "name": "Perplexity",
+      "careersUrl": "https://www.perplexity.ai/hub/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "plaid",
+      "name": "Plaid",
+      "careersUrl": "https://plaid.com/careers/",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "instacart",
+      "name": "Instacart",
+      "careersUrl": "https://careers.instacart.com/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "intercom",
+      "name": "Intercom",
+      "careersUrl": "https://www.intercom.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "baseten",
+      "name": "Baseten",
+      "careersUrl": "https://www.baseten.co/careers/",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "asana",
+      "name": "Asana",
+      "careersUrl": "https://asana.com/jobs",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "gusto",
+      "name": "Gusto",
+      "careersUrl": "https://gusto.com/about/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "vercel",
+      "name": "Vercel",
+      "careersUrl": "https://vercel.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "vanta",
+      "name": "Vanta",
+      "careersUrl": "https://www.vanta.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "duolingo",
+      "name": "Duolingo",
+      "careersUrl": "https://careers.duolingo.com/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "hightouch",
+      "name": "Hightouch",
+      "careersUrl": "https://hightouch.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "spotify",
+      "name": "Spotify",
+      "careersUrl": "https://www.lifeatspotify.com/jobs",
+      "providerDetected": "lever",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "carta",
+      "name": "Carta",
+      "careersUrl": "https://carta.com/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "replit",
+      "name": "Replit",
+      "careersUrl": "https://replit.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "mixpanel",
+      "name": "Mixpanel",
+      "careersUrl": "https://mixpanel.com/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "monzo",
+      "name": "Monzo",
+      "careersUrl": "https://monzo.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "crypto-com",
+      "name": "Crypto.com",
+      "careersUrl": "https://jobs.lever.co/crypto",
+      "providerDetected": "lever",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "n26",
+      "name": "N26",
+      "careersUrl": "https://n26.com/en/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "chime",
+      "name": "Chime",
+      "careersUrl": "https://careers.chime.com/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "suno",
+      "name": "Suno",
+      "careersUrl": "https://suno.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "neo4j",
+      "name": "Neo4j",
+      "careersUrl": "https://neo4j.com/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "twitch",
+      "name": "Twitch",
+      "careersUrl": "https://www.twitch.tv/jobs/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "supabase",
+      "name": "Supabase",
+      "careersUrl": "https://supabase.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "launchdarkly",
+      "name": "LaunchDarkly",
+      "careersUrl": "https://launchdarkly.com/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "peloton",
+      "name": "Peloton",
+      "careersUrl": "https://careers.onepeloton.com/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "new-relic",
+      "name": "New Relic",
+      "careersUrl": "https://newrelic.com/about/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "tailscale",
+      "name": "Tailscale",
+      "careersUrl": "https://tailscale.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "pagerduty",
+      "name": "PagerDuty",
+      "careersUrl": "https://careers.pagerduty.com/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "rho",
+      "name": "Rho",
+      "careersUrl": "https://www.rho.co/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "discord",
+      "name": "Discord",
+      "careersUrl": "https://discord.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "dropbox",
+      "name": "Dropbox",
+      "careersUrl": "https://jobs.dropbox.com/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "singlestore",
+      "name": "SingleStore",
+      "careersUrl": "https://www.singlestore.com/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "fastly",
+      "name": "Fastly",
+      "careersUrl": "https://www.fastly.com/about/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "bitwarden",
+      "name": "Bitwarden",
+      "careersUrl": "https://bitwarden.com/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "render",
+      "name": "Render",
+      "careersUrl": "https://render.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "drata",
+      "name": "Drata",
+      "careersUrl": "https://drata.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "modal",
+      "name": "Modal",
+      "careersUrl": "https://modal.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "amplitude",
+      "name": "Amplitude",
+      "careersUrl": "https://amplitude.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "algolia",
+      "name": "Algolia",
+      "careersUrl": "https://www.algolia.com/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "squarespace",
+      "name": "Squarespace",
+      "careersUrl": "https://www.squarespace.com/about/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "linear",
+      "name": "Linear",
+      "careersUrl": "https://linear.app/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "workos",
+      "name": "WorkOS",
+      "careersUrl": "https://workos.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "webflow",
+      "name": "Webflow",
+      "careersUrl": "https://webflow.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "oyster",
+      "name": "Oyster",
+      "careersUrl": "https://www.oysterhr.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "anyscale",
+      "name": "Anyscale",
+      "careersUrl": "https://www.anyscale.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "warp",
+      "name": "Warp",
+      "careersUrl": "https://www.warp.dev/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "contentful",
+      "name": "Contentful",
+      "careersUrl": "https://www.contentful.com/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "cockroach-labs",
+      "name": "Cockroach Labs",
+      "careersUrl": "https://www.cockroachlabs.com/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "midjourney",
+      "name": "Midjourney",
+      "careersUrl": "https://jobs.ashbyhq.com/midjourney",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "substack",
+      "name": "Substack",
+      "careersUrl": "https://substack.com/jobs",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "yugabyte",
+      "name": "Yugabyte",
+      "careersUrl": "https://www.yugabyte.com/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "circleci",
+      "name": "CircleCI",
+      "careersUrl": "https://circleci.com/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "patreon",
+      "name": "Patreon",
+      "careersUrl": "https://www.patreon.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "mintlify",
+      "name": "Mintlify",
+      "careersUrl": "https://mintlify.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "pika",
+      "name": "Pika",
+      "careersUrl": "https://jobs.ashbyhq.com/pika",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "calendly",
+      "name": "Calendly",
+      "careersUrl": "https://careers.calendly.com/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "planetscale",
+      "name": "PlanetScale",
+      "careersUrl": "https://planetscale.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "offchain-labs",
+      "name": "Offchain Labs (Arbitrum)",
+      "careersUrl": "https://jobs.lever.co/offchainlabs",
+      "providerDetected": "lever",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "sumo-logic",
+      "name": "Sumo Logic",
+      "careersUrl": "https://www.sumologic.com/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "resend",
+      "name": "Resend",
+      "careersUrl": "https://resend.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "posthog",
+      "name": "PostHog",
+      "careersUrl": "https://posthog.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "railway",
+      "name": "Railway",
+      "careersUrl": "https://railway.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "stability-ai",
+      "name": "Stability AI",
+      "careersUrl": "https://stability.ai/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "netlify",
+      "name": "Netlify",
+      "careersUrl": "https://www.netlify.com/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "runway",
+      "name": "Runway",
+      "careersUrl": "https://runwayml.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "airtable",
+      "name": "Airtable",
+      "careersUrl": "https://airtable.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "clerk",
+      "name": "Clerk",
+      "careersUrl": "https://clerk.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "zeta",
+      "name": "Zeta",
+      "careersUrl": "https://jobs.lever.co/zeta",
+      "providerDetected": "lever",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "atlan",
+      "name": "Atlan",
+      "careersUrl": "https://atlan.com/careers/",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "observe-ai",
+      "name": "Observe.AI",
+      "careersUrl": "https://www.observe.ai/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "fampay",
+      "name": "FamPay",
+      "careersUrl": "https://jobs.lever.co/fampay",
+      "providerDetected": "lever",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "zenoti",
+      "name": "Zenoti",
+      "careersUrl": "https://www.zenoti.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "highradius",
+      "name": "HighRadius",
+      "careersUrl": "https://www.highradius.com/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "zuora",
+      "name": "Zuora",
+      "careersUrl": "https://www.zuora.com/company/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "sigmoid",
+      "name": "Sigmoid",
+      "careersUrl": "https://www.sigmoid.com/careers/",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "glance",
+      "name": "Glance",
+      "careersUrl": "https://glance.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "thoughtworks",
+      "name": "Thoughtworks",
+      "careersUrl": "https://www.thoughtworks.com/careers",
+      "providerDetected": "ashby",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "turing",
+      "name": "Turing",
+      "careersUrl": "https://www.turing.com/careers",
+      "providerDetected": "greenhouse",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "hp",
+      "name": "HP",
+      "careersUrl": "https://jobs.hp.com/",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "workday",
+      "name": "Workday",
+      "careersUrl": "https://www.workday.com/en-us/company/careers.html",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "target",
+      "name": "Target (Target in India)",
+      "careersUrl": "https://india.target.com/careers",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "accenture",
+      "name": "Accenture",
+      "careersUrl": "https://www.accenture.com/in-en/careers",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "micron",
+      "name": "Micron Technology",
+      "careersUrl": "https://www.micron.com/careers",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "intel",
+      "name": "Intel",
+      "careersUrl": "https://jobs.intel.com/",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "cadence",
+      "name": "Cadence Design Systems",
+      "careersUrl": "https://www.cadence.com/en_US/home/company/careers.html",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "nike",
+      "name": "Nike",
+      "careersUrl": "https://jobs.nike.com/",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "citi",
+      "name": "Citi",
+      "careersUrl": "https://jobs.citi.com/",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "barclays",
+      "name": "Barclays",
+      "careersUrl": "https://search.jobs.barclays/",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "nxp",
+      "name": "NXP Semiconductors",
+      "careersUrl": "https://www.nxp.com/company/about-nxp/careers:CAREERS",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "marvell",
+      "name": "Marvell Technology",
+      "careersUrl": "https://careers.marvell.com/",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "comcast",
+      "name": "Comcast",
+      "careersUrl": "https://jobs.comcast.com/",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "nbcuniversal",
+      "name": "NBCUniversal",
+      "careersUrl": "https://www.nbcunicareers.com/careers",
+      "providerDetected": "smartrecruiters",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "sky",
+      "name": "Sky",
+      "careersUrl": "https://careers.sky.com/jobs",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "zs",
+      "name": "ZS",
+      "careersUrl": "https://jobs.zs.com/all/jobs",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "persistent",
+      "name": "Persistent Systems",
+      "careersUrl": "https://careers.persistent.com/explore-opportunities",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "jio",
+      "name": "Jio (Reliance Jio)",
+      "careersUrl": "https://careers.jio.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "deloitte-india",
+      "name": "Deloitte India",
+      "careersUrl": "https://southasiacareers.deloitte.com/go/Deloitte-India/718244/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "keka",
+      "name": "Keka",
+      "careersUrl": "https://hr.keka.com/careers",
+      "providerDetected": "keka",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "wednesday",
+      "name": "Wednesday Solutions",
+      "careersUrl": "https://www.wednesday.is/hiring",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "amdocs",
+      "name": "Amdocs",
+      "careersUrl": "https://jobs.amdocs.com/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "happiest-minds",
+      "name": "Happiest Minds",
+      "careersUrl": "https://jobs.happiestminds.com/happiestminds/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "concentrix",
+      "name": "Concentrix",
+      "careersUrl": "https://jobs.concentrix.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "mphasis",
+      "name": "Mphasis",
+      "careersUrl": "https://careers.mphasis.com/home.html",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "ust",
+      "name": "UST",
+      "careersUrl": "https://www.ust.com/en/jobsearch",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "ifedora",
+      "name": "iFedora",
+      "careersUrl": "https://www.ifedora.com/careers/#benefits51f3-9aa5",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "nusummit",
+      "name": "NuSummit Solutions",
+      "careersUrl": "https://www.nusummit.com/current-openings/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "bridgenext",
+      "name": "Bridgenext",
+      "careersUrl": "https://indcareers-bridgenext.icims.com/jobs/intro",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "kpmg",
+      "name": "KPMG India",
+      "careersUrl": "https://kpmg.com/in/en/careers.html",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "siemens",
+      "name": "Siemens",
+      "careersUrl": "https://jobs.siemens.com/en_US/externaljobs/SearchJobs/?42414=%5B812053%5D&42414_format=17570&listFilterMode=1&folderRecordsPerPage=6&",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "amla-commerce",
+      "name": "Amla Commerce",
+      "careersUrl": "https://www.amla.io/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "zensar",
+      "name": "Zensar Technologies",
+      "careersUrl": "https://www.zensar.com/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "ampcus",
+      "name": "Ampcus",
+      "careersUrl": "https://ampcus.com/current-openings/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "insurity",
+      "name": "Insurity",
+      "careersUrl": "https://insurity.com/careers#open-positions",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "ltimindtree",
+      "name": "LTIMindtree",
+      "careersUrl": "https://ltimindtree.ripplehire.com/candidate/?token=xviyQvbnyYZdGtozXoNm&lang=en&source=CAREERSITE#list/geo=India",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "ltts",
+      "name": "L&T Technology Services (LTTS)",
+      "careersUrl": "https://www.ltts.com/careers/india",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "wipro",
+      "name": "Wipro",
+      "careersUrl": "https://careers.wipro.com/",
+      "providerDetected": "successfactors",
+      "verification": "UNSUPPORTED"
+    },
+    {
+      "slug": "synopsys",
+      "name": "Synopsys",
+      "careersUrl": "https://careers.synopsys.com/search-jobs/ansys/44408/1?",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "capgemini",
+      "name": "Capgemini",
+      "careersUrl": "https://www.capgemini.com/careers/join-capgemini/job-search/?page=1&size=11",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "ntt-data",
+      "name": "NTT DATA",
+      "careersUrl": "https://careers.nttdata.com/global/en/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "nutanix",
+      "name": "Nutanix",
+      "careersUrl": "https://careers.nutanix.com/en/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "caterpillar",
+      "name": "Caterpillar",
+      "careersUrl": "https://careers.caterpillar.com/en/jobs/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "bp",
+      "name": "bp (British Petroleum)",
+      "careersUrl": "https://careers.bp.com/professionals/finance-and-business-technology",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "dupont",
+      "name": "DuPont",
+      "careersUrl": "https://careers.dupont.com/us/en",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "bank-of-america",
+      "name": "Bank of America",
+      "careersUrl": "https://careers.bankofamerica.com/en-us",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "american-express",
+      "name": "American Express",
+      "careersUrl": "https://www.americanexpress.com/en-us/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "halliburton",
+      "name": "Halliburton",
+      "careersUrl": "https://jobs.halliburton.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "progressive-infotech",
+      "name": "Progressive Infotech",
+      "careersUrl": "https://www.progressive.in/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "lear",
+      "name": "Lear Corporation",
+      "careersUrl": "https://www.lear.com/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "xiaomi",
+      "name": "Xiaomi India",
+      "careersUrl": "https://www.mi.com/in/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "schneider-electric",
+      "name": "Schneider Electric",
+      "careersUrl": "https://careers.se.com/jobs",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "infosys",
+      "name": "Infosys",
+      "careersUrl": "https://www.infosys.com/careers.html",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "ibm",
+      "name": "IBM",
+      "careersUrl": "https://www.ibm.com/in-en/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "UNSUPPORTED"
+    },
+    {
+      "slug": "cognizant",
+      "name": "Cognizant",
+      "careersUrl": "https://careers.cognizant.com/us-en/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "tech-mahindra",
+      "name": "Tech Mahindra",
+      "careersUrl": "https://www.techmahindra.com/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "hcltech",
+      "name": "HCLTech",
+      "careersUrl": "https://careers.hcltech.com/job/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "genpact",
+      "name": "Genpact",
+      "careersUrl": "https://www.genpact.com/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "adp",
+      "name": "ADP",
+      "careersUrl": "https://jobs.adp.com/en/?rb=ADP_COM",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "dell",
+      "name": "Dell Technologies",
+      "careersUrl": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/jobs?lastSelectedFacet=TITLES&mode=location&selectedTitlesFacet=ENGREDEV%3BENGINEERING+SERVICES",
+      "providerDetected": "oraclecloud",
+      "verification": "PARTIAL"
+    },
+    {
+      "slug": "dxc-technology",
+      "name": "DXC Technology",
+      "careersUrl": "https://careers.dxc.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "epam",
+      "name": "EPAM Systems",
+      "careersUrl": "https://careers.epam.com/en/jobs",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "virtusa",
+      "name": "Virtusa",
+      "careersUrl": "https://www.virtusa.com/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "thomson-reuters",
+      "name": "Thomson Reuters",
+      "careersUrl": "https://www.thomsonreuters.com/en/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "honeywell",
+      "name": "Honeywell",
+      "careersUrl": "https://careers.honeywell.com/en/sites/Honeywell",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "cyient",
+      "name": "Cyient",
+      "careersUrl": "https://careers.cyient.com/cyient/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "opentext",
+      "name": "OpenText",
+      "careersUrl": "https://careers.opentext.com/us/en",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "valuelabs",
+      "name": "ValueLabs",
+      "careersUrl": "https://www.valuelabs.com/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "globallogic",
+      "name": "GlobalLogic",
+      "careersUrl": "https://www.globallogic.com/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "ncr-voyix",
+      "name": "NCR Voyix",
+      "careersUrl": "https://www.ncrvoyix.com/about/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "ncr-atleos",
+      "name": "NCR Atleos",
+      "careersUrl": "https://www.ncratleos.com/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "infor",
+      "name": "Infor",
+      "careersUrl": "https://careers.infor.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "coforge",
+      "name": "Coforge",
+      "careersUrl": "https://careers.coforge.com/coforge/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "hitachi-vantara",
+      "name": "Hitachi Vantara",
+      "careersUrl": "https://www.hitachivantara.com/en-us/company/careers/job-search",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "blue-yonder",
+      "name": "Blue Yonder",
+      "careersUrl": "https://careers.blueyonder.com/us/en",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "pega",
+      "name": "Pegasystems",
+      "careersUrl": "https://www.pega.com/about/careers/job-listings",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "birlasoft",
+      "name": "Birlasoft",
+      "careersUrl": "https://jobs.birlasoft.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "maq-software",
+      "name": "MAQ Software",
+      "careersUrl": "https://maqsoftware.com/careers#open-positions",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "petpooja",
+      "name": "Petpooja",
+      "careersUrl": "https://jobs.klimb.io/petpooja",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "marg-erp",
+      "name": "Marg ERP",
+      "careersUrl": "https://margcompusoft.com/career.aspx",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "entain",
+      "name": "Entain India",
+      "careersUrl": "https://careers.entainindia.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "247-ai",
+      "name": "[24]7.ai",
+      "careersUrl": "https://www.247.ai/jobs/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "cdk-global",
+      "name": "CDK Global",
+      "careersUrl": "https://careers.cdkglobal.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "kyndryl",
+      "name": "Kyndryl",
+      "careersUrl": "https://www.kyndryl.com/in/en/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "teradata",
+      "name": "Teradata",
+      "careersUrl": "https://careers.teradata.com/jobs",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "yash-technologies",
+      "name": "YASH Technologies",
+      "careersUrl": "https://www.yash.com/about-us/career/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "mathworks",
+      "name": "MathWorks",
+      "careersUrl": "https://in.mathworks.com/company/jobs/opportunities/search/?s_tid=nav_company_jobs",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "conduent",
+      "name": "Conduent",
+      "careersUrl": "https://careers.conduent.com/us/en",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "innova-solutions",
+      "name": "Innova Solutions",
+      "careersUrl": "https://innovasolutions.com/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "valuemomentum",
+      "name": "ValueMomentum",
+      "careersUrl": "https://valuemomentum.com/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "ness",
+      "name": "Ness Digital Engineering",
+      "careersUrl": "https://ness-usa.ttcportals.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "phenom-people",
+      "name": "Phenom",
+      "careersUrl": "https://careers.phenompeople.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "nagarro",
+      "name": "Nagarro",
+      "careersUrl": "https://www.nagarro.com/en/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "hpe",
+      "name": "Hewlett Packard Enterprise (HPE)",
+      "careersUrl": "https://careers.hpe.com/us/en",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "unisys",
+      "name": "Unisys",
+      "careersUrl": "https://www.unisys.com/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "hexaware",
+      "name": "Hexaware Technologies",
+      "careersUrl": "https://jobs.hexaware.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "itc-infotech",
+      "name": "ITC Infotech",
+      "careersUrl": "https://jobs.itcinfotech.com/itcinfotech/#!",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "altimetrik",
+      "name": "Altimetrik",
+      "careersUrl": "https://www.altimetrik.com/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "indeed",
+      "name": "Indeed",
+      "careersUrl": "https://in.indeed.com/cmp/Indeed/jobs",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "arcesium",
+      "name": "Arcesium",
+      "careersUrl": "https://www.arcesium.com/careers#open-positions",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "synechron",
+      "name": "Synechron",
+      "careersUrl": "https://www.synechron.com/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "f5",
+      "name": "F5 Networks",
+      "careersUrl": "https://ffive.wd5.myworkdayjobs.com/f5jobs",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "movate",
+      "name": "Movate",
+      "careersUrl": "https://www.movate.com/careers-at-movate/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "ssc-technologies",
+      "name": "SS&C Technologies",
+      "careersUrl": "https://www.ssctech.com/careers/join-ssc",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "atos",
+      "name": "Atos",
+      "careersUrl": "https://atos.net/en/join-us",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "people-tech-group",
+      "name": "People Tech Group",
+      "careersUrl": "https://peopletech.com/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "cybage",
+      "name": "Cybage Software",
+      "careersUrl": "https://www.cybage.com/careers/open-positions",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "innominds",
+      "name": "Innominds Software",
+      "careersUrl": "https://careers.innominds.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "gep",
+      "name": "GEP Worldwide",
+      "careersUrl": "https://www.gep.com/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "sonata-software",
+      "name": "Sonata Software",
+      "careersUrl": "https://www.sonata-software.com/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "htc-global-services",
+      "name": "HTC Global Services",
+      "careersUrl": "https://www.htcinc.com/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "cotiviti",
+      "name": "Cotiviti",
+      "careersUrl": "https://www.cotiviti.com/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "fujitsu",
+      "name": "Fujitsu",
+      "careersUrl": "https://www.jobs.global.fujitsu.com/search/?q=&locationsearch=&searchResultView=LIST",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "aveva",
+      "name": "AVEVA",
+      "careersUrl": "https://www.aveva.com/en/about/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "stefanini",
+      "name": "Stefanini Group",
+      "careersUrl": "https://stefanini.com/en/careers-v2/#careersv2-regions",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "trianz",
+      "name": "Trianz",
+      "careersUrl": "https://www.trianz.com/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "photon",
+      "name": "Photon Interactive",
+      "careersUrl": "https://www.photon.com/careers",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "infinite-computer",
+      "name": "Infinite Computer Solutions",
+      "careersUrl": "https://sjobs.brassring.com/TGNewUI/Search/Home/Home?partnerid=26656&siteid=5008#home",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "igate",
+      "name": "iGATE Technologies",
+      "careersUrl": "https://www.igate.com/#about",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "verisk",
+      "name": "Verisk Analytics",
+      "careersUrl": "https://www.verisk.com/company/careers/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "rackspace",
+      "name": "Rackspace Technology",
+      "careersUrl": "https://rackspace.wd1.myworkdayjobs.com/External",
+      "providerDetected": "workday",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "globant",
+      "name": "Globant",
+      "careersUrl": "https://career.globant.com/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "quess-corp",
+      "name": "Quess Corp",
+      "careersUrl": "https://fa-eumz-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/jobs",
+      "providerDetected": "oraclecloud",
+      "verification": "PARTIAL"
+    },
+    {
+      "slug": "brillio",
+      "name": "Brillio",
+      "careersUrl": "https://careers.brillio.com/job-listing/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "rmsi",
+      "name": "RMSI",
+      "careersUrl": "https://www.rmsi.com/careers/opportunities/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "backbase",
+      "name": "Backbase",
+      "careersUrl": "https://www.backbase.com/careers/jobs",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "tide",
+      "name": "Tide Business",
+      "careersUrl": "https://www.tide.co/en-IN/careers/india/",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    },
+    {
+      "slug": "avaya",
+      "name": "Avaya",
+      "careersUrl": "https://careers.avaya.com/search/?createNewAlert=false&q=&optionsFacetsDD_title=&optionsFacetsDD_location=&optionsFacetsDD_department=",
+      "providerDetected": "static/server-rendered",
+      "verification": "NOT TESTED"
+    }
+  ]
+}

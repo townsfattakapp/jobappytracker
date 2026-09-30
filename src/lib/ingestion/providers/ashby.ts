@@ -35,6 +35,7 @@ export const ashbyProvider: JobProvider = {
     const res = await ctx.fetch(url, { headers: { accept: 'application/json', 'user-agent': 'JobAppy-ingestion/1.0 (+https://prep.evolw.in)' } })
     if (!res.ok) throw new Error(`Ashby responded ${res.status} for board ${board}`)
     const body = (await res.json()) as { jobs?: AshbyJob[] }
+    if (!Array.isArray(body.jobs)) throw new Error('Ashby returned an unrecognised jobs payload')
     const jobs = (Array.isArray(body.jobs) ? body.jobs : []).filter((j) => j.isListed !== false)
     ctx.log(`${jobs.length} listed jobs on board ${board}`)
     return jobs.map<RawJob>((j) => {

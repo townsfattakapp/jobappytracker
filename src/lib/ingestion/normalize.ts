@@ -15,12 +15,12 @@ export interface NormalizedJob {
   normalizedTitle: string
   description: string
   roleCategory: string | null
-  level: JobLevel
-  employmentType: EmploymentType
-  workMode: WorkMode
+  level: JobLevel | 'unknown'
+  employmentType: EmploymentType | 'unknown'
+  workMode: WorkMode | 'unknown'
   locationCity: string | null
   locationCountry: string | null
-  region: JobRegion
+  region: JobRegion | 'unknown'
   remoteEligibility: 'unknown' | 'country' | 'region' | 'worldwide' | 'not_remote'
   eligibleCountries: string[]
   experienceMin: number | null
@@ -310,6 +310,7 @@ export function classifyRole(title: string, department: string | null | undefine
     if (top) return { roleCategory: top.id, reason: `generic engineering title with ${top.hits} ${top.id} skills` }
   }
   if (best) return { roleCategory: best.id, reason: `title mentions "${best.hint}"` }
+  if (/\b(qa|sdet|quality assurance|software test|test automation)\b/i.test(t) && categories.some((c) => c.id === 'software-engineer')) return { roleCategory: 'software-engineer', reason: 'software quality and automation role' }
   const dept = (department || '').toLowerCase()
   if (dept) {
     for (const cat of categories) for (const hint of cat.hints) {
@@ -372,24 +373,34 @@ export function splitSkills(title: string, description: string): { required: str
 export function normalizeRawJob(raw: RawJob, config?: RoleFamilyConfig): NormalizedJob {
   const description = raw.descriptionText?.trim() || (raw.descriptionHtml ? htmlToText(raw.descriptionHtml) : '')
   const loc = parseLocation(raw.location, raw.locations || [], raw.countries || [])
-  const workMode = detectWorkMode(raw, loc)
+  const strict = raw.raw?.officialSource === true
+  const workMode = strict && !raw.workplaceType && !/\b(remote|hybrid|on[- ]?site)\b/i.test([raw.title, raw.location, ...(raw.locations ?? [])].join(' ')) ? 'unknown' : detectWorkMode(raw, loc)
   const { required, preferred } = splitSkills(raw.title, description)
   const exp = detectExperience(description)
+  const sections: { requirements: string | null; preferredQualifications: string | null } = { requirements: null, preferredQualifications: null }
+  let section: keyof typeof sections | null = null
+  for (const line of description.split('\n')) {
+    if (line.length < 80 && PREFERRED_HEADINGS.test(line)) section = 'preferredQualifications'
+    else if (line.length < 80 && REQUIRED_HEADINGS.test(line)) section = 'requirements'
+    else if (/^(responsibilities|benefits|about (us|the company)|equal opportunity)/i.test(line)) section = null
+    else if (section && line.trim()) sections[section] = [sections[section], line.trim()].filter(Boolean).join('\n')
+  }
   const classification = classifyRole(raw.title, raw.department, [...required, ...preferred], config)
-  const relevant = Boolean(classification.roleCategory) && description.length > 0
-  const remoteEligibility: NormalizedJob['remoteEligibility'] = workMode === 'remote' ? loc.remoteScope : 'not_remote'
+  const nonTechnical = strict && (/\b(civil|mechanical|electrical|chemical|manufacturing|hardware|structural|process|field service|physical design)\b/i.test(raw.title) && !/\bsoftware\b/i.test(raw.title) || classification.reason === 'generic engineering title' && !/\b(software|developer|programmer|sde|swe|qa|automation|test)\b/i.test(raw.title))
+  const relevant = Boolean(classification.roleCategory) && description.length > 0 && !nonTechnical
+  const remoteEligibility: NormalizedJob['remoteEligibility'] = workMode === 'unknown' ? 'unknown' : workMode === 'remote' ? loc.remoteScope : 'not_remote'
   return {
     externalId: raw.externalId,
     title: raw.title.trim(),
     normalizedTitle: normalizeTitle(raw.title),
     description,
     roleCategory: classification.roleCategory,
-    level: detectLevel(raw.title, exp.min),
-    employmentType: detectEmploymentType(raw.employmentType, raw.title),
+    level: strict && exp.min === null && !/\b(intern|trainee|principal|staff|distinguished|architect|lead|senior|sr|junior|jr|associate|entry|graduate|fresher|mid|i|ii|iii|iv|[1-4])\b/i.test(raw.title) ? 'unknown' : detectLevel(raw.title, exp.min),
+    employmentType: strict && !/\b(full[- _]?time|part[- _]?time|contract|temporary|consultant|intern(ship)?|trainee|apprentice)\b/i.test(`${raw.employmentType ?? ''} ${raw.title}`) ? 'unknown' : detectEmploymentType(raw.employmentType?.replaceAll('_', ' '), raw.title),
     workMode,
     locationCity: loc.city,
     locationCountry: loc.country,
-    region: loc.region,
+    region: strict && !loc.country && !loc.regionName ? 'unknown' : loc.region,
     remoteEligibility,
     eligibleCountries: loc.eligibleCountries,
     experienceMin: exp.min,
@@ -400,7 +411,7 @@ export function normalizeRawJob(raw: RawJob, config?: RoleFamilyConfig): Normali
     updatedAt: raw.updatedAt || null,
     sourceUrl: raw.sourceUrl,
     applyUrl: raw.applyUrl || raw.sourceUrl,
-    rawMetadata: { ...(raw.raw || {}), department: raw.department || null, location: raw.location, locations: raw.locations || [], classification: classification.reason },
+    rawMetadata: { ...(raw.raw || {}), requirements: typeof raw.raw?.requirements === 'string' ? raw.raw.requirements : sections.requirements, preferredQualifications: typeof raw.raw?.preferredQualifications === 'string' ? raw.raw.preferredQualifications : sections.preferredQualifications, department: raw.department || null, location: raw.location, locations: raw.locations || [], sourceUpdatedAt: raw.updatedAt ?? null, classification: classification.reason },
     relevance: { relevant, reason: relevant ? classification.reason : description ? classification.reason : 'empty description' },
   }
 }

@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, lt, sql } from 'drizzle-orm'
+import { and, eq, isNotNull, lt, ne, or, sql } from 'drizzle-orm'
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
 import * as schema from '../db/schema'
 import { canonicalApplyUrl, jobFingerprint } from '../jobs/normalize'
@@ -6,6 +6,7 @@ import type { RoleFamilyConfig } from '../jobs/taxonomy'
 import { normalizeRawJob, type NormalizedJob } from './normalize'
 import { providerById } from './providers'
 import type { FetchContext, JobProvider, ProviderSource } from './types'
+import { publicCareersFetch, PublicAccessError } from './publicCareers'
 
 /**
  * Ingestion engine. Takes a database handle (node-postgres in the app,
@@ -50,7 +51,7 @@ export const ABANDONED_RUN_MS = 30 * 60_000
 const { jobs, jobSources, jobIngestionRuns, jobDuplicates } = schema
 
 function contentSignature(n: NormalizedJob): string {
-  return JSON.stringify([n.title, n.description, n.roleCategory, n.level, n.employmentType, n.workMode, n.locationCity, n.locationCountry, n.region, n.remoteEligibility, n.eligibleCountries, n.experienceMin, n.experienceMax, n.requiredSkills, n.preferredSkills, n.applyUrl, n.sourceUrl])
+  return JSON.stringify([n.title, n.description, n.roleCategory, n.level, n.employmentType, n.workMode, n.locationCity, n.locationCountry, n.region, n.remoteEligibility, n.eligibleCountries, n.experienceMin, n.experienceMax, n.requiredSkills, n.preferredSkills, n.applyUrl, n.sourceUrl, n.postedAt, n.updatedAt, n.rawMetadata.requirements, n.rawMetadata.preferredQualifications])
 }
 
 export async function ingestSource(db: IngestionDb, source: SourceRow, opts: IngestionOptions = {}): Promise<IngestionResult> {
@@ -58,6 +59,7 @@ export async function ingestSource(db: IngestionDb, source: SourceRow, opts: Ing
   const log: string[] = []
   const runId = crypto.randomUUID()
   const counters = { fetched: 0, created: 0, updated: 0, unchanged: 0, irrelevant: 0, duplicates: 0, expired: 0 }
+  let protection: string | null = null
   // A process that died mid-run (timeout, deploy, killed CLI) leaves a 'running' row behind; close it so the panel stays truthful.
   await db.update(jobIngestionRuns).set({ status: 'failed', error: 'abandoned: the process ended before the run finished', finishedAt: now }).where(and(eq(jobIngestionRuns.sourceId, source.id), eq(jobIngestionRuns.status, 'running'), lt(jobIngestionRuns.startedAt, new Date(now.getTime() - ABANDONED_RUN_MS))))
   await db.insert(jobIngestionRuns).values({ id: runId, sourceId: source.id, triggeredBy: opts.triggeredBy ?? null, startedAt: now, status: 'running' })
@@ -65,6 +67,7 @@ export async function ingestSource(db: IngestionDb, source: SourceRow, opts: Ing
   const finish = async (status: 'success' | 'failed', error: string | null): Promise<IngestionResult> => {
     await db.update(jobIngestionRuns).set({ ...counters, status, error, log, finishedAt: new Date() }).where(eq(jobIngestionRuns.id, runId))
     await db.update(jobSources).set({ lastRunAt: now, lastRunStatus: status, lastError: error, updatedAt: new Date() }).where(eq(jobSources.id, source.id))
+    if (protection) await db.update(jobSources).set({ ingestionAllowed: false, scheduleEnabled: false, verificationStatus: 'protected', verificationNote: protection, config: { ...source.config, discovery: { ...(source.config?.discovery as Record<string, unknown> ?? {}), status: 'PROTECTED', note: protection } } }).where(eq(jobSources.id, source.id))
     return { runId, status, ...counters, error, log }
   }
 
@@ -75,21 +78,34 @@ export async function ingestSource(db: IngestionDb, source: SourceRow, opts: Ing
     const provider = opts.provider ?? providerById(source.provider)
     if (!provider) throw new Error(`No provider registered for "${source.provider}"`)
     const timeoutMs = Math.max(1000, Number(process.env.INGESTION_FETCH_TIMEOUT_MS) || 20_000)
-    const baseFetch = opts.fetchImpl ?? fetch
-    const fetchWithTimeout: typeof fetch = (input, init) => baseFetch(input, { ...(init || {}), signal: (init && init.signal) || AbortSignal.timeout(timeoutMs) })
+    const official = source.config?.officialSource === true || source.provider === 'public-careers' || source.slug.startsWith('catalog-') && !['adzuna', 'manual', 'fixture'].includes(source.provider)
+    const baseFetch = official ? publicCareersFetch(opts.fetchImpl ?? fetch) : opts.fetchImpl ?? fetch
+    const deadline = AbortSignal.timeout(75_000)
+    const fetchWithTimeout: typeof fetch = async (input, init) => {
+      try { return await baseFetch(input, { ...init, signal: official ? AbortSignal.any([deadline, init?.signal ?? AbortSignal.timeout(timeoutMs)]) : init?.signal ?? AbortSignal.timeout(timeoutMs) }) }
+      catch (error) { if (error instanceof PublicAccessError) protection = error.message; throw error }
+    }
     const incomplete: string[] = []
     const ctx: FetchContext = { fetch: fetchWithTimeout, log: (line) => log.push(line), reportIncomplete: (reason) => incomplete.push(reason) }
-    const providerSource: ProviderSource = { id: source.id, name: source.name, provider: source.provider, baseUrl: source.baseUrl, config: source.config || {} }
+    const providerSource: ProviderSource = { id: source.id, name: source.name, provider: source.provider, baseUrl: source.baseUrl, config: { ...source.config, ...(official ? { officialSource: true } : {}) } }
     const rawJobs = await provider.fetchJobs(providerSource, ctx)
     counters.fetched = rawJobs.length
 
     const seenExternalIds = new Set<string>()
     for (const raw of rawJobs) {
-      if (seenExternalIds.has(raw.externalId)) continue
+      if (seenExternalIds.has(raw.externalId)) { counters.duplicates += 1; continue }
       seenExternalIds.add(raw.externalId)
+      if (official) raw.raw = { ...raw.raw, officialSource: true }
+      const validThrough = typeof raw.raw?.validThrough === 'string' ? new Date(raw.raw.validThrough) : null
+      const expireObserved = async () => {
+        const expired = await db.update(jobs).set({ status: 'expired', lifecycle: 'expired', updatedAt: now }).where(and(eq(jobs.sourceId, source.id), eq(jobs.externalId, raw.externalId), ne(jobs.status, 'archived'), ne(jobs.status, 'expired'))).returning({ id: jobs.id })
+        counters.expired += expired.length
+      }
+      if (validThrough && validThrough < now) { counters.irrelevant += 1; seenExternalIds.delete(raw.externalId); await expireObserved(); continue }
       const n = normalizeRawJob(raw, opts.roleFamilies)
       if (!n.relevance.relevant) {
         counters.irrelevant += 1
+        if (official && n.description) await expireObserved()
         continue
       }
       let applyUrl: string
@@ -103,6 +119,7 @@ export async function ingestSource(db: IngestionDb, source: SourceRow, opts: Ing
       const fingerprint = jobFingerprint({ companyId: source.companyId, title: n.title, locationCity: n.locationCity, applyUrl })
       const signature = contentSignature({ ...n, applyUrl })
       const values = {
+        ...(official ? { postedAt: n.postedAt && Number.isFinite(Date.parse(n.postedAt)) ? new Date(n.postedAt) : null } : {}),
         title: n.title,
         normalizedTitle: n.normalizedTitle,
         roleCategory: n.roleCategory!,
@@ -121,7 +138,8 @@ export async function ingestSource(db: IngestionDb, source: SourceRow, opts: Ing
         eligibleCountries: n.eligibleCountries,
         applyUrl,
         sourceUrl: n.sourceUrl,
-        rawMetadata: { ...n.rawMetadata, signature },
+        requirementsSummary: typeof n.rawMetadata.requirements === 'string' ? n.rawMetadata.requirements : null,
+        rawMetadata: { ...n.rawMetadata, signature, provider: source.provider, fetchedAt: now.toISOString(), verifiedAt: now.toISOString() },
       }
 
       const existing = await db.query.jobs.findFirst({ where: and(eq(jobs.sourceId, source.id), eq(jobs.externalId, raw.externalId)) })
@@ -129,7 +147,7 @@ export async function ingestSource(db: IngestionDb, source: SourceRow, opts: Ing
         const previousSignature = (existing.rawMetadata as { signature?: string } | null)?.signature
         const revived = existing.status === 'expired' || existing.lifecycle === 'expired' || existing.lifecycle === 'stale'
         const changed = previousSignature !== signature
-        const patch: Partial<typeof jobs.$inferInsert> = { lastSeenAt: now, updatedAt: now }
+        const patch: Partial<typeof jobs.$inferInsert> = { lastSeenAt: now, updatedAt: now, rawMetadata: values.rawMetadata }
         if (revived) {
           patch.lifecycle = 'verified'
           patch.expiresAt = null
@@ -147,12 +165,18 @@ export async function ingestSource(db: IngestionDb, source: SourceRow, opts: Ing
         continue
       }
 
-      const clash = await db.query.jobs.findFirst({ where: eq(jobs.fingerprint, fingerprint) })
+      const requisition = typeof raw.raw?.requisitionId === 'string' ? raw.raw.requisitionId : raw.externalId
+      const clash = await db.query.jobs.findFirst({ where: or(eq(jobs.fingerprint, fingerprint), and(ne(jobs.sourceId, source.id), eq(jobs.companyId, source.companyId), or(eq(jobs.applyUrl, applyUrl), eq(jobs.externalId, raw.externalId), sql`${jobs.rawMetadata}->>'requisitionId' = ${requisition}`))) })
       if (clash) {
         counters.duplicates += 1
         await db.insert(jobDuplicates).values({ id: crypto.randomUUID(), jobId: clash.id, sourceId: source.id, externalId: raw.externalId, title: n.title, applyUrl, fingerprint, seenAt: now })
-        // The opening is still live according to this source.
-        await db.update(jobs).set({ lastSeenAt: now, updatedAt: now }).where(eq(jobs.id, clash.id))
+        const previousSource = clash.sourceId ? await db.query.jobSources.findFirst({ where: eq(jobSources.id, clash.sourceId) }) : null
+        if (official && previousSource?.provider === 'adzuna') {
+          await db.update(jobs).set({ ...values, sourceId: source.id, externalId: raw.externalId, fingerprint: await safeFingerprint(db, fingerprint, clash.id), lastSeenAt: now, lastVerifiedAt: now, updatedAt: now, lifecycle: 'verified', status: source.autoPublish ? 'published' : 'draft', expiresAt: null }).where(eq(jobs.id, clash.id))
+          counters.updated += 1
+        } else if (official || previousSource?.config?.officialSource !== true) {
+          await db.update(jobs).set({ lastSeenAt: now, updatedAt: now }).where(eq(jobs.id, clash.id))
+        }
         continue
       }
 
@@ -164,7 +188,6 @@ export async function ingestSource(db: IngestionDb, source: SourceRow, opts: Ing
         externalId: raw.externalId,
         careerPathIds: [],
         trackIds: [],
-        requirementsSummary: null,
         salaryMin: null,
         salaryMax: null,
         salaryCurrency: null,
@@ -172,7 +195,7 @@ export async function ingestSource(db: IngestionDb, source: SourceRow, opts: Ing
         fingerprint,
         status: source.autoPublish ? 'published' : 'draft',
         lifecycle: 'discovered',
-        postedAt: posted && !Number.isNaN(posted.getTime()) ? posted : now,
+        postedAt: posted && !Number.isNaN(posted.getTime()) ? posted : official ? null : now,
         expiresAt: null,
         lastVerifiedAt: now,
         firstSeenAt: now,
@@ -188,6 +211,11 @@ export async function ingestSource(db: IngestionDb, source: SourceRow, opts: Ing
     if (incomplete.length) {
       log.push('Partial results saved; unseen listings were left unchanged.')
       return finish('failed', `Incomplete import: ${incomplete.join('; ')}`)
+    }
+
+    if (source.provider === 'public-careers') {
+      log.push('Public structured-data crawl cannot prove complete inventory; unseen jobs retained for age-based expiry.')
+      return finish('success', null)
     }
 
     // Listings this source no longer returns are no longer verifiable: mark stale now; the sweep expires them later.

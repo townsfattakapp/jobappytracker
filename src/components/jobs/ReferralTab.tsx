@@ -93,12 +93,15 @@ export default function ReferralTab({ job, signedIn, tracked, preparationStarted
   if (!signedIn) {
     return (
       <section className="job-section" aria-labelledby="job-referral">
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem', padding: '0.15rem 0.55rem', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 600, background: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary))' }}>
+          🛡️ Verified Employee Endorsements
+        </div>
         <h3 id="job-referral" className="job-section-title">
-          Referral assistance
+          Vetted Employee Referral & Screening
         </h3>
-        <p className="job-section-sub">Sign in to see whether verified employees at {job.company.name} can review a referral request for this role.</p>
+        <p className="job-section-sub">Sign in to connect with verified employees at {job.company.name}. Before referring, referrers conduct an end-to-end technical screening to test your domain qualifications so you enter the hiring pipeline as a qualified, endorsed candidate.</p>
         <button type="button" className="btn btn-primary btn-sm mt-3" onClick={onSignIn}>
-          Sign in
+          Sign in to request referral
         </button>
         <p className="referral-trust">{TRUST_LINE}</p>
       </section>
@@ -112,9 +115,15 @@ export default function ReferralTab({ job, signedIn, tracked, preparationStarted
 
   return (
     <section className="job-section referral-tab" aria-labelledby="job-referral">
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem', padding: '0.15rem 0.55rem', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 600, background: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary))' }}>
+        🛡️ Verified Employee Endorsements
+      </div>
       <h3 id="job-referral" className="job-section-title">
-        Referral assistance
+        Vetted Employee Referral & Screening
       </h3>
+      <p className="job-section-sub" style={{ marginBottom: '0.75rem' }}>
+        Requests are reviewed by verified employees at {job.company.name}. Your matched referrer reviews your resume and conducts a technical screening check to test your qualifications end-to-end before submitting an internal referral.
+      </p>
       {error && (
         <p className="admin-alert admin-alert-error" role="alert">
           {error}
@@ -135,8 +144,8 @@ export default function ReferralTab({ job, signedIn, tracked, preparationStarted
           <div className="referral-step-head">
             <span className="referral-step-n">1</span>
             <div>
-              <div className="font-semibold">Referral readiness</div>
-              <p className="job-section-sub">What a referrer will see, checked against your resume, this job and your preparation. It is factual: no hiring probability, and no advice to add skills you do not have.</p>
+              <div className="font-semibold">Step 1: Role Qualification & Readiness Check</div>
+              <p className="job-section-sub">What a referrer evaluates first: verified against your resume, this job listing and your technical prep. This ensures you meet the company’s minimum bar before screening.</p>
             </div>
           </div>
           {report ? (
@@ -196,8 +205,8 @@ export default function ReferralTab({ job, signedIn, tracked, preparationStarted
           <div className="referral-step-head">
             <span className="referral-step-n">2</span>
             <div>
-              <div className="font-semibold">Request referral</div>
-              <p className="job-section-sub">A matched, verified employee at {job.company.name} sees your approved resume, this introduction and the readiness summary. Nothing else about you is shared.</p>
+              <div className="font-semibold">Step 2: Request Referral & Technical Screening</div>
+              <p className="job-section-sub">A verified employee at {job.company.name} will review your application and conduct a technical screening to test your qualifications end-to-end. Once qualified, they submit your direct internal endorsement.</p>
             </div>
           </div>
           {!state.features.request ? (
@@ -226,7 +235,7 @@ export default function ReferralTab({ job, signedIn, tracked, preparationStarted
               </label>
               <label className="admin-check">
                 <input type="checkbox" checked={form.consent} onChange={(e) => setForm({ ...form, consent: e.target.checked })} required />
-                <span>I consent to JobAppy sharing my approved resume, this introduction and my readiness summary with a matched, verified referrer at {job.company.name}. Communication stays inside JobAppy.</span>
+                <span>I consent to JobAppy sharing my approved resume, this introduction and my readiness summary with a matched, verified referrer at {job.company.name} for technical screening and internal referral evaluation. Communication stays secure inside JobAppy.</span>
               </label>
               <p className="referral-credits">
                 {state.requireCredits ? `Credits available: ${state.credits?.available ?? 0} (one is reserved while the request is open and used only if a referrer accepts).` : 'No credit is needed during the beta.'} Open requests allowed: {state.limits.active}. Requests this month: up to {state.limits.monthly}.

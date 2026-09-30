@@ -113,11 +113,11 @@ export const LEARNER_STAGE_LABELS: Record<LearnerStage, string> = {
   readiness: 'Readiness required',
   ready: 'Ready to submit',
   submitted: 'Request submitted',
-  matching: 'Matching',
-  referrer_review: 'Under referrer review',
-  needs_your_reply: 'Referrer asked a question',
-  accepted: 'Accepted',
-  referral_submitted: 'Referral submitted',
+  matching: 'Matching with verified employee',
+  referrer_review: 'Under technical vetting & screening',
+  needs_your_reply: 'Referrer screening question',
+  accepted: 'Qualified & Referral approved',
+  referral_submitted: 'Referral submitted internally',
   closed: 'Closed',
   cancelled: 'Cancelled',
   expired: 'Expired',
@@ -127,9 +127,9 @@ export const LEARNER_STAGE_LABELS: Record<LearnerStage, string> = {
 export const LEARNER_TIMELINE: { stage: LearnerStage; label: string }[] = [
   { stage: 'submitted', label: 'Requested' },
   { stage: 'matching', label: 'Matching' },
-  { stage: 'referrer_review', label: 'Referrer reviewing' },
-  { stage: 'accepted', label: 'Accepted' },
-  { stage: 'referral_submitted', label: 'Referral submitted' },
+  { stage: 'referrer_review', label: 'Technical Screening' },
+  { stage: 'accepted', label: 'Qualified' },
+  { stage: 'referral_submitted', label: 'Endorsed & Submitted' },
 ]
 
 export const DECLINE_REASONS = ['not_enough_context', 'profile_not_relevant', 'already_applied', 'policy_restriction', 'cannot_refer_role', 'capacity', 'other'] as const

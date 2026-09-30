@@ -79,7 +79,7 @@ test('seeding is idempotent, marks unsupported portals Not configured with the c
     assert.equal(status.total, COMPANY_CATALOG.length)
     assert.equal(status.seeded, COMPANY_CATALOG.length)
     const unsupported = status.rows.filter((r) => !r.feed)
-    assert.ok(unsupported.every((r) => r.status === 'Unsupported' && r.ingestionAllowed === false && r.verificationStatus === 'unsupported' && r.careersUrl.startsWith('https://')))
+    assert.ok(unsupported.every((r) => r.status === 'Not configured' && r.ingestionAllowed === false && r.verificationStatus === 'not_configured' && r.careersUrl.startsWith('https://')))
     const zo = (await client.query("select provider, notes, \"ingestionAllowed\" from job_sources where slug = $1", [CATALOG_SOURCE_SLUG('zoho')])).rows[0]
     assert.equal(zo.provider, 'manual')
     assert.match(zo.notes, /Not configured/)
@@ -165,7 +165,7 @@ test('verification is read-only, records 200 / 404 / timeout outcomes, and drive
     const after = await catalog.catalogStatus()
     assert.equal(after.rows.find((r) => r.slug === 'gitlab').status, 'Healthy')
     assert.equal(after.rows.find((r) => r.slug === 'cred').status, 'Degraded')
-    assert.equal(after.counts.Unsupported, COMPANY_CATALOG.filter((c) => !c.feed).length)
+    assert.equal(after.counts['Not configured'], COMPANY_CATALOG.filter((c) => !c.feed).length)
     assert.equal((await client.query("select count(*)::int as n from admin_audit_log where action='catalog.verify'")).rows[0].n, 1)
   } finally {
     await client.close()

@@ -24,9 +24,13 @@ const GROUPS: { label: string; icon: string; matches: ViewMode[]; defaultView: V
 
 const LABELS = new Map<ViewMode, string>(NAV_SECTIONS.flatMap((s) => s.items.map((i) => [i.id, i.label] as [ViewMode, string])))
 LABELS.set('settings', 'Settings')
+LABELS.set('dashboard', 'Pipeline Stats')
+LABELS.set('list', 'Applications Table')
 
 const ICONS = new Map<ViewMode, string>(NAV_SECTIONS.flatMap((s) => s.items.map((i) => [i.id, i.icon] as [ViewMode, string])))
 ICONS.set('settings', '⚙️')
+ICONS.set('dashboard', '📊')
+ICONS.set('list', '📋')
 
 export default function MobileNav({ view, setView, theme, setTheme, user, onSignIn, onSignOut, hiddenViews = [], adminHref = null }: MobileNavProps) {
   const [sheet, setSheet] = useState<string | null>(null)
@@ -142,6 +146,18 @@ export default function MobileNav({ view, setView, theme, setTheme, user, onSign
             ))}
             {openGroup.label === 'More' && (
               <>
+                <a
+                  href="/referrer"
+                  className="w-full text-left px-3.5 py-2.5 rounded-xl font-medium text-foreground hover:bg-muted flex items-center gap-3"
+                >
+                  <span className="w-5 text-center text-lg leading-none" aria-hidden="true">
+                    💼
+                  </span>
+                  <span className="flex-1">Referrer Portal</span>
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    Earn
+                  </span>
+                </a>
                 {adminHref && (
                   <a
                     href={adminHref}

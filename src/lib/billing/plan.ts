@@ -21,12 +21,13 @@ export const PLANS: Plan[] = [
 export const PRODUCT_NAME = 'Prep Pro'
 
 export const PLAN_FEATURES = [
-  'Every learning track: DSA, Java, JavaScript, React, Node, SQL, system design, CS fundamentals, DevOps',
-  'Personal day-by-day plan with spaced revision',
-  'AI lessons, worked examples, diagrams, quizzes and the AI tutor, using your own OpenAI or Groq key',
-  'Realistic AI mock interviews with voice, timers and a scorecard',
+  'Company-specific interview war rooms: ATS gap scan & 7-day tactical battle plans',
+  'Resume Bullet Surgery: tailored STAR-format rewrites with production metrics',
+  'Interactive AI mock interviews with voice, real-time critique and retry coaching drills',
+  'Turnkey AI access included out of the box — zero API key setup required',
+  '157 complete engineering tracks: DSA, Java, Spring Boot, React, Node, System Design, DevOps',
   'Code runner for Java, Python, C++, Go, TypeScript and JavaScript',
-  'Job tracker with Gmail sync and interview prep notes',
+  'Job discovery & application tracker with Gmail sync and company interview notes',
   'Cloud sync across every device',
 ]
 

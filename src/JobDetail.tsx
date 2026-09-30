@@ -9,6 +9,7 @@ import { computeCompatibility, type CompatibilityReport } from './lib/jobs/compa
 import { mapJobToCurriculum, type TrackAlignment } from './lib/jobs/curriculumMap'
 import type { Suggestion } from './lib/jobs/resumeAnalysis'
 import ResumeAnalysisView, { Prov } from './components/jobs/ResumeAnalysisView'
+import JobPrepWarRoomPreview from './components/jobs/JobPrepWarRoomPreview'
 import { buildApplicationStrategy, type ApplicationStrategy, type StrategyItem } from './lib/jobs/strategy'
 import { EMPLOYMENT_TYPES, JOB_LEVELS, ROLE_CATEGORIES, SOURCE_TYPES, WORK_MODES, labelOf } from './lib/jobs/taxonomy'
 import type { LearnerJobPreferences } from './lib/jobs/types'
@@ -499,8 +500,16 @@ export default function JobDetail({ onOpenReferrals, jobId, user, features, goal
               <h3 id="job-resume" className="job-section-title">
                 Resume vs this job <span className="job-personal-label">Personal to you</span>
               </h3>
-              {locked('jobs.resumeAnalysis', 'Resume vs job description', 'Compare your uploaded resume with this listing: demonstrated requirements, missing evidence, project relevance and grounded improvement suggestions.') ??
-                (!resumes || resumes.length === 0 ? (
+              {!can('jobs.resumeAnalysis') || !user ? (
+                <JobPrepWarRoomPreview
+                  job={job}
+                  signedIn={Boolean(user)}
+                  onUpgrade={onUpgrade}
+                  onSignIn={onSignIn}
+                  onOpenResumes={onOpenResumes}
+                  resumes={resumes}
+                />
+              ) : !resumes || resumes.length === 0 ? (
                   <div className="mt-3">
                     <p className="job-section-sub">Upload a resume first. It stays private to your account and is only read when you run an analysis.</p>
                     <button type="button" className="btn btn-primary btn-sm mt-3" onClick={onOpenResumes}>
@@ -529,7 +538,7 @@ export default function JobDetail({ onOpenReferrals, jobId, user, features, goal
                     {resumeState.usage && <p className="job-source-note">Resume analyses today: {resumeState.usage.used} of {resumeState.usage.limit}.</p>}
                     {resumeAnalysis && <ResumeAnalysisView analysis={resumeAnalysis} onOpenTrack={onOpenTrack} onUpdate={updateSuggestion} onAddGaps={(ids) => setConfirmGaps(curriculum ? curriculum.tracks.filter((t) => ids.includes(t.track.id) && !t.inGoal) : [])} />}
                   </>
-                ))}
+                )}
             </section>
           )}
 

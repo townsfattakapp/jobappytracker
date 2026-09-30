@@ -22,6 +22,8 @@ const LABELS = new Map<ViewMode, string>(
 LABELS.set('settings', 'Settings')
 LABELS.set('topicWorkspace', 'Topic Workspace')
 LABELS.set('jobDetail', 'Job Details')
+LABELS.set('dashboard', 'Pipeline Stats')
+LABELS.set('list', 'Applications Table')
 
 export default function MobileHeader({
   view,

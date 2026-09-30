@@ -143,16 +143,21 @@ function sortApplications(
 const FREE_VIEWS: ViewMode[] = ['home', 'jobs', 'jobDetail', 'resume', 'dashboard', 'board', 'list', 'referrals', 'settings']
 
 const HEADER_COPY: Partial<Record<ViewMode, { title: string; subtitle: string }>> = {
-  dashboard: { title: 'Your job search, organized.', subtitle: 'Track applications, follow-ups, and recruiting emails in one workspace.' },
-  board: { title: 'Kanban board', subtitle: 'Drag your search forward one stage at a time.' },
-  list: { title: 'Applications', subtitle: 'Search, filter, and bulk-update everything you have applied to.' },
-  home: { title: 'Career Command Center', subtitle: 'Your goal, learning, jobs, applications, interviews and preparation in one place.' },
-  today: { title: 'Your action plan', subtitle: 'Stay focused on today’s priorities.' },
-  roadmap: { title: 'Career plan', subtitle: 'Execute your daily tasks and hit your professional goals.' },
-  prepKit: { title: 'Preparation notes', subtitle: 'Company briefs, STAR stories, and cheat sheets with AI help.' },
-  jobs: { title: 'Job discovery', subtitle: 'Openings matching tech and product engineering tracks, ranked by your preferences with verified direct links.' },
-  resume: { title: 'Your resume', subtitle: 'Keep resume versions privately in Prep and compare them against any opening.' },
-  referrals: { title: 'Referral Center', subtitle: 'Requests reviewed by verified employees. A request never guarantees a referral, interview or job.' },
+  dashboard: { title: 'Pipeline Analytics', subtitle: 'Overview of your application pipeline, conversion rates, and upcoming interviews.' },
+  board: { title: 'Application Tracker', subtitle: 'Manage your active job pipeline across every stage with drag-and-drop ease.' },
+  list: { title: 'Applications Table', subtitle: 'Search, filter, and organize your job applications in a structured table.' },
+  home: { title: 'Career Command Center', subtitle: 'Your personalized home for daily actions, interview prep, applications, and roadmaps.' },
+  today: { title: "Today's Priorities", subtitle: 'Stay focused on today’s scheduled tasks, flashcards, and spaced revision.' },
+  roadmap: { title: 'Career Roadmap', subtitle: 'Your step-by-step master plan to hit your professional engineering goals.' },
+  prepKit: { title: 'Preparation Notes', subtitle: 'Company briefs, STAR stories, and cheat sheets with AI help.' },
+  jobs: { title: 'Explore Jobs', subtitle: 'Openings matching tech and product engineering tracks, ranked by your preferences with verified direct links.' },
+  resume: { title: 'Resume & ATS Scanner', subtitle: 'Analyze resume versions, identify missing ATS keywords, and tailor bullets to any job.' },
+  referrals: { title: 'Vetted Referral Network', subtitle: 'Connect with verified employees who test and screen your qualifications end-to-end before submitting an internal endorsement.' },
+  mock: { title: 'AI Mock Interviews', subtitle: 'Realistic role-adapted interviews with voice, real-time critique, and retry drills.' },
+  dsa: { title: 'DSA Practice Hub', subtitle: 'Curated algorithmic problem solving with live code runner and complexity analysis.' },
+  systemDesign: { title: 'System Design Workspace', subtitle: 'Interactive high-level and low-level design blueprints with editable diagrams.' },
+  labs: { title: 'Engineering Labs', subtitle: 'Practical, real-world development exercises and architectural ticket simulations.' },
+  tracks: { title: 'Engineering Curriculum', subtitle: 'Explore 157 structured engineering tracks across 12 disciplines from zero.' },
 }
 
 export default function App() {
@@ -209,11 +214,12 @@ export default function App() {
   const [guestMode, setGuestMode] = useState(() => readLocal(GUEST_MODE_KEY) === '1')
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
+  const [authRole, setAuthRole] = useState<'candidate' | 'referrer'>('candidate')
   const [syncError, setSyncError] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [cloudHydrated, setCloudHydrated] = useState(false)
   const skipNextCloudSave = useRef(false)
-  const [view, setViewState] = useState<ViewMode>('today')
+  const [view, setViewState] = useState<ViewMode>('home')
   const homeLanded = useRef(false)
   const [onboardingOpen, setOnboardingOpen] = useState(false)
   const [onboardingDismissed, setOnboardingDismissed] = useState(false)
@@ -270,6 +276,25 @@ export default function App() {
       const modeParam = params.get('mode')
       if (modeParam === 'signup' || modeParam === 'signin') {
         setAuthMode(modeParam)
+        setAuthModalOpen(true)
+      }
+      const roleParam = params.get('role')
+      if (roleParam === 'referrer') {
+        setAuthRole('referrer')
+        try {
+          sessionStorage.setItem('prep-next', '/referrer')
+        } catch {}
+      }
+      const nextParam = params.get('next')
+      if (nextParam && /^\/[a-z0-9/?=&%._-]*$/i.test(nextParam) && !nextParam.startsWith('//')) {
+        if (nextParam.includes('/referrer')) {
+          setAuthRole('referrer')
+        }
+        try {
+          sessionStorage.setItem('prep-next', nextParam)
+        } catch {
+          // ignore
+        }
       }
     }
   }, [])
@@ -594,6 +619,13 @@ export default function App() {
     setCloudHydrated(false)
     setUser(next)
     setAuthModalOpen(false)
+    try {
+      const nextPath = sessionStorage.getItem('prep-next')
+      if (nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//')) {
+        sessionStorage.removeItem('prep-next')
+        window.location.assign(nextPath)
+      }
+    } catch {}
   }
 
   useEffect(() => {
@@ -629,6 +661,7 @@ export default function App() {
     const modeParam = params.get('mode')
     if (modeParam === 'signup' || modeParam === 'signin') {
       setAuthMode(modeParam)
+      setAuthModalOpen(true)
     }
     if (params.get('view') === 'referrals') setView('referrals')
     // Same-origin continuation after sign-in (the referrer portal sends people here with ?next=/referrer).
@@ -1034,23 +1067,49 @@ export default function App() {
               </div>
 
               {isTrackerView && (
-                <div className="grid w-full grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:w-auto">
-                  <button
-                    type="button"
-                    className="btn btn-primary col-span-2 sm:col-span-1 shadow-lg shadow-primary/20 hover:shadow-primary/30 h-12 sm:h-11 text-base sm:text-[0.95rem]"
-                    onClick={openCreate}
-                  >
-                    + Add application
-                  </button>
-                  <button type="button" className="btn btn-ghost h-12 sm:h-11 text-base sm:text-[0.95rem]" onClick={() => setEmailOpen(true)}>
-                    Paste email
-                  </button>
-                  <button type="button" className="btn btn-ghost h-12 sm:h-11 text-base sm:text-[0.95rem]" onClick={() => setGmailOpen(true)}>
-                    Gmail sync
-                  </button>
-                  <button type="button" className="btn btn-ghost h-12 sm:h-11 text-base sm:text-[0.95rem]" onClick={() => setBookmarkletOpen(true)}>
-                    Bookmarklet
-                  </button>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full sm:w-auto">
+                  <div className="flex items-center gap-1 p-1 bg-muted/60 border border-border/50 rounded-xl">
+                    <button
+                      type="button"
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${view === 'board' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                      onClick={() => setView('board')}
+                    >
+                      🗂️ Board
+                    </button>
+                    <button
+                      type="button"
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${view === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                      onClick={() => setView('list')}
+                    >
+                      📋 Table
+                    </button>
+                    <button
+                      type="button"
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${view === 'dashboard' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                      onClick={() => setView('dashboard')}
+                    >
+                      📊 Analytics
+                    </button>
+                  </div>
+
+                  <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:w-auto">
+                    <button
+                      type="button"
+                      className="btn btn-primary col-span-2 sm:col-span-1 shadow-md shadow-primary/20 hover:shadow-primary/30 h-10 text-sm font-semibold"
+                      onClick={openCreate}
+                    >
+                      + Add application
+                    </button>
+                    <button type="button" className="btn btn-ghost h-10 text-xs font-medium" onClick={() => setEmailOpen(true)}>
+                      Paste email
+                    </button>
+                    <button type="button" className="btn btn-ghost h-10 text-xs font-medium" onClick={() => setGmailOpen(true)}>
+                      Gmail sync
+                    </button>
+                    <button type="button" className="btn btn-ghost h-10 text-xs font-medium" onClick={() => setBookmarkletOpen(true)}>
+                      Bookmarklet
+                    </button>
+                  </div>
                 </div>
               )}
             </header>
@@ -1797,6 +1856,8 @@ export default function App() {
           syncing={syncing}
           initialMode={authMode}
           onModeChange={setAuthMode}
+          initialRole={authRole}
+          onRoleChange={setAuthRole}
           onSignedIn={handleSignedIn}
           onSignOut={handleSignOut}
           onToast={showToast}
@@ -1923,6 +1984,22 @@ export default function App() {
                 </span>
               </div>
 
+              <div className="mb-4 p-3 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl">💼</span>
+                  <div>
+                    <strong className="text-foreground font-semibold block">Are you a tech employee?</strong>
+                    <span className="text-muted-foreground text-[11px]">Screen candidates & earn referral bonuses</span>
+                  </div>
+                </div>
+                <a
+                  href="/referrer"
+                  className="px-3 py-1.5 rounded-xl font-semibold text-xs bg-primary text-primary-foreground hover:opacity-90 transition-opacity shrink-0"
+                >
+                  Referrer Portal →
+                </a>
+              </div>
+
               <div className="mb-5">
                 <h3 className="text-2xl font-display font-bold tracking-tight text-foreground">
                   {authMode === 'signup' ? 'Create your account' : 'Welcome back'}
@@ -1939,6 +2016,8 @@ export default function App() {
                 syncing={syncing}
                 initialMode={authMode}
                 onModeChange={setAuthMode}
+                initialRole={authRole}
+                onRoleChange={setAuthRole}
                 onSignedIn={handleSignedIn}
                 onSignOut={handleSignOut}
                 onToast={showToast}

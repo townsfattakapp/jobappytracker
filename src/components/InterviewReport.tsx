@@ -5,6 +5,7 @@ import { getInterviewSessionTranscript } from '../db'
 import { personaById, verdictTone } from '../lib/interview/config'
 import { useRoundById } from '../lib/interview/hooks'
 import { renderMarkdownRich } from '../lib/markdown'
+import AnswerRetrySection from './AnswerRetrySection'
 
 interface InterviewReportProps {
   summary: MockInterviewSummary
@@ -153,7 +154,12 @@ export default function InterviewReport({ summary, onClose, onRetake }: Intervie
                       <span>{m.question}</span>
                       <span aria-hidden="true">{openAnswer === i ? '−' : '+'}</span>
                     </button>
-                    {openAnswer === i && <div className="tutor-bubble prose-tiptap iv-answer-body" dangerouslySetInnerHTML={{ __html: renderMarkdownRich(m.answer) }} />}
+                    {openAnswer === i && (
+                      <div className="iv-answer-body">
+                        <div className="tutor-bubble prose-tiptap" dangerouslySetInnerHTML={{ __html: renderMarkdownRich(m.answer) }} />
+                        <AnswerRetrySection question={m.question} modelAnswer={m.answer} />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

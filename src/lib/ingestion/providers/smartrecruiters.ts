@@ -72,6 +72,7 @@ export const smartRecruitersProvider: JobProvider = {
         if (!body.content.length) break
       } while (offset < Math.min(total, cap))
       ctx.log(`SmartRecruiters ${company} "${label}": ${total} posting(s), ${taken} new (cap ${cap})`)
+      if (total > cap) ctx.reportIncomplete?.(`SmartRecruiters ${label} capped at ${cap}`)
     }
     for (const country of countries) await readPages(country, 3000, country.toUpperCase())
     await readPages(undefined, maxGlobal, 'worldwide')
@@ -83,6 +84,7 @@ export const smartRecruitersProvider: JobProvider = {
     if (details.failures.length) ctx.log(`${details.failures.length} detail call(s) failed: ${details.failures.slice(0, 3).map((f) => f.error).join(' · ')}`)
 
     const out: RawJob[] = []
+    if (details.failures.length) ctx.reportIncomplete?.('SmartRecruiters detail pages failed')
     for (const { posting, detail } of details.results) {
       const sections = detail.jobAd?.sections || {}
       const html = SECTIONS.map((key) => {
@@ -91,7 +93,7 @@ export const smartRecruitersProvider: JobProvider = {
       })
         .filter(Boolean)
         .join('\n')
-      if (!html) continue
+      if (!html) { ctx.reportIncomplete?.('SmartRecruiters detail missing description'); continue }
       const loc = detail.location || posting.location || {}
       const countryName = loc.country ? ISO2_COUNTRY[loc.country.toUpperCase()] : undefined
       const location = loc.fullLocation?.replace(/\s*,\s*,\s*/g, ', ').trim() || [loc.city, loc.region, countryName].filter(Boolean).join(', ') || null

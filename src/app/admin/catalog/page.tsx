@@ -10,7 +10,7 @@ export default async function AdminCatalogPage() {
   const status = await catalogStatus()
   return (
     <>
-      <PageHeader title="Company source catalog" description="Curated product and technology companies relevant to Indian software, data, AI and cloud careers, with the official careers page for each. Ingestion is configured only where a read-only identity check answered: a public, documented job-board feed (Greenhouse, Lever, Ashby) or the JSON endpoint the company's own careers site calls (Amazon Jobs, Eightfold sites such as Microsoft and Netflix, Workday tenants such as Adobe, NVIDIA, Salesforce, PayPal, Autodesk, Mastercard). Those site endpoints are unofficial and can change without notice; a change shows up here as a failed run. Everything else (Google, Meta, Apple) is Unsupported and keeps its careers link. No HTML is scraped." />
+      <PageHeader title="Direct Enterprise Career Portal" description="Discover official public career sources, review extraction support, and sync relevant technical jobs through Job Discovery. A careers link or detected provider alone is not an integration. Protected or unsupported sources retain their official links." />
       <div className="admin-stat-grid mb-6">
         <StatCard label="Companies in catalog" value={status.total} hint={`${status.seeded} seeded into the database`} />
         <StatCard label="Healthy" value={status.counts.Healthy} tone={status.counts.Healthy ? 'good' : 'default'} hint="last ingestion run succeeded" />

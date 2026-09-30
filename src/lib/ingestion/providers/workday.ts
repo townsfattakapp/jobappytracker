@@ -95,15 +95,18 @@ export const workdayProvider: JobProvider = {
       }
       if (!Array.isArray(page0.jobPostings)) throw new Error(`Workday ${cfg.tenant}/${cfg.site} list response had no jobPostings array`)
       const total = Math.min(Number(page0.total) || page0.jobPostings.length, maxPerSearch)
+      if (Number(page0.total) > maxPerSearch) ctx.reportIncomplete?.(`Workday search capped at ${maxPerSearch}`)
       const offsets: number[] = []
       for (let offset = PAGE; offset < total; offset += PAGE) offsets.push(offset)
       const pages = await mapConcurrent(offsets, concurrency, async (offset) => {
         const req = workdayListRequest(cfg, search, offset)
         const body = await fetchJson<WorkdayList>(ctx, req.url, req.init, `Workday ${cfg.tenant}/${cfg.site} list (offset ${offset})`)
-        return Array.isArray(body.jobPostings) ? body.jobPostings : []
+        if (!Array.isArray(body.jobPostings)) throw new Error('Workday page missing jobPostings')
+        return body.jobPostings
       })
       let taken = 0
-      for (const p of [page0.jobPostings, ...pages.results].flat()) {
+      if (pages.failures.length) ctx.reportIncomplete?.('Workday listing pages failed')
+      for (const p of [page0.jobPostings, ...pages.results].flat().slice(0, maxPerSearch)) {
         if (!p.externalPath || !p.title || seen.has(p.externalPath)) continue
         seen.set(p.externalPath, p)
         taken += 1
@@ -117,8 +120,9 @@ export const workdayProvider: JobProvider = {
     })
     if (details.failures.length) ctx.log(`${details.failures.length} detail call(s) failed: ${details.failures.slice(0, 3).map((f) => f.error).join(' · ')}`)
     const out: RawJob[] = []
+    if (details.failures.length) ctx.reportIncomplete?.('Workday detail pages failed')
     for (const { posting, info } of details.results) {
-      if (!info.jobDescription) continue
+      if (!info.jobDescription) { ctx.reportIncomplete?.('Workday detail missing description'); continue }
       const externalId = (info.jobReqId || posting.bulletFields?.[0] || info.jobPostingId || posting.externalPath || '').toString().trim()
       if (!externalId) continue
       const country = info.country?.descriptor || null

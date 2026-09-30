@@ -59,11 +59,19 @@ export default function ReferralsWorkspace({ signedIn, applications, onSignIn, o
   if (!signedIn) {
     return (
       <div className="jobs-panel">
-        <h2 className="jobs-panel-title">Referral Center</h2>
-        <p className="jobs-panel-sub">Sign in to request referrals from verified employees and follow each request from submission to a submitted referral.</p>
-        <button type="button" className="btn btn-primary mt-3" onClick={onSignIn}>
-          Sign in
-        </button>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600, background: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary))' }}>
+          🛡️ 100% Verified Employees & Technical Screening
+        </div>
+        <h2 className="jobs-panel-title">Vetted Referral Network</h2>
+        <p className="jobs-panel-sub">Sign in to connect with verified employees who review your experience, conduct an end-to-end technical screening to test your role readiness, and submit high-priority internal referrals.</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginTop: '1rem', alignItems: 'center' }}>
+          <button type="button" className="btn btn-primary" onClick={onSignIn}>
+            Sign in to check referral eligibility
+          </button>
+          <a href="/referrer" className="btn btn-ghost">
+            💼 Tech employee? Referrer Portal →
+          </a>
+        </div>
         <p className="referral-trust">{TRUST_LINE}</p>
       </div>
     )
@@ -80,9 +88,12 @@ export default function ReferralsWorkspace({ signedIn, applications, onSignIn, o
     <div className="referrals-workspace">
       <div className="referrals-head referral-hero">
         <div>
-          <h2 className="jobs-panel-title">Referral Center</h2>
-          <p className="jobs-panel-sub">A thoughtful introduction. A real employee review. Your next step, all in one place.</p>
-          <div className="referral-actions"><button type="button" className="btn btn-primary btn-sm" onClick={onBrowseJobs}>Find a job to request a referral</button><a className="btn btn-ghost btn-sm" href="/referrer">Join as a referrer</a></div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700, background: 'hsl(var(--primary) / 0.12)', color: 'hsl(var(--primary))' }}>
+            🛡️ End-to-End Vetted Endorsements
+          </div>
+          <h2 className="jobs-panel-title">Vetted Referral Network</h2>
+          <p className="jobs-panel-sub">Get endorsed by verified employees at top companies. Before referring, your matched employee conducts an end-to-end qualification screening to test your skills and ensure you enter the hiring pipeline with maximum credibility.</p>
+          <div className="referral-actions"><button type="button" className="btn btn-primary btn-sm" onClick={onBrowseJobs}>Find a job to request a referral</button><a className="btn btn-ghost btn-sm" href="/referrer">Join as a verified referrer</a></div>
         </div>
         {data && (
           <div className="referral-credit-card" aria-label="Referral credits">
@@ -104,14 +115,42 @@ export default function ReferralsWorkspace({ signedIn, applications, onSignIn, o
       )}
       {data?.networkMode === 'disabled' && <p className="job-section-sub">Referral assistance is switched off right now.</p>}
       <section className="jobs-panel">
-        <h3 className="font-semibold">How to request a referral</h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <h3 className="font-semibold" style={{ fontSize: '1.05rem', margin: 0 }}>
+            How End-to-End Vetted Referrals Work
+          </h3>
+          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'hsl(142 60% 35%)', background: 'hsl(142 60% 40% / 0.12)', padding: '0.15rem 0.55rem', borderRadius: '999px' }}>
+            ✓ Verified Quality Standards
+          </span>
+        </div>
+        <p className="jobs-panel-sub" style={{ marginBottom: '1rem' }}>
+          We maintain high interview callback rates because verified employees test candidate qualifications before endorsing them internally.
+        </p>
         <ReferralSteps steps={[
-          { title: 'Find your role', detail: 'Open a job’s Referral tab to check availability.' },
-          { title: 'Make your introduction', detail: 'Choose a resume, check readiness and give consent.' },
-          { title: 'Employee review', detail: 'Follow updates and reply to any questions here.' },
-          { title: 'Track the outcome', detail: 'After submission, add the job to your tracker.' },
+          { title: '1. Role & ATS Check', detail: 'Target an active job. Our readiness scan checks whether your resume covers the role’s technical prerequisites.' },
+          { title: '2. Matched Employee Match', detail: 'We pair your request with an active, verified engineer or manager working at your target employer.' },
+          { title: '3. Technical Qualification Test', detail: 'Your referrer reviews your work and conducts a screening Q&A to test your skills and verify you are qualified end-to-end.' },
+          { title: '4. Direct Internal Endorsement', detail: 'Once qualified, the referrer submits a verified internal referral directly to their employer’s hiring portal.' },
         ]} />
-        <p className="referral-trust">When required, a credit is reserved on submission and used on acceptance. {TRUST_LINE}</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', marginTop: '1.25rem', padding: '1rem', borderRadius: '0.75rem', background: 'hsl(var(--muted) / 0.4)', border: '1px solid hsl(var(--border) / 0.7)' }}>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'hsl(var(--foreground))' }}>
+              <span>💡</span> Why referrers test you before referring
+            </div>
+            <p style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.35rem', lineHeight: '1.5' }}>
+              Real employees stake their internal professional reputation when submitting a referral. By conducting an end-to-end qualification check first, hiring managers treat your application as pre-screened and high-priority, rather than generic portal spam.
+            </p>
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'hsl(var(--foreground))' }}>
+              <span>🛡️</span> 100% Credit & Fairness Protection
+            </div>
+            <p style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.35rem', lineHeight: '1.5' }}>
+              Credits are only consumed when a verified referrer accepts and conducts your review. If no verified employee is available for your role, or a match cannot be made, 100% of your reserved credit is returned immediately.
+            </p>
+          </div>
+        </div>
+        <p className="referral-trust" style={{ marginTop: '0.85rem' }}>{TRUST_LINE}</p>
       </section>
       <div className="referral-toolbar"><h3 className="font-semibold">Your requests</h3><button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null} onClick={load}>Refresh requests</button></div>
       <div className="job-tabs" role="tablist" aria-label="Referral requests">

@@ -9,7 +9,7 @@ import { Pill, formatDateTime } from './ui'
 
 type Status = { rows: CatalogRow[]; counts: Record<CatalogStatus, number>; total: number; seeded: number }
 
-const TONE: Record<CatalogStatus, 'good' | 'warn' | 'bad' | 'neutral' | 'info'> = { Healthy: 'good', Configured: 'info', Degraded: 'bad', Unsupported: 'neutral', 'Not configured': 'warn' }
+const TONE: Record<CatalogStatus, 'good' | 'warn' | 'bad' | 'neutral' | 'info'> = { Healthy: 'good', Configured: 'info', Degraded: 'bad', Unsupported: 'neutral', 'Not configured': 'warn', Protected: 'warn', 'Requires manual review': 'warn' }
 const RELEVANCE: Record<string, string> = { strong: 'India: strong', moderate: 'India: moderate', international: 'International' }
 
 export default function CatalogPanel({ initial, canEdit }: { initial: Status; canEdit: boolean }) {
@@ -20,7 +20,7 @@ export default function CatalogPanel({ initial, canEdit }: { initial: Status; ca
   const [filter, setFilter] = useState<CatalogStatus | 'all'>('all')
   const roleLabel = (id: string) => ROLE_CATEGORIES.find((c) => c.id === id)?.label ?? id
 
-  const act = async (action: 'seed' | 'verify' | 'ingest' | 'schedule', slugs?: string[], enabled?: boolean) => {
+  const act = async (action: 'seed' | 'discover' | 'verify' | 'ingest' | 'schedule', slugs?: string[], enabled?: boolean) => {
     setBusy(action + (slugs?.[0] ?? ''))
     setMessage(null)
     try {
@@ -29,6 +29,7 @@ export default function CatalogPanel({ initial, canEdit }: { initial: Status; ca
       if (res.seed) setMessage(`Seeded: ${res.seed.companiesCreated} companies created, ${res.seed.companiesUpdated} refreshed; ${res.seed.sourcesCreated} sources created, ${res.seed.sourcesUpdated} refreshed.`)
       else if (action === 'schedule') setMessage(`${res.scheduled} verified source(s) ${enabled === false ? 'removed from' : 'added to'} the scheduled ingestion pass.`)
       else if (action === 'verify') setMessage(`Verified ${res.results?.filter((r) => r.status === 'verified').length ?? 0} feed(s); ${res.results?.filter((r) => r.status === 'failed').length ?? 0} failed.`)
+      else if (action === 'discover') setMessage(res.results?.map((r) => `${r.slug}: ${r.status}`).join(', ') ?? 'Discovery completed')
       else setMessage(`Ingestion: ${res.results?.map((r) => `${r.slug} ${r.status} (${r.fetched} fetched, ${r.created} created, ${r.irrelevant} irrelevant${r.error ? `, ${r.error}` : ''})`).join(' · ') || 'no verified sources ran'}`)
       router.refresh()
     } catch (err) {
@@ -39,6 +40,20 @@ export default function CatalogPanel({ initial, canEdit }: { initial: Status; ca
   }
 
   const rows = status.rows.filter((r) => filter === 'all' || r.status === filter)
+  const discoverAll = async () => {
+    setBusy('discover-all')
+    try {
+      for (const row of rows.filter((r) => r.seeded)) {
+        setMessage(`Discovering ${row.name}…`)
+        try {
+          const res = await api<{ status: Status }>('/api/admin/catalog', { method: 'POST', json: { action: 'discover', slugs: [row.slug] } })
+          setStatus(res.status)
+        } catch (error) { setMessage(`${row.name}: ${error instanceof Error ? error.message : 'Discovery failed'}`) }
+      }
+      setMessage('Discovery finished. Review each company’s extraction status before running sync.')
+      router.refresh()
+    } finally { setBusy(null) }
+  }
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -50,6 +65,7 @@ export default function CatalogPanel({ initial, canEdit }: { initial: Status; ca
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => act('verify')} disabled={busy !== null || !status.seeded}>
               {busy === 'verify' ? 'Verifying…' : 'Verify feeds (read-only)'}
             </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={discoverAll} disabled={busy !== null || !status.seeded}>Discover visible sources</button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => act('ingest')} disabled={busy !== null || !status.seeded}>
               {busy === 'ingest' ? 'Running…' : 'Run verified sources'}
             </button>
@@ -62,7 +78,7 @@ export default function CatalogPanel({ initial, canEdit }: { initial: Status; ca
           </>
         )}
         <div className="flex flex-wrap gap-1 ml-auto" role="group" aria-label="Filter by status">
-          {(['all', 'Healthy', 'Configured', 'Degraded', 'Not configured', 'Unsupported'] as const).map((f) => (
+          {(['all', 'Healthy', 'Configured', 'Degraded', 'Not configured', 'Unsupported', 'Protected', 'Requires manual review'] as const).map((f) => (
             <button key={f} type="button" className="pref-chip" aria-pressed={filter === f} onClick={() => setFilter(f)}>
               {f === 'all' ? `All ${status.total}` : `${f} ${status.counts[f]}`}
             </button>
@@ -79,11 +95,12 @@ export default function CatalogPanel({ initial, canEdit }: { initial: Status; ca
           <thead>
             <tr>
               <th>Company</th>
-              <th>Status</th>
-              <th>Source</th>
+              <th>Health</th>
+              <th>Provider / extraction</th>
               <th>Verification</th>
-              <th>Last run</th>
-              <th>Live jobs</th>
+              <th>Last sync / errors</th>
+              <th>Fetched / relevant</th>
+              <th>Published / stale</th>
               <th>Role families</th>
               {canEdit && <th></th>}
             </tr>
@@ -105,11 +122,15 @@ export default function CatalogPanel({ initial, canEdit }: { initial: Status; ca
                   {!r.seeded && <div className="text-xs text-muted-foreground">not seeded</div>}
                 </td>
                 <td className="text-xs">
-                  {r.feed ? `${r.feed.provider} · ${r.feed.token}` : 'Careers portal (no public feed)'}
+                  {r.providerDetected}
+                  <div>{r.extractionStatus}</div>
+                  <div>{r.extractionSupported ? 'Extraction supported' : 'Extraction not enabled'}</div>
+                  <div>{r.integrated ? 'Integrated: successful sync' : 'No successful official integration confirmed'}</div>
                   {r.notes && <div className="text-muted-foreground">{r.notes}</div>}
                 </td>
                 <td className="text-xs">
                   {r.verificationStatus ?? '—'}
+                  {r.verificationNote && <div className="text-muted-foreground">{r.verificationNote}</div>}
                   {r.verifiedAt && <div className="text-muted-foreground">{formatDateTime(r.verifiedAt)}</div>}
                   {r.lastVerifiedJobCount != null && <div className="text-muted-foreground">{r.lastVerifiedJobCount} listing(s) at check</div>}
                 </td>
@@ -119,17 +140,18 @@ export default function CatalogPanel({ initial, canEdit }: { initial: Status; ca
                   {r.lastError && <div className="text-destructive">{r.lastError.slice(0, 120)}</div>}
                   {r.feed && r.seeded && <div className="text-muted-foreground">{r.scheduleEnabled ? 'scheduled' : 'manual runs only'}</div>}
                 </td>
-                <td>{r.liveJobs}</td>
+                <td>{r.jobsFetched ?? '—'} / {r.relevantJobs ?? '—'}<div className="text-xs">Duplicates: {r.duplicatesRemoved ?? '—'}</div></td>
+                <td>{r.liveJobs} / {r.staleJobs}</td>
                 <td className="text-xs">{r.roleFamilies.map(roleLabel).join(', ')}</td>
                 {canEdit && (
                   <td className="whitespace-nowrap">
-                    {r.feed && r.seeded && (
+                    {r.seeded && (
                       <>
-                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => act('verify', [r.slug])} disabled={busy !== null} aria-label={`Verify ${r.name}`}>
-                          Verify
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => act('discover', [r.slug])} disabled={busy !== null} aria-label={`Discover ${r.name}`}>
+                          Detect / verify
                         </button>
-                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => act('ingest', [r.slug])} disabled={busy !== null || r.verificationStatus !== 'verified'} aria-label={`Run ${r.name}`}>
-                          Run
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => act('ingest', [r.slug])} disabled={busy !== null || r.verificationStatus !== 'verified' || !r.ingestionAllowed} aria-label={`Run Sync ${r.name}`}>
+                          Run Sync
                         </button>
                       </>
                     )}

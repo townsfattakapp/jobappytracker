@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { ValidationError } from '../../../../lib/jobs/normalize'
 import { errorResponse, readJson } from '../../../../lib/server/apiErrors'
-import { catalogStatus, ingestCatalog, scheduleCatalog, seedCatalog, verifyCatalogFeeds } from '../../../../lib/server/catalog'
+import { catalogStatus, discoverCatalog, ingestCatalog, scheduleCatalog, seedCatalog, verifyCatalogFeeds } from '../../../../lib/server/catalog'
 import { isResponse, requireRole } from '../../../../lib/server/rbac'
 
 export const dynamic = 'force-dynamic'
@@ -26,6 +26,9 @@ export async function POST(req: Request) {
     const body = (await readJson(req)) as { action?: string; slugs?: unknown; enabled?: unknown }
     const slugs = Array.isArray(body?.slugs) ? body.slugs.map(String).slice(0, 100) : undefined
     switch (body?.action) {
+      case 'discover':
+        if (!slugs || slugs.length !== 1) throw new ValidationError('Discover one company per request', 'slugs')
+        return NextResponse.json({ results: await discoverCatalog(actor.userId, slugs), status: await catalogStatus() })
       case 'seed':
         return NextResponse.json({ seed: await seedCatalog(actor.userId), status: await catalogStatus() })
       case 'verify':
@@ -35,7 +38,7 @@ export async function POST(req: Request) {
       case 'schedule':
         return NextResponse.json({ scheduled: await scheduleCatalog(actor.userId, body.enabled !== false, slugs), status: await catalogStatus() })
       default:
-        throw new ValidationError('action must be seed, verify, ingest or schedule', 'action')
+        throw new ValidationError('action must be seed, discover, verify, ingest or schedule', 'action')
     }
   } catch (error) {
     return errorResponse(error, 'POST /api/admin/catalog')

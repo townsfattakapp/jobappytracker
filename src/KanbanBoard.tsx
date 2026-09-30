@@ -100,6 +100,19 @@ export default function KanbanBoard({
                       ariaLabel={`Status for ${app.company}`}
                       onChange={(status) => onStatusChange(app.id, status)}
                     />
+                    {['Offer', 'Accepted'].includes(app.status) && (
+                      <div style={{ marginTop: '0.25rem', padding: '0.55rem 0.7rem', borderRadius: '0.5rem', background: 'hsl(142 60% 40% / 0.12)', border: '1px solid hsl(142 60% 40% / 0.3)', fontSize: '0.75rem' }}>
+                        <div style={{ fontWeight: 700, color: 'hsl(142 60% 35%)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <span>🎉</span> Offer at {app.company}!
+                        </div>
+                        <p style={{ margin: '0.2rem 0 0.45rem', color: 'hsl(var(--muted-foreground))', lineHeight: 1.35 }}>
+                          Help future candidates and unlock your employer’s internal referral bonus.
+                        </p>
+                        <a href={`/referrer?company=${encodeURIComponent(app.company)}`} className="btn btn-primary btn-sm" style={{ width: '100%', textAlign: 'center', display: 'block', fontSize: '0.75rem', padding: '0.2rem 0.4rem' }}>
+                          Join Referrer Network
+                        </a>
+                      </div>
+                    )}
                     <div className="flex flex-wrap items-center gap-1">
                       <button
                         type="button"

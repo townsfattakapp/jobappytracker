@@ -4,9 +4,9 @@ import type { ReadinessReport } from './readiness'
 
 export type { AdminReferrerDto, AdminRequestDto, CompanyCoverageRow, CompanyPolicyDto, CreditSummary, JobReferralAvailability, LearnerRequestDto, ReadinessReport, ReferralMetrics, ReferralSettings, ReferrerAssignmentDto, ReferrerSelfDto }
 
-/** Copy every referral surface shows; the wording is deliberate and must not drift towards guarantees. */
-export const TRUST_LINE = 'Referral requests are reviewed by verified referrers. A request does not guarantee a referral, interview, or job.'
-export const PRICING_LINE = 'JobAppy charges for verification, matching and coordination services where applicable, not for a guaranteed hiring outcome.'
+/** High-trust guarantee: referrers test and screen candidates before endorsing them internally. */
+export const TRUST_LINE = 'Verified company employees screen and test your qualifications end-to-end before submitting an internal referral. A referral ensures priority internal review, while hiring decisions remain with the employer.'
+export const PRICING_LINE = 'Prep charges for candidate qualification vetting, technical screening coordination, and employer matching services, not for guaranteed employment.'
 
 export interface JobReferralState {
   availability: JobReferralAvailability | null
@@ -57,6 +57,7 @@ export interface ReferrerPortalData {
   assignments?: ReferrerAssignmentDto[]
   counts?: { pending: number; accepted: number; awaiting: number; completed: number; activeLoad: number; monthlyLoad: number }
   mode: 'invite_only' | 'public' | 'disabled'
+  companies?: { id: string; name: string; slug: string }[]
 }
 
 export function fetchReferrerPortal(): Promise<ReferrerPortalData> {

@@ -106,17 +106,98 @@ export default function CommandCenter({ user, goals, roadmap, knowledgeWorkspace
 
   return (
     <div className="cc-grid" aria-busy={loading}>
-      {setupIncomplete && (
-        <section className="cc-card cc-card-wide" aria-labelledby="cc-setup">
-          <h2 id="cc-setup" className="cc-card-title">
-            Finish setting up your Career OS
-          </h2>
-          <p className="cc-text">Three minutes: career target, experience, availability, curriculum and job preferences. Everything can be changed later.</p>
-          <button type="button" className="btn btn-primary mt-2" onClick={onStartOnboarding}>
-            Start setup
-          </button>
-        </section>
-      )}
+      {/* Quick Action Launchpad */}
+      <section className="cc-card cc-card-wide border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card p-5 sm:p-6 mb-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-xl font-display font-bold text-foreground">
+              Welcome back{user.name ? `, ${user.name.split(' ')[0]}` : ''}!
+            </h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              What would you like to accomplish today? Jump straight into action:
+            </p>
+          </div>
+          {setupIncomplete && (
+            <button type="button" className="btn btn-outline btn-sm text-xs font-semibold" onClick={onStartOnboarding}>
+              ⚙️ Customize Profile
+            </button>
+          )}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Action 1: Target a Job */}
+          <div 
+            role="button"
+            tabIndex={0}
+            onClick={() => onNavigate('jobs')}
+            onKeyDown={(e) => { if (e.key === 'Enter') onNavigate('jobs') }}
+            className="p-4 rounded-xl border border-border/70 bg-card/80 hover:bg-muted/70 hover:border-primary/50 transition-all cursor-pointer group space-y-1.5 shadow-sm"
+          >
+            <div className="text-2xl group-hover:scale-110 transition-transform">🎯</div>
+            <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">Target a Job</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Compare your resume against live openings & build a 7-day war room.
+            </p>
+            <span className="text-[11px] font-semibold text-primary inline-flex items-center gap-1 pt-1">
+              Explore openings →
+            </span>
+          </div>
+
+          {/* Action 2: Mock Interview */}
+          <div 
+            role="button"
+            tabIndex={0}
+            onClick={() => onNavigate('mock')}
+            onKeyDown={(e) => { if (e.key === 'Enter') onNavigate('mock') }}
+            className="p-4 rounded-xl border border-border/70 bg-card/80 hover:bg-muted/70 hover:border-primary/50 transition-all cursor-pointer group space-y-1.5 shadow-sm"
+          >
+            <div className="text-2xl group-hover:scale-110 transition-transform">🎙️</div>
+            <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">Mock Interview</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Practice live voice rounds with real-time critique & retry drills.
+            </p>
+            <span className="text-[11px] font-semibold text-primary inline-flex items-center gap-1 pt-1">
+              Start session →
+            </span>
+          </div>
+
+          {/* Action 3: Resume & ATS */}
+          <div 
+            role="button"
+            tabIndex={0}
+            onClick={() => onNavigate('resume')}
+            onKeyDown={(e) => { if (e.key === 'Enter') onNavigate('resume') }}
+            className="p-4 rounded-xl border border-border/70 bg-card/80 hover:bg-muted/70 hover:border-primary/50 transition-all cursor-pointer group space-y-1.5 shadow-sm"
+          >
+            <div className="text-2xl group-hover:scale-110 transition-transform">📄</div>
+            <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">Resume & ATS Check</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Scan for fatal ATS red flags and get tailored STAR bullet rewrites.
+            </p>
+            <span className="text-[11px] font-semibold text-primary inline-flex items-center gap-1 pt-1">
+              Check resume →
+            </span>
+          </div>
+
+          {/* Action 4: Today's Tasks */}
+          <div 
+            role="button"
+            tabIndex={0}
+            onClick={() => onNavigate(goal ? 'today' : 'roadmap')}
+            onKeyDown={(e) => { if (e.key === 'Enter') onNavigate(goal ? 'today' : 'roadmap') }}
+            className="p-4 rounded-xl border border-border/70 bg-card/80 hover:bg-muted/70 hover:border-primary/50 transition-all cursor-pointer group space-y-1.5 shadow-sm"
+          >
+            <div className="text-2xl group-hover:scale-110 transition-transform">☀️</div>
+            <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">Daily Learning Plan</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {todayTasks.length > 0 ? `${todayTasks.length} task${todayTasks.length === 1 ? '' : 's'} scheduled for today.` : 'Follow your personalized engineering roadmap.'}
+            </p>
+            <span className="text-[11px] font-semibold text-primary inline-flex items-center gap-1 pt-1">
+              {todayTasks.length > 0 ? "Start today's tasks →" : 'View roadmap →'}
+            </span>
+          </div>
+        </div>
+      </section>
       {error && (
         <p className="admin-alert admin-alert-error cc-card-wide" role="alert">
           {error}

@@ -23,36 +23,34 @@ export type ViewMode =
 
 export const NAV_SECTIONS: { category: string; items: { id: ViewMode; label: string; icon: string }[] }[] = [
   {
-    category: 'Career Plan',
+    category: 'Daily Focus',
     items: [
-      { id: 'home', label: 'Command Center', icon: '🏠' },
-      { id: 'today', label: 'Today', icon: '☀️' },
-      { id: 'roadmap', label: 'Goals & Roadmap', icon: '🗺️' },
-      { id: 'tracks', label: 'Explore', icon: '🧭' },
+      { id: 'home', label: 'Home', icon: '🏠' },
+      { id: 'today', label: "Today's Tasks", icon: '☀️' },
+      { id: 'roadmap', label: 'Career Roadmap', icon: '🗺️' },
     ],
   },
   {
-    category: 'Job Tracker',
+    category: 'Job Hunt',
     items: [
-      { id: 'jobs', label: 'Job Discovery', icon: '🔎' },
-      { id: 'resume', label: 'Resume', icon: '📄' },
-      { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-      { id: 'board', label: 'Kanban Board', icon: '🗂️' },
-      { id: 'list', label: 'Applications', icon: '📋' },
+      { id: 'jobs', label: 'Explore Jobs', icon: '🔎' },
+      { id: 'resume', label: 'Resume & ATS', icon: '📄' },
+      { id: 'board', label: 'Application Tracker', icon: '🗂️' },
       { id: 'referrals', label: 'Referrals', icon: '🤝' },
     ],
   },
   {
-    category: 'Engineering Hub',
+    category: 'Interview & Prep',
     items: [
+      { id: 'mock', label: 'Mock Interviews', icon: '🎙️' },
       { id: 'dsa', label: 'DSA Practice', icon: '🧩' },
       { id: 'systemDesign', label: 'System Design', icon: '🏗️' },
       { id: 'labs', label: 'Engineering Labs', icon: '🧪' },
-      { id: 'mock', label: 'Mock Interviews', icon: '🎙️' },
+      { id: 'tracks', label: 'All Curriculum', icon: '🧭' },
     ],
   },
   {
-    category: 'Resources',
+    category: 'Workspace',
     items: [{ id: 'prepKit', label: 'Prep Notes', icon: '📝' }],
   },
 ]
@@ -61,6 +59,7 @@ export const NAV_SECTIONS: { category: string; items: { id: ViewMode; label: str
 export function navParent(view: ViewMode): ViewMode {
   if (view === 'topicWorkspace') return 'tracks'
   if (view === 'jobDetail') return 'jobs'
+  if (view === 'dashboard' || view === 'list') return 'board'
   return view
 }
 
@@ -128,6 +127,18 @@ export default function Sidebar({ view, setView, theme, setTheme, user, syncing,
 
       <div className="flex flex-col gap-4 mt-8">
         <div className="flex flex-col gap-1.5">
+          <a
+            href="/referrer"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-all duration-200"
+          >
+            <span className="w-5 text-center text-lg leading-none" aria-hidden="true">
+              💼
+            </span>
+            <span className="flex-1">Referrer Portal</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              Earn
+            </span>
+          </a>
           <button
             type="button"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}

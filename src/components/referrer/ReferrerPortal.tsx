@@ -106,24 +106,28 @@ export default function ReferrerPortal({ email, inviteToken }: { email: string; 
       )}
 
       {data && !data.referrer && (
-        <section className="surface referrer-card">
-          {inviteToken ? (
-            <>
-              <h2 className="font-semibold text-lg">Accept your invitation</h2>
-              <p className="job-section-sub">This creates your referrer profile for the company selected in your JobAppy invitation. Use the personal email that received this invitation. Confirming it proves mailbox ownership; an admin separately reviews your employment. No work email is required.</p>
-              <button type="button" className="btn btn-primary mt-3" disabled={busy !== null} onClick={() => run('accept', async () => { await referrerSelfAction({ action: 'accept_invite', token: inviteToken }); window.history.replaceState(null, '', '/referrer'); setNotice('Invitation accepted. Complete your profile below.'); load() })}>
-                {busy === 'accept' ? 'Accepting…' : 'Accept invitation'}
-              </button>
-            </>
-          ) : (
-            <>
-              <h2 className="font-semibold text-lg">Invite-only beta</h2>
-              <p className="job-section-sub">{data.mode === 'public' ? 'Referrer applications will open here soon.' : 'The verified referrer network is invite-only for now. If you received an invitation email, open its link; otherwise write to hello@evolw.in.'}</p>
-              <a className="btn btn-primary btn-sm" href="mailto:hello@evolw.in?subject=Join%20the%20JobAppy%20referrer%20network&body=Hi%20JobAppy%2C%0A%0AI%20would%20like%20to%20join%20as%20a%20referrer.%0ACompany%3A%20%0ARole%3A%20%0APersonal%20email%3A%20">Request an invitation</a>
-            </>
-          )}
-          <p className="referral-trust">{TRUST_LINE}</p>
-        </section>
+        inviteToken ? (
+          <section className="surface referrer-card">
+            <h2 className="font-semibold text-lg">Accept your invitation</h2>
+            <p className="job-section-sub">This creates your referrer profile for the company selected in your JobAppy invitation. Use the personal email that received this invitation. Confirming it proves mailbox ownership; an admin separately reviews your employment. No work email is required.</p>
+            <button type="button" className="btn btn-primary mt-3" disabled={busy !== null} onClick={() => run('accept', async () => { await referrerSelfAction({ action: 'accept_invite', token: inviteToken }); window.history.replaceState(null, '', '/referrer'); setNotice('Invitation accepted. Complete your profile below.'); load() })}>
+              {busy === 'accept' ? 'Accepting…' : 'Accept invitation'}
+            </button>
+            <p className="referral-trust">{TRUST_LINE}</p>
+          </section>
+        ) : (
+          <ReferrerApplicationForm
+            companies={data.companies ?? []}
+            busy={busy}
+            onSubmit={(body) =>
+              run('apply', async () => {
+                await referrerSelfAction({ action: 'apply', ...body })
+                setNotice('Application submitted! Your referrer profile is created. Next: confirm your personal email below, then start using your LinkedIn Referral Filter Kit.')
+                load()
+              })
+            }
+          />
+        )
       )}
 
       {data?.referrer && !data.referrer.onboardingCompletedAt && <Onboarding referrer={data.referrer} busy={busy} onSave={(body) => run('onboarding', async () => { await referrerSelfAction({ action: 'onboarding', ...body }); setNotice('Profile saved. Next: confirm your personal email, then wait for admin employment review.'); load() })} />}
@@ -281,8 +285,10 @@ function Dashboard({ data, busy, onAvailability, openId, setOpenId }: { data: Re
   const counts = data.counts!
   const [caps, setCaps] = useState({ maxActiveRequests: r.maxActiveRequests, maxMonthlyRequests: r.maxMonthlyRequests })
   const [filter, setFilter] = useState('active')
+  const [copyStatus, setCopyStatus] = useState('')
   const assignments = (data.assignments ?? []).filter((a) => filter === 'all' || (filter === 'active' ? ['PENDING', 'CLARIFICATION', 'ACCEPTED'].includes(a.status) : a.status === filter))
   const statusLabel: Record<string, string> = { PENDING: 'Awaiting your review', CLARIFICATION: 'Waiting for the candidate', ACCEPTED: 'Accepted · submit and mark done', SUBMITTED: 'Referral submitted', DECLINED: 'Declined', EXPIRED: 'Timed out', CANCELLED: 'Cancelled' }
+  const screeningUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/app?view=jobs&company=${encodeURIComponent(r.companyName)}&ref=${r.publicId}`
   return (
     <>
       <section className="referrer-stats" aria-label="Dashboard">
@@ -323,6 +329,90 @@ function Dashboard({ data, busy, onAvailability, openId, setOpenId }: { data: Re
           )}
         </div>
       </section>
+
+      {/* LinkedIn Inbound Filter Kit */}
+      <section className="surface referrer-card" style={{ border: '1px solid hsl(var(--primary) / 0.3)', background: 'linear-gradient(135deg, hsl(var(--primary) / 0.06), hsl(var(--card)) 70%)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.15rem 0.55rem', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 700, background: 'hsl(var(--primary) / 0.12)', color: 'hsl(var(--primary))' }}>
+              ⚡ LinkedIn Referral Inbound Filter Kit
+            </div>
+            <h3 className="font-semibold text-lg" style={{ marginTop: '0.3rem' }}>
+              Turn Cold LinkedIn DMs into Pre-Vetted Referrals
+            </h3>
+            <p className="job-section-sub">
+              Stop sifting through 50+ messy PDFs in your DMs. Put your personal vetting link in your LinkedIn bio or use our 1-click auto-reply so candidates are pre-screened with ATS & technical checks before reaching you.
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+          <input
+            className="input-field"
+            style={{ flex: '1 1 320px', fontSize: '0.82rem' }}
+            readOnly
+            value={screeningUrl}
+            aria-label="Your personal screening link"
+          />
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() => {
+              navigator.clipboard.writeText(screeningUrl)
+              setCopyStatus('Screening link copied!')
+              setTimeout(() => setCopyStatus(''), 2500)
+            }}
+          >
+            {copyStatus === 'Screening link copied!' ? '✓ Copied' : 'Copy Screening Link'}
+          </button>
+          {copyStatus && <span style={{ fontSize: '0.75rem', color: 'hsl(142 60% 35%)', fontWeight: 600 }}>{copyStatus}</span>}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.75rem', marginTop: '0.9rem' }}>
+          <div style={{ padding: '0.75rem', borderRadius: '0.5rem', background: 'hsl(var(--muted) / 0.5)', border: '1px solid hsl(var(--border) / 0.6)' }}>
+            <div style={{ fontWeight: 600, fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>💼 LinkedIn Bio Line</span>
+              <button
+                type="button"
+                className="btn btn-link btn-sm"
+                style={{ padding: 0 }}
+                onClick={() => {
+                  navigator.clipboard.writeText(`${r.title || 'Engineer'} @ ${r.companyName} | Open to refer qualified candidates: ${screeningUrl}`)
+                  setCopyStatus('Bio line copied!')
+                  setTimeout(() => setCopyStatus(''), 2500)
+                }}
+              >
+                Copy
+              </button>
+            </div>
+            <p style={{ fontSize: '0.74rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.35rem', lineHeight: 1.4 }}>
+              "{r.title || 'Engineer'} @ {r.companyName} | Open to refer qualified candidates: [Your Link]"
+            </p>
+          </div>
+
+          <div style={{ padding: '0.75rem', borderRadius: '0.5rem', background: 'hsl(var(--muted) / 0.5)', border: '1px solid hsl(var(--border) / 0.6)' }}>
+            <div style={{ fontWeight: 600, fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>💬 LinkedIn DM Auto-Reply</span>
+              <button
+                type="button"
+                className="btn btn-link btn-sm"
+                style={{ padding: 0 }}
+                onClick={() => {
+                  navigator.clipboard.writeText(`Hi! I'm happy to refer candidates who meet our team's bar. To ensure high callback rates, I only review pre-screened profiles. Please check your role readiness and submit here: ${screeningUrl} — once you pass the ATS check, I'll review and submit your internal endorsement!`)
+                  setCopyStatus('DM reply copied!')
+                  setTimeout(() => setCopyStatus(''), 2500)
+                }}
+              >
+                Copy
+              </button>
+            </div>
+            <p style={{ fontSize: '0.74rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.35rem', lineHeight: 1.4 }}>
+              "Hi! I'm happy to refer candidates who meet our team's bar. Please check your readiness and submit here: [Link]..."
+            </p>
+          </div>
+        </div>
+      </section>
+
       <details className="admin-details">
         <summary>Capacity settings</summary>
         <form
@@ -560,6 +650,266 @@ function AssignmentReview({ assignment: a, referrer, busy, onAction, onClose }: 
           </button>
         </details>
       )}
+    </section>
+  )
+}
+
+function ReferrerApplicationForm({
+  companies,
+  busy,
+  onSubmit,
+}: {
+  companies: { id: string; name: string; slug: string }[]
+  busy: string | null
+  onSubmit: (body: Record<string, unknown>) => void
+}) {
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('')
+  const [customCompanyName, setCustomCompanyName] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [title, setTitle] = useState('')
+  const [roleFamilies, setRoleFamilies] = useState<string[]>(['software-engineer', 'backend'])
+  const [experienceBand, setExperienceBand] = useState('mid')
+  const [location, setLocation] = useState('Bengaluru, India')
+  const [profileUrl, setProfileUrl] = useState('')
+  const [policyAcknowledged, setPolicyAcknowledged] = useState(true)
+  const [privacyConsent, setPrivacyConsent] = useState(true)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search)
+      const compParam = sp.get('company')
+      if (compParam) {
+        const found = companies.find(
+          (c) => c.name.toLowerCase() === compParam.toLowerCase() || c.slug === compParam.toLowerCase()
+        )
+        if (found) setSelectedCompanyId(found.id)
+        else setCustomCompanyName(compParam)
+      }
+    }
+  }, [companies])
+
+  const toggleRoleFamily = (id: string) => {
+    setRoleFamilies((prev) =>
+      prev.includes(id) ? (prev.length > 1 ? prev.filter((x) => x !== id) : prev) : [...prev, id]
+    )
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSubmit({
+      companyId: selectedCompanyId || undefined,
+      companyName: !selectedCompanyId && customCompanyName ? customCompanyName : undefined,
+      fullName,
+      title,
+      roleFamilies,
+      experienceBand,
+      location,
+      profileUrl: profileUrl.trim() || undefined,
+      policyAcknowledged,
+      privacyConsent,
+    })
+  }
+
+  return (
+    <section className="surface referrer-card">
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700, background: 'hsl(var(--primary) / 0.12)', color: 'hsl(var(--primary))' }}>
+        🛡️ Verified Employee Application
+      </div>
+      <h2 className="font-semibold text-xl" style={{ marginTop: '0.25rem' }}>Join the Verified Referrer Network</h2>
+      <p className="job-section-sub">
+        Help ambitious candidates land roles through employee referrals, pre-screen candidates with automated ATS tests, and claim your internal company referral bonus without drowning in LinkedIn DMs.
+      </p>
+
+      {/* 3 Pillar Value Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', margin: '0.75rem 0 1.25rem' }}>
+        <div style={{ padding: '0.75rem', borderRadius: '0.6rem', background: 'hsl(var(--muted) / 0.4)', border: '1px solid hsl(var(--border) / 0.6)' }}>
+          <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>💰 Company Bonuses</div>
+          <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.25rem' }}>
+            Earn ₹50,000 to ₹3,00,000+ per engineering hire directly through your employer’s portal.
+          </p>
+        </div>
+        <div style={{ padding: '0.75rem', borderRadius: '0.6rem', background: 'hsl(var(--muted) / 0.4)', border: '1px solid hsl(var(--border) / 0.6)' }}>
+          <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>🎯 Zero Resume Spam</div>
+          <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.25rem' }}>
+            Only candidates who pass ATS role-matching and technical readiness checks reach your review.
+          </p>
+        </div>
+        <div style={{ padding: '0.75rem', borderRadius: '0.6rem', background: 'hsl(var(--muted) / 0.4)', border: '1px solid hsl(var(--border) / 0.6)' }}>
+          <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>🔒 100% Privacy Protected</div>
+          <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.25rem' }}>
+            No corporate email needed. Sign in with personal email; your identity stays anonymous.
+          </p>
+        </div>
+      </div>
+
+      <form className="referrer-form" onSubmit={handleSubmit} style={{ display: 'grid', gap: '0.9rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '0.8rem' }}>
+          <label className="admin-field">
+            <span>Your Company</span>
+            <select
+              className="input-field"
+              value={selectedCompanyId}
+              onChange={(e) => {
+                setSelectedCompanyId(e.target.value)
+                if (e.target.value) setCustomCompanyName('')
+              }}
+            >
+              <option value="">— Select your employer or enter below —</option>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {!selectedCompanyId && (
+            <label className="admin-field">
+              <span>Or type company name</span>
+              <input
+                className="input-field"
+                value={customCompanyName}
+                onChange={(e) => setCustomCompanyName(e.target.value)}
+                placeholder="e.g. Google, Swiggy, Microsoft"
+                required={!selectedCompanyId}
+              />
+            </label>
+          )}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.8rem' }}>
+          <label className="admin-field">
+            <span>Your Full Name</span>
+            <input
+              className="input-field"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="e.g. Priyanshu Sharma"
+              required
+            />
+          </label>
+
+          <label className="admin-field">
+            <span>Current Job Title / Role</span>
+            <input
+              className="input-field"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Senior Software Engineer / SDE-2"
+              required
+            />
+          </label>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.8rem' }}>
+          <label className="admin-field">
+            <span>Experience Level</span>
+            <select
+              className="input-field"
+              value={experienceBand}
+              onChange={(e) => setExperienceBand(e.target.value)}
+            >
+              <option value="junior">Junior (0 – 2 years)</option>
+              <option value="mid">Mid-level (2 – 5 years)</option>
+              <option value="senior">Senior (5 – 8 years)</option>
+              <option value="lead">Staff / Lead / Principal (8+ years)</option>
+            </select>
+          </label>
+
+          <label className="admin-field">
+            <span>Location / Base Office</span>
+            <input
+              className="input-field"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="e.g. Bengaluru, India or Remote"
+              required
+            />
+          </label>
+        </div>
+
+        <label className="admin-field">
+          <span>LinkedIn Profile URL (for rapid employment verification)</span>
+          <input
+            className="input-field"
+            type="url"
+            value={profileUrl}
+            onChange={(e) => setProfileUrl(e.target.value)}
+            placeholder="https://www.linkedin.com/in/your-profile"
+            required
+          />
+          <span style={{ fontSize: '0.72rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.2rem' }}>
+            Kept confidential. Our verification team reviews your public profile to confirm company affiliation without needing your corporate email.
+          </span>
+        </label>
+
+        <div>
+          <span className="font-semibold text-sm" style={{ display: 'block', marginBottom: '0.4rem' }}>
+            Role categories you can refer
+          </span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            {ROLE_FAMILY_OPTIONS.map((opt) => {
+              const active = roleFamilies.includes(opt.id)
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => toggleRoleFamily(opt.id)}
+                  style={{
+                    padding: '0.25rem 0.65rem',
+                    borderRadius: '999px',
+                    fontSize: '0.78rem',
+                    border: '1px solid',
+                    borderColor: active ? 'hsl(var(--primary))' : 'hsl(var(--border))',
+                    background: active ? 'hsl(var(--primary) / 0.15)' : 'hsl(var(--card))',
+                    color: active ? 'hsl(var(--primary))' : 'hsl(var(--foreground))',
+                    cursor: 'pointer',
+                    fontWeight: active ? 600 : 400,
+                  }}
+                >
+                  {active ? '✓ ' : '+ '}
+                  {opt.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.4rem' }}>
+          <label className="admin-check" style={{ fontSize: '0.78rem' }}>
+            <input
+              type="checkbox"
+              checked={policyAcknowledged}
+              onChange={(e) => setPolicyAcknowledged(e.target.checked)}
+              required
+            />
+            <span>
+              I will submit qualified candidate referrals directly through my employer's official internal portal according to company referral policy.
+            </span>
+          </label>
+          <label className="admin-check" style={{ fontSize: '0.78rem' }}>
+            <input
+              type="checkbox"
+              checked={privacyConsent}
+              onChange={(e) => setPrivacyConsent(e.target.checked)}
+              required
+            />
+            <span>
+              I understand my identity and email stay private. Candidates only see "Verified Employee @ Company" unless I choose to disclose.
+            </span>
+          </label>
+        </div>
+
+        <div className="referral-actions" style={{ marginTop: '0.5rem' }}>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={busy !== null || (!selectedCompanyId && !customCompanyName) || !fullName.trim() || !title.trim()}
+          >
+            {busy === 'apply' ? 'Submitting…' : 'Submit Referrer Application'}
+          </button>
+        </div>
+      </form>
     </section>
   )
 }

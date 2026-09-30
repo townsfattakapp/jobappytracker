@@ -76,14 +76,14 @@ export interface ReferralSettings {
   requireCredits: boolean
 }
 
-export const DEFAULT_REFERRAL_SETTINGS: ReferralSettings = { mode: 'invite_only', maxAttempts: 3, assignmentTtlHours: 72, requestTtlDays: 30, allowUnknownPolicy: false, requireCredits: true }
+export const DEFAULT_REFERRAL_SETTINGS: ReferralSettings = { mode: 'public', maxAttempts: 3, assignmentTtlHours: 72, requestTtlDays: 30, allowUnknownPolicy: false, requireCredits: true }
 export const REFERRAL_SETTINGS_KEY = 'referral'
 
 export function normalizeReferralSettings(value: unknown): ReferralSettings {
   const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>
   const int = (x: unknown, fallback: number, min: number, max: number) => (typeof x === 'number' && Number.isFinite(x) ? Math.min(max, Math.max(min, Math.floor(x))) : fallback)
   return {
-    mode: v.mode === 'public' || v.mode === 'disabled' ? v.mode : 'invite_only',
+    mode: v.mode === 'invite_only' || v.mode === 'disabled' ? v.mode : 'public',
     maxAttempts: int(v.maxAttempts, DEFAULT_REFERRAL_SETTINGS.maxAttempts, 1, 10),
     assignmentTtlHours: int(v.assignmentTtlHours, DEFAULT_REFERRAL_SETTINGS.assignmentTtlHours, 1, 24 * 14),
     requestTtlDays: int(v.requestTtlDays, DEFAULT_REFERRAL_SETTINGS.requestTtlDays, 1, 180),
@@ -833,6 +833,101 @@ export async function acceptInvite(deps: ReferralDeps, input: { token: string; u
   })
   await d.audit({ actorId: input.userId, action: 'referrer.invite.accept', entityType: 'referrer', entityId: accepted.id, after: { inviteId: accepted.inviteId } })
   return referrerSelfDto(d, (await d.db.select().from(schema.referrerProfiles).where(eq(schema.referrerProfiles.id, accepted.id)))[0])
+}
+
+export interface ReferrerApplicationInput {
+  userId: string
+  email: string
+  companyId?: string
+  companyName?: string
+  fullName: string
+  title: string
+  roleFamilies: string[]
+  department?: string
+  location: string
+  supportedLocations?: string[]
+  profileUrl?: string
+  experienceBand?: string
+  policyAcknowledged: boolean
+  privacyConsent: boolean
+}
+
+/** Direct inbound application by an employee to join as a verified referrer without waiting for a manual email invite. */
+export async function applyAsReferrer(deps: ReferralDeps, input: ReferrerApplicationInput): Promise<ReferrerSelfDto> {
+  const d = withDefaults(deps)
+  const now = d.now()
+  const fullName = clean(input.fullName, 120)
+  if (fullName.length < 2) throw new ValidationError('Enter your full name', 'fullName')
+  const title = clean(input.title, 120)
+  if (!title) throw new ValidationError('Enter your current job title or role', 'title')
+
+  let targetCompanyId = input.companyId
+  if (!targetCompanyId && input.companyName) {
+    const slug = input.companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    const existingCompany = (await d.db.select().from(schema.companies).where(eq(schema.companies.slug, slug)).limit(1))[0]
+    if (existingCompany) {
+      targetCompanyId = existingCompany.id
+    } else {
+      const newId = randomUUID()
+      await d.db.insert(schema.companies).values({ id: newId, name: input.companyName.trim(), slug, website: `https://${slug}.com` })
+      targetCompanyId = newId
+    }
+  }
+  if (!targetCompanyId) throw new ValidationError('Select or enter your company', 'companyId')
+
+  const company = (await d.db.select().from(schema.companies).where(eq(schema.companies.id, targetCompanyId)).limit(1))[0]
+  if (!company) throw new ValidationError('Company not found', 'companyId')
+
+  // Check if existing profile for this user
+  const existing = (await d.db.select().from(schema.referrerProfiles).where(eq(schema.referrerProfiles.userId, input.userId)).limit(1))[0]
+  if (existing && !existing.deletedAt) {
+    return referrerSelfDto(d, existing)
+  }
+
+  const roleFamilies = Array.from(new Set((input.roleFamilies ?? []).map((f) => String(f).trim().toLowerCase()).filter((f) => /^[a-z-]{2,40}$/.test(f)))).slice(0, 10)
+  if (!roleFamilies.length) throw new ValidationError('Select at least one role category you can refer', 'roleFamilies')
+
+  const location = clean(input.location, 120) || 'India / Remote'
+  const supportedLocations = Array.from(new Set((input.supportedLocations ?? [location]).map((l) => clean(l, 60)).filter(Boolean))).slice(0, 12)
+  if (!input.policyAcknowledged) throw new ValidationError('Please acknowledge company referral policy guidelines', 'policyAcknowledged')
+  if (!input.privacyConsent) throw new ValidationError('Please accept the privacy terms to continue', 'privacyConsent')
+
+  const profileUrl = input.profileUrl ? clean(input.profileUrl, 200) : null
+  if (profileUrl && !/^https:\/\/[^\s]+$/.test(profileUrl)) throw new ValidationError('Profile link must start with https://', 'profileUrl')
+
+  const band = ['junior', 'mid', 'senior', 'lead'].includes(String(input.experienceBand)) ? String(input.experienceBand) : 'mid'
+  const id = randomUUID()
+
+  await d.db.insert(schema.referrerProfiles).values({
+    id,
+    userId: input.userId,
+    publicId: newPublicId(),
+    companyId: targetCompanyId,
+    fullName,
+    contactEmail: input.email,
+    title,
+    roleFamilies,
+    department: input.department ? clean(input.department, 80) : null,
+    location,
+    supportedLocations: supportedLocations.length ? supportedLocations : [location],
+    profileUrl,
+    profileUrlShareable: Boolean(profileUrl),
+    experienceBand: band,
+    availability: 'paused',
+    verificationStatus: 'PENDING',
+    invitedBy: 'direct_application',
+    policyAcknowledgedAt: now,
+    privacyConsentAt: now,
+    onboardingCompletedAt: now,
+    createdAt: now,
+    updatedAt: now,
+  })
+
+  await d.db.insert(schema.userRoles).values({ userId: input.userId, role: 'referrer', grantedBy: 'direct_application' }).onConflictDoNothing()
+  await d.audit({ actorId: input.userId, action: 'referrer.apply', entityType: 'referrer', entityId: id, after: { companyId: targetCompanyId, title } })
+
+  const created = (await d.db.select().from(schema.referrerProfiles).where(eq(schema.referrerProfiles.id, id)).limit(1))[0]
+  return referrerSelfDto(d, created)
 }
 
 export interface OnboardingInput {

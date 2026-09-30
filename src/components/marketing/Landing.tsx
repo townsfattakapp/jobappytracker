@@ -145,8 +145,8 @@ const FAQ = [
     a: 'Directly from each company’s own careers feed, refreshed daily, with the original application link. Nothing is copied from job boards and no opening is invented: if a company stops listing a role, it disappears here too. The counts on this page are read live from the database.',
   },
   {
-    q: 'Why do I need my own OpenAI or Groq key?',
-    a: 'Because it keeps a 90-day pass at ₹299 and puts you in control. Groq has a free tier that covers normal daily use; OpenAI usage for a heavy week is usually a few rupees. Your key is encrypted at rest and only ever sent to the provider you chose.',
+    q: 'Do I need my own API keys to use AI features?',
+    a: 'No! Turnkey AI access is included out of the box on every pass for mock interviews, resume analysis, and tutoring with zero setup. If you are an advanced user with your own Groq, Gemini, or OpenAI keys, you can also connect them in Settings.',
   },
   {
     q: 'Which disciplines and tracks are covered in the curriculum?',
@@ -377,6 +377,7 @@ export default function Landing() {
             <a href="#product">Product</a>
             <a href="#how">How it works</a>
             <a href="#pricing">Pricing</a>
+            <a href="/referrer" style={{ color: 'hsl(var(--primary))', fontWeight: 600 }}>Referrer Portal 💼</a>
             <a href="#trust">Trust</a>
             <a href="#faq">FAQ</a>
           </nav>
@@ -721,15 +722,15 @@ export default function Landing() {
         <section className="lp-section">
           <div className="lp-container lp-byok" data-reveal>
             <div className="lp-byok-copy">
-              <p className="lp-eyebrow">Your key, your spend</p>
-              <h2>AI that runs on your own account.</h2>
+              <p className="lp-eyebrow">Zero Setup · Total Control</p>
+              <h2>Turnkey AI included. Optional BYOK.</h2>
               <p>
-                Add an OpenAI or Groq API key once in Settings. Every lesson, example, quiz, diagram and tutor reply runs on it, so there are no shared limits and no surprise bills from us. Groq’s free tier covers normal daily use.
+                Every lesson, worked example, mock interview, and ATS analysis runs out of the box with zero configuration. Advanced developers can also connect their own Groq, Gemini, or OpenAI keys in Settings for custom models.
               </p>
               <ul className="lp-checks">
-                <li>Encrypted at rest with AES-256, never shown in full again</li>
-                <li>Sent only to the provider you chose, only for your requests</li>
-                <li>Remove it in one click; the app keeps working without AI</li>
+                <li>Instant AI access included on every pass — no credit cards or console setups</li>
+                <li>Encrypted at rest with AES-256 when you connect your own custom provider</li>
+                <li>Optional BYOK gives power users unlimited runs with their preferred models</li>
               </ul>
             </div>
             <div className="lp-byok-card">
@@ -873,6 +874,7 @@ export default function Landing() {
             <a href="/refund">Refund Policy</a>
             <a href="/contact">Contact</a>
             <a href="/data-deletion">Data Controls</a>
+            <a href="/referrer">Referrer Network</a>
             <a href="/app?mode=signin">Sign in</a>
           </nav>
           <p className="lp-footer-credit">

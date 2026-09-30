@@ -18,20 +18,23 @@ export default async function ReferrerPage({ searchParams }: { searchParams: Pro
       <main className="referrer-shell">
         <div className="referrer-portal"><div className="surface referrer-card referral-hero">
           <a href="/?home=1" aria-label="Prep home"><BrandLogo size={32} /></a>
-          <h1 className="font-display text-2xl font-bold">Referrer portal</h1>
-          <p className="text-sm text-muted-foreground">Help candidates by reviewing referral requests for your company. You choose which requests to accept and set your own availability. Your name and personal email stay private unless you choose to share your identity.</p>
-          <p className="text-sm text-muted-foreground">Create an account or sign in using the personal email that received your invitation. No work email is required. Then accept your invitation, complete your profile, confirm your personal email and wait for our team to verify your employment.</p>
+          <h1 className="font-display text-2xl font-bold">Referrer Portal: Verified Endorsement Network</h1>
+          <p className="text-sm text-muted-foreground">Help top candidates land roles through verified employee referrals and end-to-end qualification screening. As a verified employee, you maintain referral quality by testing candidate qualifications before submitting internal endorsements. You choose which requests to screen and set your own availability. Your name and personal email stay private unless you choose to share your identity.</p>
+          <p className="text-sm text-muted-foreground">Create an account or sign in using your personal email. No work email is required. Once signed in, you can apply directly to become a verified referrer in 60 seconds, or accept an invitation token.</p>
           <ReferralSteps steps={[
-            { title: 'Join with personal email', detail: 'Use the address that received your invitation.' },
-            { title: 'Get verified', detail: 'Confirm your email and complete an employment review.' },
-            { title: 'Help on your terms', detail: 'Choose requests and submit through your employer.' },
+            { title: '1. Join with personal email', detail: 'Sign up securely while our team confirms your employer affiliation.' },
+            { title: '2. Screen & test candidates', detail: 'Review pre-screened candidates and test domain qualifications.' },
+            { title: '3. Internal endorsement', detail: 'Submit qualified candidates to your employer’s internal portal and claim your referral bonus.' },
           ]} />
-          <div className="referral-actions"><a href={`/app?mode=signin&next=${encodeURIComponent(next)}`} className="btn btn-primary">
-            Sign in
-          </a>
-          <a href={`/app?mode=signup&next=${encodeURIComponent(next)}`} className="btn btn-ghost">Create account</a></div>
-          {!token && <a href="mailto:hello@evolw.in?subject=Join%20the%20JobAppy%20referrer%20network" className="btn btn-link">Request an invitation</a>}
-          <p className="referral-trust">JobAppy is independent of your employer. A request never guarantees a referral, interview or job.</p>
+          <div className="referral-actions">
+            <a href={`/app?mode=signup&next=${encodeURIComponent(next)}`} className="btn btn-primary">
+              Apply as a Referrer
+            </a>
+            <a href={`/app?mode=signin&next=${encodeURIComponent(next)}`} className="btn btn-ghost">
+              Sign in
+            </a>
+          </div>
+          <p className="referral-trust">JobAppy upholds strict candidate qualification standards. Internal endorsements are submitted by verified employees in accordance with their employer’s referral policies.</p>
         </div></div>
       </main>
     )

@@ -31,8 +31,8 @@ const FAQ_ITEMS = [
     a: 'Directly from each company’s own careers feed, refreshed daily, with the original application link. Nothing is copied from job boards and no opening is invented: if a company stops listing a role, it disappears here too. The counts on this page are read live from the database.',
   },
   {
-    q: 'Why do I need my own OpenAI or Groq key?',
-    a: 'Because it keeps a 90-day pass at ₹299 and puts you in control. Groq has a free tier that covers normal daily use; OpenAI usage for a heavy week is usually a few rupees. Your key is encrypted at rest and only ever sent to the provider you chose.',
+    q: 'Do I need my own API keys to use AI features?',
+    a: 'No! Turnkey AI access is included out of the box on every pass for mock interviews, resume analysis, and tutoring with zero setup. If you are an advanced user with your own Groq, Gemini, or OpenAI keys, you can also connect them in Settings.',
   },
   {
     q: 'Which disciplines and tracks are covered in the curriculum?',

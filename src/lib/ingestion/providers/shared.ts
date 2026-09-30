@@ -24,6 +24,7 @@ export async function fetchJson<T>(ctx: FetchContext, url: string, init: Request
     try {
       res = await ctx.fetch(url, { ...init, headers: { ...BROWSER_HEADERS, ...(init.headers as Record<string, string> | undefined) } })
     } catch (error) {
+      if (error instanceof Error && ('status' in error && error.status === 'PROTECTED' || /AbortError|TimeoutError/.test(error.name))) throw error
       // A timed-out or reset connection (Node's undici occasionally drops one under load) is retried once before giving up.
       if (attempt >= 2) throw error
       ctx.log(`${label} failed (${error instanceof Error ? error.name : 'error'}); retrying once`)

@@ -93,14 +93,17 @@ export const oracleCloudProvider: JobProvider = {
       const first = page0.items?.[0]
       if (!first || !Array.isArray(first.requisitionList)) throw new Error(`Oracle ${cfg.site} list response had no requisitionList`)
       const total = Math.min(Number(first.TotalJobsCount) || first.requisitionList.length, maxPerSearch)
+      if (Number(first.TotalJobsCount) > maxPerSearch) ctx.reportIncomplete?.(`Oracle search capped at ${maxPerSearch}`)
       const offsets: number[] = []
       for (let offset = PAGE; offset < total; offset += PAGE) offsets.push(offset)
       const pages = await mapConcurrent(offsets, concurrency, async (offset) => {
         const body = await fetchJson<OracleList>(ctx, oracleListUrl(cfg, search, offset), {}, `Oracle ${cfg.site} list "${search.label}" (offset ${offset})`)
-        return body.items?.[0]?.requisitionList ?? []
+        if (!Array.isArray(body.items?.[0]?.requisitionList)) throw new Error('Oracle page missing requisitionList')
+        return body.items[0].requisitionList
       })
       let taken = 0
-      for (const r of [first.requisitionList, ...pages.results].flat()) {
+      if (pages.failures.length) ctx.reportIncomplete?.('Oracle listing pages failed')
+      for (const r of [first.requisitionList, ...pages.results].flat().slice(0, maxPerSearch)) {
         const id = r?.Id === undefined || r.Id === null ? '' : String(r.Id).trim()
         if (!id || !r.Title || seen.has(id)) continue
         seen.set(id, r)
@@ -115,9 +118,10 @@ export const oracleCloudProvider: JobProvider = {
     })
     if (details.failures.length) ctx.log(`${details.failures.length} detail call(s) failed: ${details.failures.slice(0, 3).map((f) => f.error).join(' · ')}`)
     const out: RawJob[] = []
+    if (details.failures.length) ctx.reportIncomplete?.('Oracle detail pages failed')
     for (const { id, listing, detail } of details.results) {
       const html = [detail.ExternalDescriptionStr?.trim() || '', section('Responsibilities', detail.ExternalResponsibilitiesStr), section('Qualifications', detail.ExternalQualificationsStr), section('About the company', detail.CorporateDescriptionStr)].filter(Boolean).join('\n')
-      if (!html) continue
+      if (!html) { ctx.reportIncomplete?.('Oracle detail missing description'); continue }
       const countryCode = (detail.PrimaryLocationCountry || listing.PrimaryLocationCountry || '').toUpperCase()
       const country = ISO2_COUNTRY[countryCode]
       const secondary = (detail.secondaryLocations || listing.secondaryLocations || []).map((l) => l.Name || '').filter(Boolean)

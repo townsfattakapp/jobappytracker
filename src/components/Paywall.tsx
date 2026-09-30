@@ -77,7 +77,7 @@ export default function Paywall({ billing, email, onPurchased, onSignOut, onCont
           ))}
         </ul>
         <p className="mt-5 text-[11px] text-muted-foreground">
-          Payments are processed by Razorpay; card details never touch our servers. AI features use your own OpenAI or Groq key, stored encrypted in your account.
+          Payments are processed securely via Razorpay. Turnkey AI access is included out of the box with zero setup required (optional BYOK supported for custom models).
         </p>
         {onContinueFree && (
           <button type="button" onClick={onContinueFree} className="mt-4 w-full btn btn-ghost">

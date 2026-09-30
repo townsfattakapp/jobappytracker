@@ -18,6 +18,10 @@ interface AuthPanelProps {
   initialMode?: 'signin' | 'signup'
   /** Called when user toggles between signin and signup. */
   onModeChange?: (mode: 'signin' | 'signup') => void
+  /** Initial role (candidate or referrer). */
+  initialRole?: 'candidate' | 'referrer'
+  /** Called when user toggles between candidate and referrer role. */
+  onRoleChange?: (role: 'candidate' | 'referrer') => void
 }
 
 const LAST_EMAIL_KEY = 'jobappy-last-email'
@@ -143,6 +147,8 @@ export default function AuthPanel({
   onOpenChange,
   initialMode,
   onModeChange,
+  initialRole,
+  onRoleChange,
 }: AuthPanelProps) {
   const [internalOpen, setInternalOpen] = useState(false)
   const isOpen = open ?? internalOpen
@@ -167,6 +173,52 @@ export default function AuthPanel({
     setError(null)
     setUnverified(false)
     onModeChange?.(next)
+  }
+
+  const [portalRole, setPortalRole] = useState<'candidate' | 'referrer'>(() => {
+    if (initialRole) return initialRole
+    if (typeof window !== 'undefined') {
+      const search = window.location.search
+      let stored: string | null = null
+      try {
+        stored = sessionStorage.getItem('prep-next')
+      } catch {}
+      if (
+        search.includes('next=%2Freferrer') ||
+        search.includes('next=/referrer') ||
+        search.includes('role=referrer') ||
+        search.includes('portal=referrer') ||
+        stored?.includes('/referrer')
+      ) {
+        return 'referrer'
+      }
+    }
+    return 'candidate'
+  })
+
+  useEffect(() => {
+    if (initialRole && initialRole !== portalRole) {
+      setPortalRole(initialRole)
+    }
+  }, [initialRole])
+
+  const isReferrer = portalRole === 'referrer'
+
+  const handleRoleChange = (nextRole: 'candidate' | 'referrer') => {
+    setPortalRole(nextRole)
+    setError(null)
+    setUnverified(false)
+    try {
+      if (nextRole === 'referrer') {
+        sessionStorage.setItem('prep-next', '/referrer')
+      } else {
+        const stored = sessionStorage.getItem('prep-next')
+        if (stored?.includes('/referrer')) {
+          sessionStorage.removeItem('prep-next')
+        }
+      }
+    } catch {}
+    onRoleChange?.(nextRole)
   }
 
   const [email, setEmail] = useState(() => readLastEmail())
@@ -226,6 +278,11 @@ export default function AuthPanel({
     }
     setBusy(true)
     try {
+      if (isReferrer) {
+        try {
+          sessionStorage.setItem('prep-next', '/referrer')
+        } catch {}
+      }
       if (mode === 'signup') {
         const result = await signUp(cleanEmail, password, name.trim() || undefined)
         rememberEmail(cleanEmail)
@@ -238,7 +295,7 @@ export default function AuthPanel({
         onSignedIn(result.user)
         setOpen(false)
         setPassword('')
-        onToast('Account created — syncing…')
+        onToast(isReferrer ? 'Referrer account created — opening portal…' : 'Account created — syncing…')
         return
       }
       const next = await signIn(cleanEmail, password)
@@ -246,7 +303,7 @@ export default function AuthPanel({
       onSignedIn(next)
       setOpen(false)
       setPassword('')
-      onToast('Signed in — syncing…')
+      onToast(isReferrer ? 'Signed in as Referrer — opening portal…' : 'Signed in — syncing…')
     } catch (err) {
       if (err instanceof EmailNotVerifiedError) {
         setUnverified(true)
@@ -275,6 +332,11 @@ export default function AuthPanel({
     setError(null)
     setGoogleBusy(true)
     try {
+      if (isReferrer) {
+        try {
+          sessionStorage.setItem('prep-next', '/referrer')
+        } catch {}
+      }
       await signInWithGoogle()
     } catch {
       setGoogleBusy(false)
@@ -336,6 +398,61 @@ export default function AuthPanel({
 
   const formContent = inboxContent ?? (
     <div className="w-full flex flex-col items-stretch">
+      {/* Role Switcher: Candidate / Seeker vs Tech Referrer */}
+      <div
+        className="w-full grid grid-cols-2 p-1 rounded-2xl bg-muted/60 border border-border/60 mb-4"
+        role="tablist"
+        aria-label="Account type"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={!isReferrer}
+          className={`w-full py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-150 flex items-center justify-center gap-1.5 ${
+            !isReferrer
+              ? 'bg-card text-foreground shadow-sm border border-border/60 font-bold'
+              : 'text-muted-foreground hover:text-foreground font-medium'
+          }`}
+          onClick={() => handleRoleChange('candidate')}
+        >
+          <span aria-hidden="true">🎓</span>
+          <span>Job Seeker</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={isReferrer}
+          className={`w-full py-2 px-3 rounded-xl transition-all duration-150 flex items-center justify-center gap-1.5 ${
+            isReferrer
+              ? 'bg-card text-primary shadow-sm border border-primary/40 font-bold'
+              : 'text-muted-foreground hover:text-foreground font-medium'
+          }`}
+          onClick={() => handleRoleChange('referrer')}
+        >
+          <span aria-hidden="true">💼</span>
+          <span>Tech Referrer</span>
+          <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-primary/15 text-primary ml-1">
+            Portal
+          </span>
+        </button>
+      </div>
+
+      {isReferrer && (
+        <div className="mb-4 p-3 rounded-xl bg-primary/10 border border-primary/20 text-xs text-muted-foreground flex flex-col gap-1.5 animate-fade">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-foreground flex items-center gap-1.5">
+              <span>🔒</span> 100% Confidential Personal Email
+            </span>
+            <a href="/referrer" className="text-primary hover:underline font-semibold text-[11px] inline-flex items-center gap-0.5">
+              Portal Details ↗
+            </a>
+          </div>
+          <p className="text-[11px] leading-relaxed">
+            Use your personal email (no work email required). Your identity remains anonymous to learners until you choose to refer them at your company.
+          </p>
+        </div>
+      )}
+
       {/* Segmented Mode Selector - 100% full width end-to-end */}
       <div
         className="w-full grid grid-cols-2 p-1 rounded-2xl bg-muted/50 border border-border/50 mb-5"
@@ -421,7 +538,7 @@ export default function AuthPanel({
 
         <div className="w-full">
           <label htmlFor="auth-email" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-            Email address
+            Email
           </label>
           <div className="relative w-full">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted-foreground">
@@ -431,6 +548,7 @@ export default function AuthPanel({
               id="auth-email"
               type="email"
               required
+              aria-label="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
@@ -460,6 +578,7 @@ export default function AuthPanel({
               id="auth-password"
               type={showPassword ? 'text' : 'password'}
               required
+              aria-label="Password"
               minLength={MIN_PASSWORD_LENGTH}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -518,13 +637,42 @@ export default function AuthPanel({
                 <span>Please wait…</span>
               </>
             ) : mode === 'signin' ? (
-              <span>Sign in to Prep →</span>
+              <span>{isReferrer ? 'Sign in as Referrer →' : 'Sign in to Prep →'}</span>
+            ) : isReferrer ? (
+              <span>Join as Verified Referrer →</span>
             ) : (
               <span>Create account →</span>
             )}
           </button>
         </div>
       </form>
+      )}
+
+      {!isReferrer && (
+        <div className="mt-4 p-3 rounded-xl bg-muted/40 border border-border/50 flex items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="text-base">💼</span>
+            <span className="text-muted-foreground">Are you a tech employee?</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleRoleChange('referrer')}
+            className="text-primary font-semibold hover:underline text-xs shrink-0"
+          >
+            Referrer Sign In & Portal →
+          </button>
+        </div>
+      )}
+
+      {isReferrer && (
+        <div className="mt-4 p-3 rounded-xl bg-card border border-border/60 text-center text-xs space-y-1">
+          <p className="text-muted-foreground">
+            Want to screen candidates and earn referral payouts at your company?
+          </p>
+          <a href="/referrer" className="text-primary font-semibold hover:underline block">
+            Learn more or apply to join as a verified referrer →
+          </a>
+        </div>
       )}
 
       <p className="mt-4 text-center text-xs text-muted-foreground leading-relaxed">
@@ -573,14 +721,32 @@ export default function AuthPanel({
               </button>
 
               <div className="mb-6 text-center pr-6">
-                <h2 id="auth-modal-title" className="font-display text-2xl font-bold text-foreground tracking-tight">
-                  {mode === 'signin' ? 'Welcome back' : 'Create an account'}
-                </h2>
-                <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground">
-                  {mode === 'signin'
-                    ? 'Sign in to sync your goals, notes, and attempts.'
-                    : 'Start your preparation journey with full cloud sync.'}
-                </p>
+                {isReferrer ? (
+                  <>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.2rem 0.65rem', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 700, background: 'hsl(var(--primary) / 0.12)', color: 'hsl(var(--primary))', marginBottom: '0.5rem' }}>
+                      🛡️ Verified Referrer Network
+                    </div>
+                    <h2 id="auth-modal-title" className="font-display text-2xl font-bold text-foreground tracking-tight">
+                      {mode === 'signin' ? 'Referrer Sign In' : 'Join as a Verified Referrer'}
+                    </h2>
+                    <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground">
+                      {mode === 'signin'
+                        ? 'Sign in to access your inbound candidate queue and interview screenings.'
+                        : 'Create your account with your personal email. Your identity stays anonymous.'}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h2 id="auth-modal-title" className="font-display text-2xl font-bold text-foreground tracking-tight">
+                      {mode === 'signin' ? 'Welcome back' : 'Create an account'}
+                    </h2>
+                    <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground">
+                      {mode === 'signin'
+                        ? 'Sign in to sync your goals, notes, and attempts.'
+                        : 'Start your preparation journey with full cloud sync.'}
+                    </p>
+                  </>
+                )}
               </div>
 
               {formContent}

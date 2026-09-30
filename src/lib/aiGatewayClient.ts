@@ -17,7 +17,7 @@ export interface AiStatus {
   reason: string | null
 }
 
-export const AI_SETUP_HINT = 'Add your OpenAI or Groq API key in Settings to enable AI features.'
+export const AI_SETUP_HINT = 'AI features are available with an active pass. You can also configure a custom API key in Settings.'
 export const AI_STATUS_EVENT = 'jobappy:ai-status'
 export const BILLING_REQUIRED_EVENT = 'jobappy:billing-required'
 
